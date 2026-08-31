@@ -2,6 +2,84 @@
 
 ---
 
+## [4.18.0] - 2026-08-31
+
+### DOS SISTEMAS: el cuaderno de clase, y Cognia fabricandose herramientas
+
+#### 1. `/grabar-clase` — el cuaderno virtual
+
+Graba la jornada entera capturando el audio que SUENA en el equipo, la
+transcribe en caliente, detecta los cambios de asignatura y arma un cuaderno
+por materias con apuntes, imagenes y clips de audio.
+
+EL RIESGO SE MIDIO ANTES DE DISENAR NADA. Una clase virtual (Meet, Zoom,
+Teams) entra por los altavoces, no por el microfono, asi que hace falta
+loopback:
+
+    sounddevice 0.5.5 -> WasapiSettings(exclusive, auto_convert,
+                         explicit_sample_format): NO trae 'loopback'.
+    soundcard         -> grabo el tono de prueba con pico=0.50127. FUNCIONA.
+
+De ahi el extra `cognia-ai[clases]` y un `disponible()` que dice POR QUE no
+puede grabar en vez de fallar mudo.
+
+LA PRUEBA QUE IMPORTA. Se fabrico una jornada de **28,3 min** con el TTS del
+propio producto (4 materias, recreos de 300 s) y **fronteras conocidas**, se
+troceo igual que la deja el Grabador y se paso el sistema entero:
+
+  - **Transcripcion** (faster-whisper de verdad): 57 trozos, 11.946 chars,
+    149 s de pared = **11,4x tiempo real**. Una jornada de 6 h se transcribe
+    en ~32 min, y en caliente va sobrada.
+  - **Deteccion, primera medida: 1/4 fronteras.** La prueba cazo dos defectos
+    de diseno reales:
+      1. Las marcas de PAUSA partian el silencio en dos, y la senial mas
+         fuerte que existe -- 4 minutos y medio sin que nadie hable -- se
+         quedaba bajo el umbral.
+      2. `DURACION_MINIMA` (600 s) vetaba el corte aunque hubiera 270 s de
+         silencio. Un heuristico no puede vetar una senial inequivoca.
+  - **Deteccion, despues: 4/4 fronteras** (errores de 0, 8, 4 y 21 s, CERO
+    cortes falsos) y, con el modelo, **4/4 nombres de materia** en 12 s.
+
+Nueve modulos: `almacen` (JSONL append-only con fsync + JSON atomico + audio
+en trozos, porque una jornada son 6 h y el portatil se suspende), `cuaderno`
+(el giro de TIEMPO a MATERIA), `captura`, `transcripcion` (filtro de silencio
+por energia ANTES del modelo: Whisper alucina sobre 30 s de silencio),
+`materias`, `apuntes` (sin modelo NO devuelve vacio: da apuntes extractivos y
+lo dice), `olvido` (lo del usuario y los apuntes JAMAS se borran; la
+transcripcion se compacta solo si YA hay apuntes), `vista` y `jornada`.
+
+#### 2. `/compilar` — Cognia se fabrica sus propias herramientas
+
+De una frase a un comando del CLI que funciona, o a nada.
+
+`receta.py` es lo que el duenio pidio: el proceso de dar de alta un comando,
+metido DENTRO del producto y en forma EJECUTABLE -- los 5 sitios obligatorios,
+las trampas que costaron una suite roja, y consultas EN VIVO sobre el repo
+(catalogo por ast, ocupacion de categorias, cubos, colision de nombres por
+prefijo REAL). `injertador.py` es el musculo y es TRANSACCIONAL: copia,
+inserta, valida sintaxis, corre los 4 guardianes, y si algo falla hace
+rollback completo. Solo INSERTA en anclas conocidas; nunca reescribe.
+
+PRUEBA REAL con el modelo local: `/compilar "una herramienta que me diga
+cuanto ocupa cada carpeta"` -> `/du` dado de alta y APROBADO por las 5 fases:
+sintaxis, los 4 guardianes, pytest, **invocacion en el REPL REAL** y **3/3
+criterios**. Y por el camino honesto: el codigo del MODELO suspendio, se
+retiro, se reintento con la plantilla deterministica y esa paso -- diciendolo
+("dada de alta y verificada, pero con la PLANTILLA: sus ramas de trabajo estan
+sin implementar"). El injerto es reversible: `/du` se retiro despues y el
+catalogo volvio a 285 comandos.
+
+Verificado ademas que injertar un comando y retirarlo deja los tres ficheros
+del CLI con el **mismo sha256**.
+
+#### 3. `/flujoteca` y `/memorias` abren el HTML de una
+
+`/flujoteca` a secas solo pintaba una tabla de texto: el editor visual llevaba
+semanas escondido tras un subcomando. Ahora abre. Y `/memorias` no abria por
+la clave de config `memorias_abrir_navegador`, que gobierna las dos.
+
+---
+
 ## [4.17.0] - 2026-08-30
 
 ### Tareas LARGAS: el techo era la ventana, y el razonador no paraba

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognia-ai"
-version = "4.17.0"
+version = "4.18.0"
 description = "Local cognitive AI that runs offline on a small model, with episodic memory, self-improving prompts, and an AI-native image/scene creator"
 readme = "README.md"
 license = { text = "MIT" }
@@ -62,6 +62,16 @@ dependencies = [
 #   pip install cognia-ai[all]        -> everything
 [project.optional-dependencies]
 semantic = ["sentence-transformers>=2.2.0"]
+# /grabar-clase: capturar el audio que SUENA en el equipo (una clase virtual
+# entra por los altavoces, no por el microfono). Es un EXTRA y no dependencia
+# dura porque quien solo quiere el CLI no tiene por que arrastrar cffi ni
+# tocar el audio de su maquina; sin el, /grabar-clase dice exactamente que le
+# falta y como instalarlo, nunca falla mudo.
+# MEDIDO 2026-08-31 en Windows 11: sounddevice 0.5.5 NO trae loopback en su
+# build de PortAudio (WasapiSettings sin el parametro); soundcard capturo el
+# tono de prueba con pico=0.50127. Por eso soundcard y no sounddevice.
+#   pip install "cognia-ai[clases]"
+clases   = ["soundcard>=0.4.2", "faster-whisper>=1.0.0"]
 pdf      = ["pdfplumber>=0.10.0"]
 # Inferencia local pip-nativa (sin cazar el binario llama-server): trae llama.cpp
 # via el binding de Python. Alternativa al llama-server.exe / al path numpy-shards.

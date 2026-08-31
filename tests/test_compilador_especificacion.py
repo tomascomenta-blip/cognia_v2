@@ -132,6 +132,38 @@ def test_el_plural_de_desambiguacion_es_una_palabra_de_verdad():
     assert espec.cmd == "/historiales"
 
 
+def test_un_nombre_largo_no_se_queda_sin_candidatos():
+    """`_sanear_nombre` corta a TOPE_NOMBRE por la DERECHA, asi que con una
+    base larga el corte se comia el SUFIJO y los 17 candidatos colapsaban en
+    UNO: `_candidatos('resumen-de-carpetas', ...)` devolvia una sola cosa y
+    `elegir_nombre` contestaba 'ningun nombre quedo libre' con 17 nombres
+    libres delante. Pasa con cualquier nombre largo propuesto por el modelo,
+    que es de donde salen los nombres compuestos."""
+    cands = esp._candidatos("resumen-de-carpetas", "resumen de carpetas grandes")
+    assert len(cands) >= 10, cands
+    assert len(set(cands)) == len(cands), "candidatos repetidos"
+    for n in cands:
+        assert len(n) <= esp.TOPE_NOMBRE, n
+        ok, _ = rec.validar_nombre("/" + n)
+        assert ok, n
+    cmd, avisos = esp.elegir_nombre(
+        "resumen-de-carpetas", "",
+        validador=_validador_con_ocupados("/resumen-de-carpetas"))
+    assert cmd and cmd != "/resumen-de-carpetas"
+    assert any("desambiguado" in a for a in avisos)
+
+
+def test_ningun_candidato_lleva_la_palabra_que_lo_manda_a_la_categoria_llena():
+    """El nombre tambien lo lee `ayuda.clasificar`. '/traspaso' y
+    '/tareas-viejas' no son 'paso' ni 'tareas', pero se autoclasifican en la
+    categoria llena igual: la regla tiene que ser por SUBCADENA y no una lista
+    de palabras enteras."""
+    ayuda = pytest.importorskip("cognia.harness.ayuda")
+    for base in ("traspaso", "tareas-viejas", "plan", "paso"):
+        for n in esp._candidatos(base, "el traspaso de las tareas del plan"):
+            assert ayuda.clasificar("/" + n, "") != "Agente y tareas", n
+
+
 def test_si_no_queda_ningun_nombre_libre_la_espec_se_marca_invalida():
     """Nunca se devuelve una espec con un nombre usado: si no queda ninguno,
     el aviso lo dice y validar() la rechaza (que es lo que impide injertarla)."""
@@ -179,6 +211,20 @@ def test_sin_categorias_libres_la_espec_no_pasa_validar():
     assert espec.categoria == ""
     problemas = esp.validar(espec, categorias_libres=[])
     assert any("categoria" in p for p in problemas)
+
+
+def test_validar_caza_una_categoria_sin_hueco_aunque_no_quede_NINGUNA():
+    """El test de arriba pasaba por el motivo equivocado: la espec sale con la
+    categoria VACIA, o sea que salta el aviso de 'categoria vacia' y el
+    chequeo del HUECO no llega a correr nunca. Con una categoria PUESTA y la
+    lista de libres vacia, `validar()` devolvia [] -- una fase no ejecutada
+    contando como aprobada, y justo la que evita el desborde de categoria que
+    pone roja la suite entera."""
+    espec = esp.desde_texto(TEXTOS[0])
+    assert espec.categoria == "Codigo y ficheros"
+    problemas = esp.validar(espec, categorias_libres=[])
+    assert any("no tiene hueco" in p for p in problemas), problemas
+    assert esp.validar(espec, categorias_libres=["Codigo y ficheros"]) == []
 
 
 # ── La trampa de las palabras prohibidas ─────────────────────────────────────
@@ -244,11 +290,68 @@ def test_el_nombre_del_comando_tampoco_lleva_palabra_prohibida(texto):
                  "plan", "planes", "paso", "pasos")], espec.cmd
 
 
-def test_cae_en_trampa_mira_solo_la_primera_frase():
-    """El clasificador mira la CABEZA. Lo que va detras del 'Uso:' no decide
-    categoria, y prohibirlo alli seria inventarse una regla que no existe."""
-    assert esp.cae_en_trampa("Mide carpetas. Uso: /x [tarea | estado]") == ""
-    assert esp.cae_en_trampa("Mide la tarea. Uso: /x [ver]") == "tarea"
+def test_cae_en_trampa_mira_LO_MISMO_QUE_EL_CLASIFICADOR():
+    """Este test decia lo contrario y estaba MAL, con el clasificador real de
+    testigo: `ayuda.clasificar` hace `normalizar(descripcion) + " " + nombre`
+    y busca la clave por subcadena en TODO eso, o sea que lo que va detras del
+    'Uso:' -- y el propio nombre del comando -- si decide categoria.
+
+        clasificar("/x", "Mide carpetas. Uso: /x [tarea | estado]")
+            -> 'Agente y tareas'   (25/25)
+
+    Mirar solo la cabeza dejaba pasar especs que `validar()` daba por buenas y
+    que ponian roja la suite igual. Se comprueba contra el clasificador de
+    verdad y no contra mi idea de el.
+    """
+    ayuda = pytest.importorskip("cognia.harness.ayuda")
+    sucias = ["Mide carpetas. Uso: /x [tarea | estado]",
+              "Mide carpetas. Y lista la tarea de cada una. Uso: /x [ver]",
+              "Mide la tarea. Uso: /x [ver]"]
+    for d in sucias:
+        assert esp.cae_en_trampa(d), d
+        assert ayuda.clasificar("/x", d) == "Agente y tareas", d
+    limpia = "Mide carpetas. Uso: /x [ver | estado]"
+    assert esp.cae_en_trampa(limpia) == ""
+    assert ayuda.clasificar("/x", limpia) != "Agente y tareas"
+
+
+def test_la_trampa_fuera_de_la_primera_frase_tambien_se_caza():
+    """Regresion del fallo medido (2026-08-31): un pedido normal del duenio
+    con un punto en medio metia la palabra prohibida en la SEGUNDA frase; la
+    espec salia con `validar() == []` y el clasificador real la mandaba a la
+    categoria llena."""
+    ayuda = pytest.importorskip("cognia.harness.ayuda")
+    espec = esp.desde_texto("hazme una herramienta que mida las carpetas del "
+                            "escritorio. y que liste la tarea de cada una")
+    assert esp.cae_en_trampa(espec.descripcion, espec.cmd) == ""
+    assert esp.validar(espec) == []
+    cat = ayuda.clasificar(espec.cmd, espec.descripcion)
+    assert cat != "Agente y tareas", espec.descripcion
+
+
+def test_un_nombre_del_modelo_con_la_palabra_dentro_no_se_usa():
+    """La lista de palabras ENTERAS dejaba pasar '/tareas-viejas': no es
+    'tareas', pero el clasificador lo lee por subcadena y se lo lleva a la
+    categoria llena igual."""
+    ayuda = pytest.importorskip("cognia.harness.ayuda")
+    orch = OrchFalso("nombre: tareas-viejas\nfrase: revisa lo pendiente")
+    espec = esp.desde_texto("hazme algo que mire mis notas de ayer", orch=orch)
+    assert "tarea" not in espec.cmd
+    assert esp.validar(espec) == []
+    assert ayuda.clasificar(espec.cmd, espec.descripcion) != "Agente y tareas"
+    assert any("se ignora" in a for a in espec.avisos)
+
+
+def test_la_palabra_prohibida_dentro_de_otra_no_deja_la_espec_invalida():
+    """'traspaso' lleva 'paso' dentro: el sinonimo no lo arregla y el nombre
+    tampoco se salva. Antes salia una espec que `validar()` rechazaba y sin
+    ninguna salida; ahora se cae al nombre generico, que es feo pero VALIDO, y
+    se avisa."""
+    ayuda = pytest.importorskip("cognia.harness.ayuda")
+    espec = esp.desde_texto("quiero ver el traspaso de pasos de ayer")
+    assert esp.validar(espec) == [], espec.descripcion
+    assert esp.cae_en_trampa(espec.descripcion, espec.cmd) == ""
+    assert ayuda.clasificar(espec.cmd, espec.descripcion) != "Agente y tareas"
 
 
 # ── Criterios: sin postcondicion no hay herramienta ──────────────────────────
@@ -279,6 +382,20 @@ def test_validar_caza_un_criterio_vacio_o_de_otro_comando():
     problemas = esp.validar(espec)
     assert any("no el comando" in p for p in problemas)
     assert any("sin 'espera'" in p for p in problemas)
+
+
+def test_validar_caza_un_criterio_de_otro_comando_con_el_mismo_prefijo():
+    """`invoc.startswith(cmd)` daba por bueno '/carpetas-otro ver' como
+    criterio de '/carpetas'. Es OTRO comando: el evaluador lo teclearia en el
+    REPL y estaria midiendo otra cosa, y el criterio contaria igual. En un
+    modulo que existe por la colision de PREFIJOS, comparar por prefijo era el
+    error de siempre."""
+    espec = esp.desde_texto(TEXTOS[0])
+    espec.criterios = [{"invocacion": espec.cmd + "-otro ver", "espera": "x"}]
+    assert any("no el comando" in p for p in esp.validar(espec))
+    espec.criterios = [{"invocacion": espec.cmd, "espera": "x"},
+                       {"invocacion": espec.cmd + " estado", "espera": "estado"}]
+    assert not [p for p in esp.validar(espec) if "no el comando" in p]
 
 
 @pytest.mark.parametrize("texto", TEXTOS)
@@ -426,6 +543,42 @@ def test_que_hace_no_puede_cerrar_el_docstring_del_handler():
     assert espec.que_hace.strip()
 
 
+def test_una_ruta_de_windows_no_deja_cli_sin_compilar():
+    r"""Regresion del fallo MAS caro que habia aqui. El injertador escribe la
+    descripcion tal cual dentro de `    "/cmd":  "<descripcion>",` y `que_hace`
+    dentro del docstring del handler. Un pedido normalisimo para una
+    herramienta de carpetas --
+
+        hazme algo que mida la carpeta C:\Users\nuevo del escritorio
+
+    -- metia la barra invertida en las dos, y `C:\Users` es un `\U`: cli.py
+    deja de compilar y con el se va el REPL entero. `validar()` decia que la
+    espec estaba perfecta. Se comprueba con ast, que es como lo leen los
+    guardianes."""
+    import ast
+    espec = esp.desde_texto(
+        "hazme algo que mida la carpeta C:\\Users\\nuevo del escritorio")
+    assert esp.validar(espec) == []
+    assert "\\" not in espec.descripcion
+    assert "\\" not in espec.que_hace
+
+    linea = '    "%s":  "%s",' % (espec.cmd, espec.descripcion)
+    ast.parse("_CMD_DESCRIPTIONS = {\n%s\n}" % linea)      # como el catalogo
+    ast.parse('def _slash_%s(arg: str = ""):\n    """%s"""\n'
+              % (espec.nombre, espec.que_hace))            # como el handler
+
+
+def test_validar_caza_la_ruta_de_windows_en_una_espec_de_fuera():
+    """La espec viaja por fichero y por prompt: la puede escribir otro. El
+    chequeo no puede vivir solo en `desde_texto`."""
+    espec = esp.desde_texto(TEXTOS[0])
+    espec.descripcion = "Mide C:\\Users. Uso: %s [ver | estado]" % espec.cmd
+    assert any("barra invertida" in p for p in esp.validar(espec))
+    espec = esp.desde_texto(TEXTOS[0])
+    espec.que_hace = "Mide C:\\Users\\nuevo."
+    assert any("barra invertida" in p for p in esp.validar(espec))
+
+
 def test_validar_rechaza_lo_que_no_es_una_espec():
     assert esp.validar({"cmd": "/x"}) == ["no es una Espec: 'dict'"]
 
@@ -450,12 +603,37 @@ def test_la_espec_encaja_con_lo_que_pide_el_injertador():
                   "pasa_ai"):
         assert campo in firma, "injertar() ya no acepta %r" % campo
 
+    # Lo que habia aqui era una TAUTOLOGIA: el test se construia el handler
+    # a partir de `espec.nombre` y luego comprobaba que casaba con un regex
+    # hecho con `espec.nombre`. Pasaba con cualquier cosa y el codigo bajo
+    # prueba no llegaba a correr. Lo que si examina algo es meter los campos
+    # de la espec en las PLANTILLAS REALES de los 5 sitios (receta.SITIOS) y
+    # comprobar que lo que sale es Python que compila: eso es literalmente
+    # lo que el injertador va a escribir dentro de cli.py.
+    import ast
+    import textwrap
     espec = esp.desde_texto(TEXTOS[0])
-    handler = 'def _slash_%s(arg: str = "") -> None:\n    pass\n' % espec.nombre
+    campos = {"cmd": espec.cmd, "nombre": espec.nombre,
+              "descripcion": espec.descripcion, "relleno": "  "}
+    piezas = {}
+    for sitio in rec.SITIOS:
+        try:
+            piezas[sitio["clave"]] = sitio["forma"].format(**campos)
+        except KeyError as e:
+            pytest.fail("el sitio %r pide un campo que la espec no tiene: %s"
+                        % (sitio["clave"], e))
+
+    ast.parse("_CMD_DESCRIPTIONS = {\n%s\n}" % piezas["descripcion"])
+    ast.parse("%s\n    pass\n" % piezas["funcion"])
+    ast.parse("if False:\n    pass\n%s"
+              % textwrap.dedent(piezas["despacho"]))
+    assert espec.nombre.isidentifier()
     assert _re.match(r"^def _slash_%s\(" % _re.escape(espec.nombre),
-                     handler.strip()), (
+                     piezas["funcion"]), (
         "el nombre %r no sirve para el handler que exige el injertador"
         % espec.nombre)
+    # los tres cubos que el injertador acepta, cableados alli mismo
+    assert espec.cubo in ("NUCLEO", "AVANZADO", "LABORATORIO")
 
 
 # ── La cache de las consultas a la receta ────────────────────────────────────
@@ -473,11 +651,39 @@ def test_la_cache_da_la_misma_respuesta_que_la_receta_cruda():
 
 def test_la_huella_es_estable_y_cambia_con_el_fichero():
     """La clave de la cache es (mtime_ns, tamanio): estable mientras el
-    fichero no cambia, distinta en cuanto cambia. Un fichero ilegible da
-    ceros y se avisa por log -- nunca se finge que 'no cambio nada'."""
+    fichero no cambia, distinta en cuanto cambia. Un fichero que no se puede
+    medir da None, que NO es una clave: es la orden de saltarse la cache.
+
+    Antes daba (0, 0), y eso es lo peor de los dos mundos: una clave
+    perfectamente estable, o sea que el segundo fallo se servia de lo cacheado
+    en el primero -- exactamente el 'fingir que nada cambio' que el log decia
+    estar evitando."""
     assert esp._huella(rec.CLI) == esp._huella(rec.CLI)
     assert esp._huella(rec.CLI) != esp._huella(rec.AYUDA)
-    assert esp._huella("no-existe-en-el-repo.py") == ((0, 0),)
+    assert esp._huella("no-existe-en-el-repo.py") is None
+    assert esp._huella(rec.CLI, "no-existe-en-el-repo.py") is None
+
+
+def test_sin_huella_se_responde_sin_cache_y_no_se_cachea_basura(monkeypatch):
+    """Si no se puede tomar la huella, la respuesta sale de la receta CRUDA.
+    Cachear bajo una clave constante seria servir un catalogo rancio justo
+    despues de un injerto, que es cuando cli.py acaba de cambiar."""
+    llamadas = []
+    crudo_nombre = rec.validar_nombre
+    crudo_cats = rec.categorias_con_hueco
+
+    monkeypatch.setattr(esp, "_huella", lambda *a: None)
+    monkeypatch.setattr(rec, "validar_nombre",
+                        lambda cmd: (llamadas.append(cmd), crudo_nombre(cmd))[1])
+    monkeypatch.setattr(rec, "categorias_con_hueco",
+                        lambda *a, **k: (llamadas.append("cats"),
+                                         crudo_cats(*a, **k))[1])
+
+    assert esp.validar_nombre_repo("/ayuda") == crudo_nombre("/ayuda")
+    assert esp.validar_nombre_repo("/ayuda") == crudo_nombre("/ayuda")
+    assert esp.categorias_libres_repo() == crudo_cats()
+    assert llamadas.count("/ayuda") == 2, "la segunda salio de una cache que no debia existir"
+    assert "cats" in llamadas
 
 
 # ── Serializacion: la espec viaja por fichero y por prompt ───────────────────

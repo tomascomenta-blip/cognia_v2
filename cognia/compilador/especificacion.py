@@ -65,19 +65,27 @@ log = logging.getLogger(__name__)
 # deciden la respuesta. Una cache por tiempo, o sin invalidar, seria un error
 # grave aqui: justo despues de un injerto cli.py CAMBIA, y un catalogo rancio
 # haria que el compilador propusiera un nombre que se acaba de dar de alta.
-def _huella(*relativos) -> tuple:
-    """(mtime_ns, tamanio) de cada fichero. Si uno no se puede leer se marca
-    con ceros y se avisa: una huella que no se puede tomar tiene que fallar la
-    comparacion, no fingir que nada cambio."""
+def _huella(*relativos):
+    """(mtime_ns, tamanio) de cada fichero, o None si alguno no se pudo medir.
+
+    None NO es una clave: es la orden de SALTARSE la cache. La primera version
+    marcaba el fichero ilegible con ceros, y eso es peor que no cachear:
+    `(0, 0)` es una clave perfectamente ESTABLE, o sea que dos fallos seguidos
+    dan la MISMA clave y el segundo se sirve de lo que se guardo en el primero
+    -- exactamente el "fingir que nada cambio" que esta cache existe para
+    impedir, y encima con el log diciendo "la cache se salta" cuando no se
+    saltaba nada.
+    """
     marcas = []
     for rel in relativos:
         try:
             st = (rec.RAIZ / rel).stat()
-            marcas.append((st.st_mtime_ns, st.st_size))
         except OSError as e:
             log.warning("compilador/especificacion: no se pudo medir %s "
-                        "(%s: %s); la cache se salta", rel, type(e).__name__, e)
-            marcas.append((0, 0))
+                        "(%s: %s); se responde SIN cache", rel,
+                        type(e).__name__, e)
+            return None
+        marcas.append((st.st_mtime_ns, st.st_size))
     return tuple(marcas)
 
 
@@ -93,7 +101,10 @@ def validar_nombre_repo(cmd: str) -> tuple:
     quien inyecte el suyo (los tests, o un compilador que ya tenga el catalogo
     en la mano) tiene que poder envolver este y no el crudo.
     """
-    return _validar_nombre_cacheado(cmd, _huella(rec.CLI))
+    huella = _huella(rec.CLI)
+    if huella is None:
+        return rec.validar_nombre(cmd)          # sin huella no hay cache
+    return _validar_nombre_cacheado(cmd, huella)
 
 
 @lru_cache(maxsize=8)
@@ -104,7 +115,10 @@ def _categorias_cacheadas(huella: tuple) -> tuple:
 def categorias_libres_repo() -> list:
     """`receta.categorias_con_hueco` con cache por huella de cli.py y de
     harness/ayuda.py, que son los dos ficheros que deciden la ocupacion."""
-    return list(_categorias_cacheadas(_huella(rec.CLI, rec.AYUDA)))
+    huella = _huella(rec.CLI, rec.AYUDA)
+    if huella is None:
+        return list(rec.categorias_con_hueco())  # sin huella no hay cache
+    return list(_categorias_cacheadas(huella))
 
 
 # ── Medidas y topes ──────────────────────────────────────────────────────────
@@ -161,11 +175,17 @@ BASE_GENERICA = "utilidad"
 # ── La trampa de la descripcion ──────────────────────────────────────────────
 #
 # receta.TRAMPAS lo dice: harness/ayuda._REGLAS_DESC manda a "Agente y tareas"
-# cualquier descripcion cuya cabeza lleve 'tarea', 'agente', 'plan ' o 'paso',
-# y esa categoria esta a 25/25. O sea que UNA palabra mal elegida en la
-# primera frase pone roja la suite sin tocar nada mas. Se comprueba con las
-# claves REALES del clasificador (no con una copia a mano) para que el dia que
-# cambien alli, cambie aqui.
+# cualquier descripcion que lleve 'tarea', 'agente', 'plan ' o 'paso', y esa
+# categoria esta a 25/25. O sea que UNA palabra mal elegida pone roja la suite
+# sin tocar nada mas. Se comprueba con las claves REALES del clasificador (no
+# con una copia a mano) para que el dia que cambien alli, cambie aqui.
+#
+# DONDE mira el clasificador: `clasificar()` hace
+# `normalizar(descripcion) + " " + nombre` y busca la clave por SUBCADENA en
+# todo eso -- la descripcion ENTERA y ademas el NOMBRE del comando, no solo la
+# primera frase. Leido en el fuente y comprobado ejecutandolo el 2026-08-31;
+# la primera version de este modulo miraba solo la cabeza y por ahi se colaban
+# especs que `validar()` daba por perfectas.
 def _claves_trampa() -> tuple:
     try:
         from cognia.harness import ayuda as _ay
@@ -210,6 +230,30 @@ def _plano(txt) -> str:
     return s.lower()
 
 
+def _sin_escapes(txt) -> str:
+    # Docstring CRUDO (r) a proposito: lleva dentro el mismo escape
+    # que documenta, y sin la r este fichero tampoco compilaba. El bug
+    # es tan real que mordio aqui mismo, al escribir el arreglo.
+    r"""Texto que se puede meter DENTRO de un literal de cli.py.
+
+    La comilla doble ya estaba tratada; la BARRA INVERTIDA no, y es igual de
+    mortal o mas. El injertador escribe la descripcion tal cual dentro de
+    `    "/cmd":  "<descripcion>",` y `que_hace` dentro del docstring del
+    handler, o sea que un texto del duenio con una ruta de Windows mete un
+    escape de Python donde no lo hay. Medido con `ast.parse` sobre la linea
+    que escribe el injertador, con un pedido completamente normal para una
+    herramienta de carpetas:
+
+        'hazme algo que mida la carpeta C:\Users\nuevo del escritorio'
+        -> "cli.py NO COMPILA: (unicode error) truncated \UXXXXXXXX escape"
+
+    y `validar()` decia que la espec estaba perfecta. Un cli.py que no compila
+    no es una herramienta mala: es el REPL entero caido. La barra se cambia
+    por '/', que en una ruta sigue leyendose bien.
+    """
+    return str(txt or "").replace("\\", "/").replace('"', "'")
+
+
 def _primera_frase(descripcion: str) -> str:
     """La cabeza que mira el clasificador: lo que va antes del primer punto o
     antes del 'Uso:'."""
@@ -222,22 +266,56 @@ def _primera_frase(descripcion: str) -> str:
     return d[:corte].strip(" .;,")
 
 
-def cae_en_trampa(descripcion: str) -> str:
-    """La palabra prohibida que hay en la PRIMERA FRASE, o "" si esta limpia.
+def cae_en_trampa(descripcion: str, cmd: str = "") -> str:
+    """La palabra prohibida que hay en lo que MIRA el clasificador, o "".
+
+    MIRA LA DESCRIPCION ENTERA, Y EL NOMBRE. La primera version solo miraba la
+    cabeza ("lo que va detras del 'Uso:' no decide categoria"), y eso es
+    FALSO: `ayuda.clasificar` hace `normalizar(descripcion) + " " + nombre` y
+    busca la clave por SUBCADENA en todo eso. Comprobado contra el
+    clasificador de verdad el 2026-08-31:
+
+        clasificar("/x", "Mide carpetas. Uso: /x [tarea | estado]")
+            -> 'Agente y tareas'      (la categoria que esta a 25/25)
+        clasificar("/tareas-viejas",  "Revisa lo pendiente. Uso: ...")
+            -> 'Agente y tareas'
+
+    O sea que mirando solo la cabeza se colaba una espec que `validar()`
+    declaraba perfecta y que ponia roja la suite igual. Reproducido con un
+    pedido normal del duenio: "...mida las carpetas del escritorio. y que
+    liste la tarea de cada una".
+
+    Es a proposito mas ESTRICTA que el clasificador: este devuelve la primera
+    regla que casa, asi que una descripcion con 'memoria' Y 'tarea' cae en
+    'Memoria y notas' y se salva de milagro. Depender de ese orden es apostar
+    a que nadie reordene `_REGLAS_DESC`; aqui las cuatro palabras no aparecen
+    y punto -- que ademas es lo que pidio el duenio.
 
     Devuelve la palabra y no un bool a proposito: el que llama tiene que poder
     decir en el aviso QUE palabra iba a reventar la suite.
     """
-    cabeza = _plano(_primera_frase(descripcion))
-    if not cabeza:
+    texto = ("%s %s" % (_plano(descripcion), _plano(cmd))).strip()
+    if not texto:
         return ""
-    m = _RX_TRAMPA_PALABRA.search(cabeza)
+    m = _RX_TRAMPA_PALABRA.search(texto)
     if m:
         return m.group(1)
     for clave in PALABRAS_TRAMPA:
-        if clave in cabeza:
+        if clave in texto:
             return clave.strip()
     return ""
+
+
+def nombre_envenenado(cmd: str) -> str:
+    """La palabra prohibida que lleva DENTRO el nombre del comando, o "".
+
+    `ayuda.clasificar` concatena el nombre al texto que examina, asi que
+    '/tareas-viejas' o '/traspaso' se autoclasifican en la categoria llena
+    aunque su descripcion este impecable, y lo hacen hasta que alguien de de
+    alta su patron exacto -- o sea justo mientras dura el injerto. La lista de
+    palabras enteras no bastaba: 'tareas-viejas' no es 'tareas'.
+    """
+    return cae_en_trampa("", cmd)
 
 
 def _desactivar_trampa(frase: str) -> tuple:
@@ -394,12 +472,11 @@ dejo deja deje dejar dejaron pasa pase
 # Las cuatro palabras que el clasificador de /ayuda usa para mandar un comando
 # a "Agente y tareas" (llena) tampoco valen como NOMBRE: `clasificar()` mira
 # la descripcion Y el nombre del comando, asi que un '/paso' se autoclasifica
-# en la categoria llena mientras nadie le de de alta su patron.
-_PROHIBIDO_COMO_NOMBRE = frozenset((
-    "tarea", "tareas", "agente", "agentes",
-    "plan", "planes", "paso", "pasos",
-))
-
+# en la categoria llena mientras nadie le de de alta su patron. Quien decide
+# es `nombre_envenenado()`, que es una regla de SUBCADENA y no una lista de
+# palabras enteras: la lista dejaba pasar '/tareas-viejas' (nombre propuesto
+# por el modelo) y '/traspaso' (sacado del texto del duenio), y los dos se
+# autoclasifican en la categoria llena igual que '/paso'.
 _PALABRAS_DOMINIO = {p for palabras in AFINIDAD.values() for p in palabras
                      if " " not in p and p not in _VERBOS_FUERA}
 
@@ -414,7 +491,7 @@ def _base_del_nombre(texto: str) -> str:
     camino sin modelo deja aviso.
     """
     toks = [t for t in _tokens(texto)
-            if t not in _VERBOS_FUERA and t not in _PROHIBIDO_COMO_NOMBRE]
+            if t not in _VERBOS_FUERA and not nombre_envenenado(t)]
     for t in toks:
         if t in _PALABRAS_DOMINIO and not t.isdigit():
             return t
@@ -444,6 +521,22 @@ def _plural(nombre: str) -> str:
     return nombre + ("s" if nombre[-1] in "aeiou" else "es")
 
 
+def _con_sufijo(base: str, sufijo: str) -> str:
+    """`base-sufijo` recortando la BASE, nunca el sufijo.
+
+    `_sanear_nombre` corta por la derecha a TOPE_NOMBRE, asi que con una base
+    larga el corte se comia el sufijo entero y los 17 candidatos colapsaban en
+    UNO. Medido: base 'resumen-de-carpetas' (19 chars, la que sale de un
+    nombre propuesto por el modelo) daba `_candidatos` == ['resumen-de-carpetas']
+    -- o sea que la desambiguacion desaparecia en silencio justo el dia que
+    hace falta, y `elegir_nombre` devolvia "ningun nombre quedo libre" con 17
+    nombres libres delante.
+    """
+    hueco = TOPE_NOMBRE - len(sufijo) - 1
+    corto = _sanear_nombre(base[:hueco]) if hueco >= 3 else ""
+    return _sanear_nombre("%s-%s" % (corto or base, sufijo))
+
+
 def _candidatos(base: str, texto: str) -> list:
     """Nombres a probar, en orden, hasta que uno no colisione.
 
@@ -453,24 +546,29 @@ def _candidatos(base: str, texto: str) -> list:
     espec con un nombre ya usado, que es lo unico que la receta prohibe.
     """
     base = _sanear_nombre(base) or BASE_GENERICA
+    if nombre_envenenado(base):
+        # Un '/traspaso' se autoclasifica en la categoria llena y NINGUN
+        # sufijo lo arregla, porque la palabra va dentro de la raiz: no tiene
+        # sentido gastar los 17 candidatos en variantes del mismo veneno.
+        base = BASE_GENERICA
     fuera = [base, _plural(base)]
     # Compuesto con la siguiente palabra util del texto, EN ORDEN: asi
     # "/notas" ocupado da "/notas-duplicadas" y no "/notas-info", que no dice
     # nada. Los verbos quedan fuera por el mismo motivo que en el nombre base.
     otras = [t for t in _tokens(texto)
-             if t not in _VERBOS_FUERA and t not in _PROHIBIDO_COMO_NOMBRE
+             if t not in _VERBOS_FUERA and not nombre_envenenado(t)
              and _sanear_nombre(t) and t != base]
     for t in otras[:2]:
-        fuera.append("%s-%s" % (base, _sanear_nombre(t)))
+        fuera.append(_con_sufijo(base, _sanear_nombre(t)))
     for sufijo in ("info", "ver", "resumen", "local"):
-        fuera.append("%s-%s" % (base, sufijo))
+        fuera.append(_con_sufijo(base, sufijo))
     for i in range(2, 10):
-        fuera.append("%s-%d" % (base, i))
-    # Sin duplicados y respetando el orden de preferencia.
+        fuera.append(_con_sufijo(base, str(i)))
+    # Sin duplicados, sin envenenados, y respetando el orden de preferencia.
     vistos, limpio = set(), []
     for n in fuera:
         n = _sanear_nombre(n)
-        if n and n not in vistos:
+        if n and n not in vistos and not nombre_envenenado(n):
             vistos.add(n)
             limpio.append(n)
     return limpio
@@ -659,7 +757,7 @@ def _componer_descripcion(frase: str, cmd: str, subcomandos: list) -> str:
     """La linea de _CMD_DESCRIPTIONS: frase + plantilla de uso, como manda la
     receta. Sin comillas dobles (el injertador las cambiaria por simples) y en
     UNA sola linea (el dict se lee con ast.literal_eval)."""
-    frase = " ".join(str(frase or "").split()).strip(" .;,").replace('"', "'")
+    frase = _sin_escapes(" ".join(str(frase or "").split()).strip(" .;,"))
     if frase:
         # Mayuscula inicial aqui y no en cada camino: la frase puede venir del
         # modelo (que la escribe en minusculas) o de las reglas, y en /ayuda
@@ -780,9 +878,11 @@ def desde_texto(texto, orch=None, *, validador_nombre=None,
         nombre_llm, frase_llm, aviso = _preguntar_al_modelo(texto, orch)
         if aviso:
             avisos.append(aviso)
-        if nombre_llm and nombre_llm in _PROHIBIDO_COMO_NOMBRE:
-            avisos.append("el modelo propuso el nombre %r, que se autoclasifica "
-                          "en 'Agente y tareas' (llena): se ignora" % nombre_llm)
+        veneno = nombre_envenenado(nombre_llm) if nombre_llm else ""
+        if veneno:
+            avisos.append("el modelo propuso el nombre %r, que lleva %r y se "
+                          "autoclasifica en 'Agente y tareas' (llena): se "
+                          "ignora" % (nombre_llm, veneno))
         elif nombre_llm:
             base = nombre_llm
         if frase_llm:
@@ -812,13 +912,27 @@ def desde_texto(texto, orch=None, *, validador_nombre=None,
     if mala:
         avisos.append("la descripcion llevaba %r, que manda el comando a "
                       "'Agente y tareas' (25/25): reescrita" % mala)
-        if cae_en_trampa(descripcion):
-            # El sinonimo no basto (la palabra iba DENTRO de otra). Se
-            # reconstruye la frase entera desde el asunto: fea pero limpia.
-            descripcion = _componer_descripcion(
-                "informa sobre %s" % asunto, cmd, subcomandos)
-            avisos.append("descripcion reconstruida desde cero: la palabra "
-                          "prohibida estaba dentro de otra palabra")
+    # La re-comprobacion va SIEMPRE, no solo cuando hubo sustitucion. Estaba
+    # colgada de `if mala` y por ahi se colaban dos casos reales: la palabra
+    # prohibida dentro de otra ('traspaso'), y el recorte de
+    # `_componer_descripcion`, que corta la frase por el tope y puede dejar un
+    # 'plan' donde habia un 'planificar'. Y ademas se mira con `cmd`, que es
+    # lo que el clasificador concatena.
+    resto = cae_en_trampa(descripcion, cmd)
+    if resto:
+        # El sinonimo no basto (o la palabra venia por otro lado). Se
+        # reconstruye la frase entera desde el asunto: fea pero limpia.
+        descripcion = _componer_descripcion(
+            "informa sobre %s" % asunto, cmd, subcomandos)
+        avisos.append("descripcion reconstruida desde cero: %r seguia dentro "
+                      "de lo que lee el clasificador" % resto)
+        if cae_en_trampa(descripcion, cmd):
+            # Aqui ya no queda nada que reescribir: la palabra esta en el
+            # NOMBRE o en el asunto. Se dice, porque validar() va a rechazar
+            # la espec y el motivo tiene que estar delante y no deducirse.
+            avisos.append("la descripcion sigue cayendo en la trampa por %r: "
+                          "hay que darle nombre y descripcion a mano"
+                          % cae_en_trampa(descripcion, cmd))
 
     if categorias_libres is None:
         try:
@@ -840,10 +954,11 @@ def desde_texto(texto, orch=None, *, validador_nombre=None,
     necesita_modulo = any((" %s " % p) in plano for p in _NECESITA_MODULO)
     modulo = ("cognia/herramientas/%s.py" % nombre) if necesita_modulo else ""
 
-    # El pedido va entre comillas SIMPLES y con las dobles cambiadas: que_hace
-    # acaba dentro del docstring de _slash_<nombre>, y un '"' del texto del
-    # duenio cerraria el triple-quote y dejaria cli.py sin compilar.
-    pedido = " ".join(texto.split())[:200].replace('"', "'")
+    # El pedido va entre comillas SIMPLES, sin dobles y sin barras invertidas:
+    # que_hace acaba dentro del docstring de _slash_<nombre>, y tanto un '"'
+    # como un '\U' del texto del duenio dejan cli.py sin compilar (el '"'
+    # cierra el triple-quote; la barra abre una secuencia de escape).
+    pedido = _sin_escapes(" ".join(texto.split())[:200])
     que_hace = (
         "%s. Se pidio asi: '%s'. El comando expone %s; el trabajo de verdad "
         "%s. Punto de extension: una entrada por subcomando en el despacho "
@@ -914,31 +1029,51 @@ def validar(espec, *, validador_nombre=None, categorias_libres=None) -> list:
         if '"' in desc:
             problemas.append("la descripcion lleva comillas dobles: rompe el "
                              "literal de _CMD_DESCRIPTIONS")
-        mala = cae_en_trampa(desc)
+        if "\\" in desc:
+            problemas.append("la descripcion lleva una barra invertida: dentro "
+                             "del literal de _CMD_DESCRIPTIONS es una secuencia "
+                             "de escape y deja cli.py SIN COMPILAR")
+        mala = cae_en_trampa(desc, cmd)
         if mala:
             problemas.append("la primera frase de la descripcion lleva %r: el "
                              "clasificador la manda a 'Agente y tareas', que "
                              "esta llena, y pone roja la suite" % mala)
 
-    if not (espec.que_hace or "").strip():
+    que_hace = espec.que_hace or ""
+    if not que_hace.strip():
         problemas.append("que_hace vacio: es el docstring del handler")
+    else:
+        if '"' in que_hace:
+            problemas.append("que_hace lleva comillas dobles: cierra el "
+                             "triple-quote del docstring del handler")
+        if "\\" in que_hace:
+            problemas.append("que_hace lleva una barra invertida: en el "
+                             "docstring del handler es una secuencia de escape "
+                             "y deja cli.py SIN COMPILAR")
 
     if espec.cubo not in CUBOS_VALIDOS:
         problemas.append("cubo %r invalido: tiene que ser uno de %s"
                          % (espec.cubo, ", ".join(CUBOS_VALIDOS)))
 
+    # `medida` separa "no se pudo medir la ocupacion" de "se midio y no cabe
+    # NADA". El `elif libres and ...` de la primera version las confundia, y
+    # con la lista vacia el chequeo se apagaba entero: una espec con categoria
+    # llena pasaba `validar()` sin un solo problema -- o sea que la fase no
+    # ejecutada contaba como aprobada, y justo la fase que existe para que la
+    # suite no se ponga roja por desborde de categoria.
+    medida = True
     if categorias_libres is None:
         try:
             libres = categorias_libres_repo()
         except Exception as e:                  # noqa: BLE001 - motivo visible
-            libres = []
+            libres, medida = [], False
             problemas.append("no se pudo medir que categorias tienen hueco "
                              "(%s: %s)" % (type(e).__name__, e))
     else:
         libres = list(categorias_libres)
     if not espec.categoria:
         problemas.append("categoria vacia")
-    elif libres and espec.categoria not in libres:
+    elif medida and espec.categoria not in libres:
         problemas.append("la categoria %r no tiene hueco (las que si: %s)"
                          % (espec.categoria, ", ".join(libres) or "ninguna"))
 
@@ -976,7 +1111,11 @@ def validar(espec, *, validador_nombre=None, categorias_libres=None) -> list:
             espera = str(c.get("espera", "")).strip()
             if not invoc:
                 problemas.append("criterio %d sin invocacion" % i)
-            elif cmd and not invoc.startswith(cmd):
+            elif cmd and not (invoc == cmd or invoc.startswith(cmd + " ")):
+                # `startswith(cmd)` a secas daba por bueno '/carpetas-otro ver'
+                # como criterio de '/carpetas': es OTRO comando. En un modulo
+                # que existe por la colision de PREFIJOS, comparar por prefijo
+                # es el error de siempre.
                 problemas.append("criterio %d invoca %r y no el comando %s"
                                  % (i, invoc, cmd))
             if not espera:

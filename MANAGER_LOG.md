@@ -14747,3 +14747,78 @@ server, el minimo util por paso y el estado del pensamiento.
   no por paso.
 - El rescate solo cubre "poner contenido al final de un fichero":
   `editar_archivo` cortado no se rescata, porque media edicion no aplica.
+
+
+---
+
+## 2026-08-31 · DOS SISTEMAS: cuaderno de clase y compilador de herramientas
+
+**Pedido del duenio (nocturna, sin supervision):** un `/grabar-clase` que grabe
+la jornada y arme un cuaderno virtual por materias con deteccion automatica de
+cambio de asignatura, compactacion y olvido; y un "compilador" que meta ESE
+MISMO PROCESO dentro de Cognia para que se fabrique sus propias herramientas
+como comandos, las pruebe y las evalue a fondo. Con permiso explicito para
+editar su propio CLI.
+
+### Como se trabajo
+
+Hibrido: exploracion inline para lo decisivo, workflows para lo paralelizable.
+Tres workflows (6 lectores del repo, 4 constructores del cuaderno con revision
+adversarial, 4 constructores del compilador con revision adversarial) y el
+nucleo escrito a mano, que es donde la coherencia importa.
+
+### Lo que se midio ANTES de escribir
+
+| sonda | resultado |
+|---|---|
+| sounddevice 0.5.5 loopback | NO existe en este build de PortAudio |
+| soundcard loopback | pico=0.50127 capturando el tono. FUNCIONA |
+| TTS piper es_ES | 7,38 s de audio en 2,6 s |
+| faster-whisper sobre 28,3 min | 149 s = **11,4x tiempo real** |
+
+Esa primera fila decidio la dependencia. Sin medirla, el sistema entero se
+habria construido sobre una libreria que en esta maquina no puede grabar.
+
+### La prueba que cazo los defectos
+
+Jornada sintetica de 28,3 min con FRONTERAS CONOCIDAS (4 materias, recreos de
+300 s). Primera medida: **1/4 fronteras**. Dos defectos reales:
+
+1. Las marcas de PAUSA que escribe la transcripcion partian cada recreo de
+   270 s en dos huecos de 90 y 150. La senial mas fuerte del sistema quedaba
+   bajo el umbral. -> `senal_silencio` mira solo las entradas HABLADAS.
+2. `DURACION_MINIMA` (600 s) vetaba el corte pese a 270 s de silencio. Un
+   heuristico no puede vetar una senial inequivoca. -> piso a 120 s cuando el
+   silencio es concluyente (>=180 s).
+
+Despues: **4/4 fronteras** (0/8/4/21 s de error, cero cortes falsos) y **4/4
+nombres** con el modelo.
+
+### El compilador, y los cuatro fallos que cazo su primera compilacion real
+
+`/compilar "una herramienta que diga cuanto ocupa cada carpeta"` acabo con
+`/du` aprobado por las 5 fases (sintaxis, guardianes, pytest, invocacion en el
+REPL REAL, 3/3 criterios). Para llegar ahi hubo que arreglar:
+
+1. Espec y generador escribiendo el modulo de apoyo en RUTAS DISTINTAS; el
+   evaluador leia la que no existia.
+2. Criterios en PROSA contra un evaluador que busca SUBCADENA: 0/3 con el
+   comando funcionando.
+3. El segundo intento sin tests -> "sin examen no hay aprobado". Tenia razon.
+4. El test generado invocaba el handler con cadena VACIA (no conocia la clave
+   `invocacion`).
+
+Mas dos roturas de sintaxis heredadas de la revision adversarial.
+
+### Limites declarados
+
+- El codigo que produce el MODELO local (27B) suspende su propia evaluacion a
+  menudo. El compilador reintenta con la plantilla deterministica, que pasa el
+  examen pero deja las ramas de trabajo SIN IMPLEMENTAR -- y lo dice. O sea:
+  hoy el compilador garantiza el ANDAMIAJE verificado, no la logica.
+- La deteccion de materias esta calibrada sobre una jornada SINTETICA. Con
+  habla real (muletillas, ASR imperfecto) la separacion sera menor.
+- `DURACION_MINIMA` sigue impidiendo detectar clases de menos de 10 min sin un
+  silencio largo de por medio.
+- El cuaderno no se ha probado sobre una jornada de 6 h de verdad: la mas
+  larga medida es de 28,3 min.
