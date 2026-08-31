@@ -3246,6 +3246,7 @@ _CMD_DESCRIPTIONS = {
     "/bucle":           "Higiene del lazo del agente: recordatorio advisory de repeticion (misma tool + mismos args), nudge por ediciones al mismo fichero y timeout por tool con resultado tipado. Uso: /bucle [estado | on | off | umbrales <a,b,c> | fichero <n> | timeout <s>]",
     "/revision":        "Revision profunda antes de entregar: el arnes CORRE lo construido (sintaxis + tests que lo cubren + arrancar el producto de punta a punta) y le devuelve el fallo real al modelo  [estado | on|off | ejecutar on|off | rondas <n> | segundos <n> | informe | ahora <ruta...>]  (env COGNIA_REVISION=0 la apaga; COGNIA_REVISION_EJECUTAR=0 apaga solo el arranque del producto)",
     "/confianza":       "Niveles de confianza: investiga en la web cuando no sabe  [estado | on|off | previa on|off | posterior on|off | acciones on|off | segundos <n> | paginas <n> | probar <pregunta>]  (env COGNIA_CONFIANZA=0 apaga todo; COGNIA_CHAT_AFIRMACIONES=0 apaga el detector de acciones inventadas)",
+    "/ventana":         "Presupuesto de SALIDA real: cuantos tokens deja la ventana (n_ctx) despues del prompt — el techo que de verdad corta las tareas largas, no max_tokens. Uso: /ventana [estado | pensamiento auto|on|off]",
     "/horizonte":     "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
@@ -14466,6 +14467,79 @@ def _aplicar_config_horizonte() -> None:
             _marcar_env_sembrada(var)
 
 
+def _slash_ventana(arg: str = "") -> None:
+    """`/ventana`: puerta del PRESUPUESTO DE SALIDA (agent/presupuesto_salida).
+
+    Muestra el numero que hasta el 2026-08-30 era invisible y que decidia si
+    una tarea larga podia terminar o no: cuantos tokens de SALIDA deja la
+    ventana despues del prompt. Medido ese dia contra el server del dueno, una
+    peticion con max_tokens=32768 devolvio 2258 tokens porque el corte lo daba
+    n_ctx, no el tope pedido — y el CLI no tenia donde enseñarlo.
+
+    Sin args (o 'estado'): modelo, n_ctx, reserva, minimo util y el veredicto.
+    Subcomandos (persisten via _save_config):
+      pensamiento auto|on|off -> clave 'thinking' (COGNIA_THINKING). 'auto' es
+        el default: el bucle lo apaga SOLO si un paso se le va entero en
+        razonar sin llegar a llamar la herramienta.
+    Punto de extension: los subcomandos son ramas de este if; la aritmetica
+    vive entera en presupuesto_salida (disponible/clamp/es_corte_por_contexto).
+    """
+    try:
+        from cognia.agent import presupuesto_salida as _ps
+        from cognia.agent.model_profiles import perfil_del_agente
+    except Exception as exc:
+        _aviso_degradado("ventana", f"modulo no importable: {exc}")
+        return
+    arg = (arg or "").strip()
+    bajo = arg.lower()
+    if bajo.startswith("pensamiento"):
+        val = bajo[len("pensamiento"):].strip()
+        if val not in ("auto", "on", "off"):
+            _print_line("[warn_cl]Uso: /ventana pensamiento auto|on|off"
+                        "[/warn_cl]")
+            return
+        cfg = _load_config()
+        cfg["thinking"] = val
+        _save_config(cfg)
+        if val == "auto":
+            os.environ.pop("COGNIA_THINKING", None)
+        else:
+            os.environ["COGNIA_THINKING"] = val
+            _marcar_env_sembrada("COGNIA_THINKING")
+        _print_line(f"[info_dim]pensamiento del agente: {val} (guardado)"
+                    f"[/info_dim]")
+        return
+    try:
+        p = perfil_del_agente()
+    except Exception as exc:
+        _aviso_degradado("ventana", f"perfil no disponible: {exc}")
+        return
+    n_ctx = p.get("n_ctx")
+    if not n_ctx:
+        _print_line("[warn_cl]sin n_ctx del backend: no se puede decir cuanto "
+                    "cabe (arranca la flota o revisa /props)[/warn_cl]")
+        return
+    kw = p.get("kwargs_plantilla") or {}
+    piensa = kw.get("enable_thinking")
+    filas = [
+        ("modelo", str(p.get("modelo") or "?")),
+        ("ventana (n_ctx)", f"{int(n_ctx):,} tokens"),
+        ("max_tokens del perfil", f"{p.get('max_tokens')}"),
+        ("reserva del server", f"{_ps.RESERVA} tokens"),
+        ("minimo util por paso", f"{_ps.MINIMO_UTIL} tokens"),
+        ("pensamiento", ("no lo lee esta plantilla" if piensa is None
+                         else ("encendido" if piensa else "apagado"))),
+        ("override del dueno",
+         os.environ.get("COGNIA_THINKING", "") or "(auto)"),
+    ]
+    for k, v in filas:
+        _print_line(f"  [mod]{k:<22}[/mod] {_escape(v)}")
+    _print_line("[info_dim]con el prompt vacio caben "
+                f"{_ps.disponible(n_ctx, 0):,} tokens de salida; cada token de "
+                f"contexto se los quita uno a uno. El razonamiento sale de "
+                f"ESE mismo hueco.[/info_dim]")
+
+
 def _slash_horizonte(arg: str = "") -> None:
     """`/horizonte`: puerta del modo HORIZONTE (rondas de worker fresco con
     el contrato ralph de report de 5 campos + sello GoalContract).
@@ -20706,6 +20780,9 @@ def _repl_sesion():
             elif raw == "/confianza" or raw.startswith("/confianza "):
                 _slash_confianza(
                     raw[len("/confianza "):] if raw.startswith("/confianza ") else "")
+            elif raw == "/ventana" or raw.startswith("/ventana "):
+                _slash_ventana(
+                    raw[len("/ventana "):] if raw.startswith("/ventana ") else "")
             elif raw == "/horizonte" or raw.startswith("/horizonte "):
                 _slash_horizonte(
                     raw[len("/horizonte "):] if raw.startswith("/horizonte ") else "")

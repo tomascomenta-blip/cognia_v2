@@ -46,3 +46,19 @@ def test_apendar_deja_la_linea_limpia(tmp_path, monkeypatch):
 # NOTA: se probo extender la limpieza de envoltorio a escribir_archivo para
 # texto plano; el A/B del gate no mostro mejora (3/6 vs 4/6) y se revirtio.
 # Por eso aca solo se cubre apendar_archivo.
+
+
+def test_un_trozo_de_codigo_conserva_su_indentacion():
+    """Regresion 2026-08-30: desde que las tareas largas se escriben POR
+    TROZOS, apendar_archivo es la tool que escribe el cuerpo de los ficheros
+    grandes. El `.strip()` que limpiaba bitacoras se comia la indentacion de
+    la primera linea de cada trozo -- cosmetico en HTML, IndentationError en
+    Python, y en un fichero que el agente daba por escrito."""
+    trozo = "    if x:\n        return 1\n"
+    assert _texto_literal(trozo) == trozo
+
+
+def test_el_trozo_multilinea_no_pierde_las_comillas_de_su_codigo():
+    # Un trozo de JS que empieza y acaba por comilla NO es un texto envuelto.
+    trozo = '"use strict";\nconst a = 1;\nconsole.log("a")'
+    assert _texto_literal(trozo) == trozo

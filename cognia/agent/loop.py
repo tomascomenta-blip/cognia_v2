@@ -317,6 +317,10 @@ def salida_de_ejecucion(history) -> str:
 
 
 from cognia.harness.veredicto_tool import es_fallo as _es_fallo_tool
+# El techo de generacion REAL es n_ctx - prompt, no max_tokens: ver el modulo
+# (mide el caso que se llevo la tarea del Minecraft el 2026-08-30).
+from cognia.agent import presupuesto_salida as _ps
+from cognia.agent.model_profiles import MIN_TOKENS_RAZONADOR
 
 # Tools cuyo trabajo ES repetirse: correr la suite tras cada arreglo, mirar la
 # salida de un proceso de fondo, listar procesos. La lista vive en
@@ -446,6 +450,14 @@ def _parece_cortado(crudo: str) -> bool:
     return en_cadena or fuera > 0
 
 
+# El corte que cae ANTES de que el tool call empiece: el presupuesto se lo
+# comio el RAZONAMIENTO, no el fichero. Es constante y no literal suelto
+# porque el bucle decide con el (apagar el pensamiento) y una errata en la
+# comparacion dejaria la intervencion muerta y muda.
+CORTE_ANTES_DEL_TOOL_CALL = (
+    "el turno se corto por max_tokens antes de emitir el tool call")
+
+
 def _corte_en_tool_call(resp, schemas) -> str:
     """Motivo si el turno se corto MIENTRAS emitia un tool call, o ''.
 
@@ -477,7 +489,7 @@ def _corte_en_tool_call(resp, schemas) -> str:
         # RESPUESTA, y de eso ya avisa el bucle mas abajo.
         if len((getattr(resp, "texto", "") or "").strip()) >= 200:
             return ""
-        return "el turno se corto por max_tokens antes de emitir el tool call"
+        return CORTE_ANTES_DEL_TOOL_CALL
     # Tercera cara: el server DEVUELVE el tool call pero sus argumentos no son
     # JSON valido porque se cortaron a media cadena. chat_client lo marca.
     llamadas = getattr(resp, "tool_calls", None) or []
@@ -490,6 +502,28 @@ def _corte_en_tool_call(resp, schemas) -> str:
         # contesta con el aviso (lo hace el bucle, mas abajo).
         return "los argumentos del tool call llegaron cortados"
     return ""
+
+
+def _tokens_prompt(mensajes: list) -> int:
+    """Estimacion chars/4 de TODO lo que va a viajar en la peticion.
+
+    Misma moneda que el presupuesto de contexto del final del bucle, con una
+    diferencia que importa: aqui se cuentan tambien los ARGUMENTOS de los
+    tool_calls. Un `escribir_archivo` de 40 KB deja ese fichero entero dentro
+    del turno assistant y se reenvia en cada paso; el estimado que solo miraba
+    content+reasoning lo daba por gratis, y con eso el hueco de salida que
+    calculaba era mas grande que el real justo en las tareas que escriben
+    ficheros grandes -- o sea, en las que fallaban.
+    """
+    total = 0
+    for m in mensajes or ():
+        total += len(str(m.get("content") or ""))
+        total += len(str(m.get("reasoning_content") or ""))
+        for tc in (m.get("tool_calls") or ()):
+            f = tc.get("function") if isinstance(tc, dict) else None
+            if isinstance(f, dict):
+                total += len(str(f.get("arguments") or ""))
+    return total // 4
 
 
 _INTENCION_TOPE = 160
@@ -583,6 +617,120 @@ def _lleva_marca_truncado(tc) -> bool:
     elif isinstance(args, str) and _MARCA_ARG_TRUNCADO in args:
         return True
     return _MARCA_ARG_TRUNCADO in str(getattr(tc, "argumentos_crudos", "") or "")
+
+
+def _hay_parcial_rescatable(resp) -> bool:
+    """True si el turno cortado trae DENTRO un fichero que se puede escribir.
+
+    Existe para decidir el ORDEN, que resulto ser lo que importaba: cuando el
+    corte llega con los argumentos a medias, reintentar cuesta una generacion
+    entera (~6 min con el modelo del dueno) y puede volver a cortarse en la
+    misma columna, mientras que rescatar es gratis y conserva los bytes que ya
+    se pagaron. Con este check la rampa deja pasar ese caso al camino del
+    rescate en vez de tirarlo para repetir el paso.
+    """
+    try:
+        from cognia.agent import rescate_parcial as _rp
+    except ImportError:
+        return False
+    for tc in (getattr(resp, "tool_calls", None) or ()):
+        if not getattr(tc, "argumentos_rotos", False):
+            continue
+        if getattr(tc, "nombre", "") not in _TOOLS_ESCRITURA:
+            continue
+        if getattr(tc, "nombre", "") == "editar_archivo":
+            continue
+        if _rp.partes(getattr(tc, "argumentos_crudos", "") or ""):
+            return True
+    return False
+
+
+def _rescatar_escritura(tc, crudo: str, ctx, run_tool, print_fn):
+    """Escribe el TROZO que si llego de un tool call cortado. None si no hay
+    nada que rescatar (y entonces manda el aviso de "por partes" de siempre).
+
+    POR QUE (medido 2026-08-30). El aviso de "escribelo por partes" es
+    correcto y NO ALCANZA: el modelo vuelve a empezar por el principio con el
+    mismo presupuesto y se corta en la misma columna. En la corrida del dueno
+    el aviso salio cuatro veces seguidas, se tiraron ~2.100 chars de HTML
+    valido cada vez y el fichero nunca llego a existir.
+
+    Escribiendo el trozo, el turno siguiente ya no reescribe: CONTINUA. El
+    corte deja de costar una vuelta entera y pasa a costar un tramo, que es
+    lo unico que convierte "tarea larga" en algo que termina.
+
+    La escritura va por `run_tool`, o sea con las mismas guardas de workspace,
+    codificacion y diff que cualquier otra: aqui no se toca el disco a mano.
+    """
+    try:
+        from cognia.agent import rescate_parcial as _rp
+        from cognia.agent.tool_schemas import args_legacy
+    except ImportError as exc:                 # el bucle no puede morir por esto
+        logging.getLogger(__name__).warning("rescate parcial no disponible: %s", exc)
+        return None
+    if tc.nombre not in _TOOLS_ESCRITURA:
+        return None
+    trozo = _rp.partes(crudo)
+    if not trozo:
+        return None
+    # editar_archivo necesita el bloque VIEJO ademas del nuevo: media edicion
+    # no es media escritura, es una edicion que no aplica. Solo se rescata lo
+    # que es "poner contenido al final de un fichero".
+    if tc.nombre == "editar_archivo":
+        return None
+    seguro, descartados = _rp.recortar_a_frontera(trozo["parcial"])
+    if len(seguro) < _rp.MINIMO_RESCATABLE:
+        return None
+    # EL RESCATE NO PUEDE COMERSE UN FICHERO YA ESCRITO. `escribir_archivo`
+    # SOBRESCRIBE: si el modelo repite la llamada sobre un fichero que ya
+    # estaba entero (porque un paso anterior si cupo) y esta se corta,
+    # rescatar el parcial cambiaria un fichero completo por su principio. Es
+    # la misma clase de fallo que el marcador de truncado del 2026-08-26, y
+    # aqui la escribiria el propio arreglo. Si en el disco hay MAS de lo que
+    # traigo, no toco nada y se lo digo al modelo.
+    if tc.nombre == "escribir_archivo":
+        try:
+            from cognia.agents.workers.dev_tools import resolve_write_path
+            _dest = resolve_write_path(trozo["ruta"])
+            if _dest.exists() and _dest.stat().st_size > len(seguro.encode("utf-8")):
+                print_fn(f"[warn_cl]no rescato el parcial de {trozo['ruta']}: "
+                         f"en el disco ya hay mas de lo que traia el trozo "
+                         f"cortado (no se machaca)[/warn_cl]")
+                return (f"RESULTADO {tc.nombre} ERROR: tu llamada se corto, y "
+                        f"{trozo['ruta']} YA tiene mas contenido del que "
+                        f"alcanzaste a mandar. No se sobrescribio nada. Si "
+                        f"querias AGREGAR, usa apendar_archivo; si querias "
+                        f"cambiar una parte, usa editar_archivo. No reescribas "
+                        f"el fichero entero: no cabe en un mensaje.")
+        except Exception:
+            return None                        # ruta rara: mejor no tocar disco
+    # Un corte sobre escribir_archivo se escribe entero (crea/sobrescribe);
+    # sobre apendar_archivo se apenda, que es lo que el modelo pedia.
+    res = run_tool(tc.nombre,
+                   args_legacy(tc.nombre, {"path": trozo["ruta"],
+                                           "contenido": seguro,
+                                           "texto": seguro}),
+                   ctx)
+    if "ERROR" in (res or "")[:120]:
+        # La tool se nego (ruta fuera del workspace, permisos): no se inventa
+        # un exito. Vuelve None y manda el aviso de siempre.
+        print_fn(f"[warn_cl]el rescate del parcial no pudo escribir: "
+                 f"{(res or '')[:120]}[/warn_cl]")
+        return None
+    cola = _rp.ancla(seguro)
+    print_fn(f"[warn_cl]{tc.nombre}: los argumentos se cortaron a los "
+             f"{len(crudo)} chars; RESCATADOS {len(seguro)} chars a "
+             f"{trozo['ruta']} — el modelo continua desde ahi[/warn_cl]")
+    return (f"RESULTADO {tc.nombre} {trozo['ruta']}: PARCIAL. Tu llamada se "
+            f"corto a media cadena porque el contenido no cabia en un solo "
+            f"mensaje, pero NO se perdio: se escribieron los primeros "
+            f"{len(seguro)} chars"
+            + (f" (se descarto una linea a medias de {descartados} chars)"
+               if descartados else "")
+            + f".\nEl fichero termina AHORA MISMO asi:\n---\n{cola}\n---\n"
+            f"NO reescribas el fichero ni repitas nada de eso. Sigue con "
+            f"apendar_archivo {trozo['ruta']} | <lo que va DESPUES>, en "
+            f"trozos de como mucho 100 lineas cada uno, hasta terminarlo.")
 
 
 def _truncar_args_escritura(mensajes: list, ultimo_assistant: int) -> int:
@@ -1162,6 +1310,74 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             k["cancelado"] = _cc
         return k
 
+    _aviso_ventana = {"dicho": 0}
+
+    # -- PALANCA DEL PENSAMIENTO (2026-08-30) -------------------------------
+    # Un razonador al que se le pide "escribe un juego HTML completo" puede no
+    # terminar de pensar NUNCA: medido, 52.535 chars de razonamiento y cero
+    # tool calls con 20.000 tokens de presupuesto y el contexto vacio. La
+    # misma peticion con enable_thinking=false emite el fichero con 4.000.
+    # Se apaga SOLO cuando el turno ya demostro que se le va en pensar, y
+    # queda apagado el resto del turno: si esta tarea hace espiralar a este
+    # modelo una vez, lo va a volver a hacer, y cada descubrimiento cuesta una
+    # generacion entera (~7 min con este modelo). Es el mismo argumento con el
+    # que el bucle ya conserva `_piso_tokens`.
+    #
+    # LIMITE HONESTO: lo medido es que apagarlo arregla el paso que ESCRIBE un
+    # fichero grande. No esta medido que un paso posterior de diagnostico
+    # razone igual de bien sin pensamiento. Por eso hay knob: COGNIA_THINKING
+    # =on lo impide, y el default solo se mueve cuando el turno se corto.
+    _pensamiento = {"apagado": False}
+
+    def _lleva_thinking() -> bool:
+        """True si la plantilla de ESTE modelo lee enable_thinking. Sin eso la
+        palanca no existe y mandarla seria fingir un control que no hay."""
+        kw = perfil.get("kwargs_plantilla") or {}
+        return isinstance(kw, dict) and "enable_thinking" in kw
+
+    def _puede_apagar_pensamiento(resp, motivo: str) -> bool:
+        if _pensamiento["apagado"] or motivo != CORTE_ANTES_DEL_TOOL_CALL:
+            return False
+        if not _lleva_thinking():
+            return False
+        if os.environ.get("COGNIA_THINKING", "").strip().lower() in (
+                "on", "1", "true", "si"):
+            return False               # el dueno lo pidio encendido: manda el
+        # Solo si el turno se fue DE VERDAD en razonar. Sin reasoning el corte
+        # es otra cosa y apagar el pensamiento no viene a cuento.
+        return bool((getattr(resp, "reasoning_content", "") or "").strip())
+
+    def _apagar_pensamiento() -> None:
+        kw = dict(sampling.get("kwargs_plantilla") or
+                  perfil.get("kwargs_plantilla") or {})
+        kw["enable_thinking"] = False
+        sampling["kwargs_plantilla"] = kw
+        _pensamiento["apagado"] = True
+
+    def _sampling_ventana() -> dict:
+        """`sampling` con max_tokens recortado a lo que la VENTANA deja.
+
+        El recorte no le quita nada al modelo -- eso ya lo cortaba n_ctx -- pero
+        arregla lo que el BUCLE cree: sin el, `sampling['max_tokens']` decia
+        32768 mientras el server entregaba 2258, y de esa mentira salian la
+        rampa inutil, el piso aprendido inflado y el aviso "no cabe ni con
+        max_tokens=32768" sobre un numero que nunca se pidio de verdad.
+
+        Nunca baja de MIN_TOKENS_RAZONADOR: con menos, un razonador no puede
+        cerrar ni la frase, y mandar 200 seria pedir un fallo garantizado.
+        """
+        s = dict(sampling)
+        _mt, _motivo = _ps.clamp(sampling["max_tokens"], perfil.get("n_ctx"),
+                                 _tokens_prompt(mensajes))
+        if _motivo:
+            s["max_tokens"] = max(MIN_TOKENS_RAZONADOR, _mt)
+            # Una vez por turno: el aviso es util, repetirlo en cada paso es
+            # ruido sobre una condicion que ya se dijo.
+            if not _aviso_ventana["dicho"]:
+                _aviso_ventana["dicho"] = 1
+                print_fn(f"[detail]{_motivo}: pido {s['max_tokens']}[/detail]")
+        return s
+
     # Un transporte que NO respeta stream:true (un proxy delante, un backend
     # que no es llama-server) contesta 200 sin un solo frame SSE. chat_client
     # lo devuelve como error CON causa; aca se degrada UNA vez al camino
@@ -1323,8 +1539,35 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     _acc, lambda n, a: run_tool(n, a, ctx), ctx) if _acc else None)
             except Exception:
                 _cache_espec = None
+        # VALVULA ANTES DE LLAMAR (2026-08-30). La compactacion de este bucle
+        # vive al FINAL de la vuelta y se alimenta del usage de la respuesta,
+        # asi que en el camino del corte no llegaba a correr NUNCA: el paso
+        # se cortaba, la rampa lo repetia, el 500 salia por la rama de error y
+        # el turno moria con la ventana al 96% sin que nadie hubiera liberado
+        # un byte. Aqui se mira ANTES: si lo que queda de ventana no da ni
+        # para que el turno cierre algo (MINIMO_UTIL), se compacta primero.
+        #
+        # No es una optimizacion: es la diferencia entre gastar una generacion
+        # entera (~6 min con este modelo) en un turno que ya se sabe que no
+        # puede terminar, y gastarla en uno que si.
+        if not _ps.hay_sitio_para_trabajar(perfil.get("n_ctx"),
+                                           _tokens_prompt(mensajes)):
+            _cabe = _ps.disponible(perfil.get("n_ctx"), _tokens_prompt(mensajes))
+            _lib = (_compactar_por_resumen(mensajes, perfil.get("n_ctx"),
+                                           10 ** 9, _estado, print_fn)
+                    or _recortar_mensajes(mensajes, perfil.get("n_ctx"), 10 ** 9))
+            if _lib:
+                print_fn(f"[warn_cl]la ventana solo dejaba {_cabe} tokens de "
+                         f"salida (hacen falta {_ps.MINIMO_UTIL}): compacto "
+                         f"{_lib} chars ANTES de llamar[/warn_cl]")
+            else:
+                # Sin nada que liberar se llama igual: puede que el modelo
+                # cierre con una respuesta corta. Lo que no se hace es callar.
+                print_fn(f"[warn_cl]la ventana solo deja {_cabe} tokens de "
+                         f"salida y no hay nada compactable: este paso puede "
+                         f"no cerrar[/warn_cl]")
         _t_paso = __import__("time").time()
-        resp = completar(mensajes, tools=schemas, **sampling,
+        resp = completar(mensajes, tools=schemas, **_sampling_ventana(),
                          **_kwargs_stream())
         tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
         if _prog is not None:
@@ -1344,21 +1587,95 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
 
         # ¿Se corto el turno mientras emitia un tool call? Entonces el problema
         # es el PRESUPUESTO, no el modelo: se sube y se repite el mismo turno.
+        #
+        # ...PERO HAY DOS PRESUPUESTOS, y solo uno se sube (2026-08-30). El
+        # turno se corta o porque se agoto el max_tokens que se pidio, o porque
+        # se lleno la VENTANA (n_ctx). Los dos llegan como finish_reason
+        # 'length' y son indistinguibles a simple vista, pero piden acciones
+        # OPUESTAS: el primero se cura subiendo el tope; el segundo NO se cura
+        # con eso ni en el mejor de los casos, porque el server corta en n_ctx
+        # y el tope ya no manda.
+        #
+        # MEDIDO contra el llama-server del dueno (Qwen3.8-27B, n_ctx=65536):
+        # con un prompt de 63.277 tokens y max_tokens=32768 llegaron 2258
+        # tokens y total_tokens=65535, o sea n_ctx MENOS UNO. Subir el tope de
+        # 8192 a 16384 a 32768 en ese estado regenera el mismo razonamiento y
+        # muere en la misma columna: son dos generaciones enteras (~6 min con
+        # este modelo) tiradas por vuelta. Asi murio la tarea del Minecraft:
+        # 8 vueltas, 7 refunds, 48 minutos, cero ficheros.
+        #
+        # Cuando el corte es de VENTANA lo unico que ayuda es liberar
+        # contexto, asi que eso es lo que se hace: compactar y repetir. Y si
+        # no se libero nada, se sale del bucle sin gastar la vuelta.
         _motivo_corte = _corte_en_tool_call(resp, schemas)
-        while (_motivo_corte and _reintentos_corte < _MAX_REINTENTOS_CORTE
-               and sampling["max_tokens"] < _TECHO_REINTENTO):
-            _antes = sampling["max_tokens"]
-            sampling["max_tokens"] = min(_TECHO_REINTENTO, max(2048, _antes * 2))
+        # EL RESCATE VA ANTES QUE EL REINTENTO (2026-08-30). Si el turno
+        # cortado trae dentro un fichero rescatable, repetir el paso TIRA esos
+        # bytes para volver a jugarselos. Se deja pasar al camino del rescate,
+        # que los escribe y hace que el turno siguiente continue en vez de
+        # reempezar. El reintento sigue mandando cuando no hay nada dentro (el
+        # 500 del server, el corte antes de emitir la llamada).
+        if _motivo_corte and _hay_parcial_rescatable(resp):
+            _motivo_corte = ""
+        while (_motivo_corte and _reintentos_corte < _MAX_REINTENTOS_CORTE):
+            _por_ventana = _ps.es_corte_por_contexto(
+                resp.usage, perfil.get("n_ctx"))
+            if _puede_apagar_pensamiento(resp, _motivo_corte):
+                # LA PRIMERA INTERVENCION ES APAGAR EL PENSAMIENTO, no subir
+                # ningun tope (2026-08-30). Cuando el corte cae ANTES de que
+                # el tool call empiece, el presupuesto no se lo comio el
+                # fichero: se lo comio el razonamiento, y darle mas tokens es
+                # darle mas sitio para seguir pensando.
+                #
+                # MEDIDO contra el server del dueno con la MISMA peticion
+                # ("escribe un juego HTML completo") y un prompt de 369
+                # tokens, o sea SIN ninguna presion de contexto:
+                #
+                #   thinking ON,  max_tokens 20000 -> 52.535 chars de
+                #                 razonamiento y CERO tool calls
+                #   enable_thinking=false, max_tokens 4000 -> 0 chars de
+                #                 razonamiento y 10.160 chars de tool call
+                #   reasoning_effort=low,  max_tokens 4000 -> 821 chars de
+                #                 razonamiento y 9.965 chars de tool call
+                #
+                # O sea: con el pensamiento encendido el modelo NO TERMINA de
+                # pensar ni con cinco veces el presupuesto, y con el apagado
+                # escribe el fichero con la quinta parte. Por eso la rampa de
+                # max_tokens no podia funcionar nunca en este caso: subia lo
+                # que no faltaba.
+                _apagar_pensamiento()
+                print_fn("[warn_cl]el turno se fue entero en razonar sin "
+                         "llegar a llamar la herramienta: repito el paso con "
+                         "el pensamiento APAGADO (COGNIA_THINKING=on lo "
+                         "impide)[/warn_cl]")
+            elif _por_ventana:
+                _liberados = (_compactar_por_resumen(
+                    mensajes, perfil.get("n_ctx"), 10 ** 9, _estado, print_fn)
+                    or _recortar_mensajes(mensajes, perfil.get("n_ctx"), 10 ** 9))
+                if not _liberados:
+                    print_fn("[warn_cl]el turno se corto porque la VENTANA de "
+                             f"{perfil.get('n_ctx')} tokens esta llena y no "
+                             "queda nada que compactar: subir max_tokens no "
+                             "cambiaria nada[/warn_cl]")
+                    break
+                print_fn(f"[warn_cl]{_motivo_corte}, pero por la VENTANA "
+                         f"(no por max_tokens): libero {_liberados} chars de "
+                         f"contexto y repito[/warn_cl]")
+            elif sampling["max_tokens"] < _TECHO_REINTENTO:
+                _antes = sampling["max_tokens"]
+                sampling["max_tokens"] = min(_TECHO_REINTENTO,
+                                             max(2048, _antes * 2))
+                print_fn(f"[warn_cl]{_motivo_corte}: repito el paso con "
+                         f"max_tokens {_antes} -> {sampling['max_tokens']}"
+                         f"[/warn_cl]")
+            else:
+                break                       # ni ventana ni rampa: no hay que subir
             _reintentos_corte += 1
             if _pres is not None:
                 # Repetir el MISMO paso con mas presupuesto no es razonamiento
                 # nuevo: es administracion. Sin el refund, un fichero largo se
                 # comia dos vueltas de la tarea (conversation_loop.py:1996).
                 _pres.refund(MOTIVO_REINTENTO_FORMATO)
-            print_fn(f"[warn_cl]{_motivo_corte}: repito el paso con "
-                     f"max_tokens {_antes} -> {sampling['max_tokens']}"
-                     f"[/warn_cl]")
-            resp = completar(mensajes, tools=schemas, **sampling,
+            resp = completar(mensajes, tools=schemas, **_sampling_ventana(),
                              **_kwargs_stream())
             tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
             _motivo_corte = _corte_en_tool_call(resp, schemas)
@@ -1378,14 +1695,25 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                          f"pido al modelo que lo escriba por partes[/warn_cl]")
             mensajes.append({
                 "role": "user",
+                # "la primera mitad" era el consejo equivocado y por eso el
+                # aviso salia cuatro veces seguidas: la mitad de un fichero
+                # que no cabe TAMPOCO cabe. El numero tiene que ser chico y
+                # absoluto, no relativo a lo que fallo. Y el presupuesto real
+                # se le dice, porque es el dato que el modelo no tiene y que
+                # decide cuanto puede escribir de una vez.
                 "content": ("AVISO DEL SISTEMA: tu ultima llamada a una "
                             "herramienta se corto porque el contenido era "
-                            "demasiado largo para un solo mensaje. Escribe el "
-                            "fichero POR PARTES: primero escribir_archivo con "
-                            "la primera mitad y luego apendar_archivo con el "
-                            "resto. No repitas la llamada entera."),
+                            "demasiado largo para un solo mensaje. En este "
+                            f"turno te caben ~{_ps.disponible(perfil.get('n_ctx'), _tokens_prompt(mensajes))} "
+                            "tokens de salida, y en ellos entra tambien tu "
+                            "razonamiento: PIENSA POCO Y ESCRIBE YA. Manda el "
+                            "fichero POR PARTES, en TROZOS DE COMO MUCHO 100 LINEAS: "
+                            "escribir_archivo con el primer trozo y luego un "
+                            "apendar_archivo por cada trozo siguiente. No "
+                            "repitas la llamada entera ni intentes la mitad "
+                            "del fichero: no cabe."),
             })
-            resp = completar(mensajes, tools=schemas, **sampling,
+            resp = completar(mensajes, tools=schemas, **_sampling_ventana(),
                              **_kwargs_stream())
             tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
 
@@ -1415,6 +1743,39 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         # FOOTER de contexto (barra_estado): tokens reales del turno y
         # ocupacion de la ventana (la refina el hook post-compactacion).
         _anotar_uso_vivo(resp, perfil.get("n_ctx"), mensajes, print_fn)
+
+        if not resp.ok and _corte_en_tool_call(resp, schemas):
+            # UN TOOL CALL CORTADO NO ES UN BACKEND CAIDO (2026-08-30).
+            # llama-server devuelve HTTP 500 "Failed to parse tool call
+            # arguments as JSON ... missing closing quote" cuando la
+            # generacion muere a media cadena. Ese 500 caia en la rama de
+            # abajo, Hermes lo clasificaba como 'desconocido', se reintentaba
+            # DOS veces la misma peticion (mismo error, tres generaciones
+            # pagadas) y el turno cerraba con razon=error_backend. Ese es
+            # literalmente el final de la corrida del dueno del 2026-08-30:
+            # "Agente (nativo): HTTP 500 ..." y ni una linea de salida final.
+            #
+            # El sintoma es del PRESUPUESTO y ya tiene dueno mas arriba (la
+            # rampa, la ventana, el pensamiento). Si se llego hasta aqui es
+            # que todo eso se agoto: se cierra HONESTO y con lo que haya en el
+            # workspace, en vez de acusar al backend de algo que no hizo.
+            _pendiente = next((h for h in reversed(history)
+                               if h.startswith("RESULTADO ")), "")
+            print_fn("[warn_cl]el modelo no consiguio emitir la llamada "
+                     "entera ni por partes: cierro con lo que si quedo "
+                     "escrito[/warn_cl]")
+            if _salida is not None:
+                _salida.sellar(RAZON_ERROR_BACKEND, "tool call cortado sin salida")
+            result_text = (
+                "(el modelo no logro emitir el fichero completo: la llamada a "
+                "la herramienta se corto a media cadena y el presupuesto de "
+                "esta ventana ya estaba agotado. Lo que SI quedo hecho:"
+                + ("\n\n" + _pendiente[:400] if _pendiente
+                   else " nada todavia.")
+                + "\n\nSugerencia: pideselo por partes explicitamente ('escribe "
+                  "primero el HTML y el CSS, luego el JS en otro fichero'), o "
+                  "arranca el backend con mas ventana.)")
+            break
 
         if not resp.ok:
             # RED DEL STREAM (2026-08-26). Un transporte que no respeta
@@ -1673,19 +2034,53 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             if (getattr(tc, "argumentos_rotos", False)
                     and _parece_cortado(getattr(tc, "argumentos_crudos", ""))):
                 crudo = getattr(tc, "argumentos_crudos", "") or ""
-                resultado = (
-                    f"RESULTADO {tc.nombre} ERROR: los argumentos llegaron "
-                    f"CORTADOS ({len(crudo)} chars, JSON incompleto). No es un "
-                    f"problema de la ruta ni del formato: el contenido es "
-                    f"demasiado largo para un solo mensaje. Escribelo POR "
-                    f"PARTES: escribir_archivo con la primera parte y luego "
-                    f"apendar_archivo con el resto.")
-                print_fn(f"[warn_cl]{tc.nombre}: argumentos cortados a los "
-                         f"{len(crudo)} chars; le pido al modelo que escriba "
-                         f"por partes[/warn_cl]")
+                # RESCATE ANTES QUE AVISO (2026-08-30). Pedir "por partes" es
+                # correcto pero no basta: el modelo reempieza por el principio
+                # con el mismo presupuesto y se corta en la misma columna
+                # (cuatro veces seguidas en la corrida que lo cazo). Si el
+                # trozo que llego se puede escribir, se escribe: a partir de
+                # ahi el turno siguiente CONTINUA en vez de reescribir.
+                resultado = _rescatar_escritura(tc, crudo, ctx, run_tool, print_fn)
+                if resultado is None:
+                    resultado = (
+                        f"RESULTADO {tc.nombre} ERROR: los argumentos llegaron "
+                        f"CORTADOS ({len(crudo)} chars, JSON incompleto). No es un "
+                        f"problema de la ruta ni del formato: el contenido es "
+                        f"demasiado largo para un solo mensaje. Escribelo POR "
+                        f"PARTES: escribir_archivo con la primera parte (como "
+                        f"mucho 100 lineas) y luego apendar_archivo con el resto.")
+                    print_fn(f"[warn_cl]{tc.nombre}: argumentos cortados a los "
+                             f"{len(crudo)} chars; le pido al modelo que escriba "
+                             f"por partes[/warn_cl]")
                 history.append(resultado)
+                # Un rescate SI es progreso: hay bytes nuevos en el disco. Con
+                # ok=False el detector de racha lo contaba como fallo y a las
+                # tres cortaba la tarea justo cuando estaba avanzando tramo a
+                # tramo, que es exactamente el modo en que las tareas largas
+                # tienen que terminar.
+                _rescatado = resultado.startswith(f"RESULTADO {tc.nombre} ") \
+                    and ": PARCIAL." in resultado[:200]
                 trace.append({"action": tc.nombre, "args": crudo[:200],
-                              "ok": False, "result_head": resultado[:160]})
+                              "ok": _rescatado, "result_head": resultado[:160]})
+                if _rescatado:
+                    # Y CUENTA COMO AVANCE. Este `continue` se salta el camino
+                    # normal de la tool, donde vive `observar_fichero`; sin
+                    # esto, escribir un fichero por rescate no aparecia en el
+                    # presupuesto por progreso, o sea que la tarea que MAS
+                    # necesita que le amplien los pasos -- la que va tramo a
+                    # tramo -- era justo la que no los conseguia.
+                    try:
+                        _rr = getattr(tc, "argumentos_crudos", "")
+                        from cognia.agent import rescate_parcial as _rp_av
+                        _pz = _rp_av.partes(_rr)
+                        if _pz and _canal is not None and _estado_on:
+                            _canal.anotar_fichero(_estado, _pz["ruta"],
+                                                  tc.nombre, ok=True)
+                        if _pz and _prog is not None:
+                            _prog.observar_fichero(_pz["ruta"])
+                    except Exception as _exc_av:
+                        logging.getLogger(__name__).warning(
+                            "rescate sin anotar en el progreso: %s", _exc_av)
                 mensajes.append(mensaje_tool(tc.id, resultado))
                 continue
             # LA COMPACTACION NO PUEDE COMERSE UN FICHERO (2026-08-26).

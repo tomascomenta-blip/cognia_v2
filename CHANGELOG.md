@@ -2,6 +2,85 @@
 
 ---
 
+## [4.17.0] - 2026-08-30
+
+### Tareas LARGAS: el techo era la ventana, y el razonador no paraba
+
+El dueno pidio en el REPL "un Minecraft completo en un solo HTML". Dos
+corridas, 48 minutos, 92.245 tokens, 8 vueltas, 7 refunds y **cero ficheros
+escritos**. El final del log:
+
+    el turno se corto por max_tokens antes de emitir el tool call:
+        repito el paso con max_tokens 16384 -> 32768
+    el contenido no cabe en un solo tool call ni con max_tokens=32768:
+        le pido al modelo que lo escriba por partes
+    escribir_archivo: argumentos cortados a los 2142 chars
+    HTTP 500 ... parse error at line 1, column 2144 ...
+    Turno terminado [bucle_nativo]: razon=error_backend detalle=desconocido
+
+Cinco fallos encadenados. Los tres primeros se MIDIERON contra el llama-server
+real (Qwen3.8-27B-Ridge, n_ctx=65536) antes de tocar una linea de codigo.
+
+**1. El techo era la VENTANA, no `max_tokens`.** Con un prompt de 63.277
+tokens y `max_tokens=32768` el server devolvio 2258 tokens de salida y
+`total_tokens=65535`, o sea `n_ctx` MENOS UNO. El corte lo daba el contexto y
+el bucle subia el numero que no cortaba: la rampa 8192 -> 16384 -> 32768
+regeneraba el mismo razonamiento y moria en la misma columna, dos generaciones
+enteras tiradas por vuelta. `cognia/agent/presupuesto_salida.py` hace la
+aritmetica que faltaba (`disponible`, `clamp`, `es_corte_por_contexto`) y el
+bucle ya distingue los dos cortes: el de tope se cura subiendo el tope, el de
+ventana solo liberando contexto.
+
+**2. El razonador no terminaba de pensar.** La misma peticion con el contexto
+VACIO (prompt de 369 tokens, o sea sin ninguna presion) y `max_tokens=20000`:
+**52.535 chars de razonamiento y CERO tool calls**. La misma con
+`enable_thinking=false` y `max_tokens=4000`: **0 chars de razonamiento y
+10.160 chars de tool call**; con `reasoning_effort=low`, 821 y 9.965. Darle
+mas tokens era darle mas sitio para pensar. Ahora, cuando un paso se va entero
+en razonar sin llegar a llamar la herramienta, el bucle repite ese paso con el
+pensamiento APAGADO, y lo deja apagado el resto del turno (mismo argumento con
+el que ya conservaba `_piso_tokens`). `COGNIA_THINKING=on` lo impide.
+
+**3. Lo ya generado se tiraba.** El modelo emitia ~2.100 chars de HTML valido
+y el bucle los descartaba para pedirle que empezara de nuevo, con el mismo
+presupuesto y por tanto con el mismo final: el aviso de "escribelo por partes"
+salio cuatro veces seguidas y el fichero nunca existio.
+`cognia/agent/rescate_parcial.py` saca del JSON roto la ruta y el trozo que SI
+llego, lo recorta a frontera de linea y el bucle lo ESCRIBE; al modelo se le
+devuelve el ancla exacta ("el fichero termina asi") y la orden de continuar
+con `apendar_archivo`, no de reescribir. Un corte deja de costar una vuelta y
+pasa a costar un tramo. Con guarda: si en el disco ya hay mas de lo que traia
+el trozo, no se sobrescribe nada.
+
+**4. La compactacion no llegaba a correr.** Vivia al final de la vuelta y se
+alimentaba del usage de la respuesta, asi que en el camino del corte no se
+ejecutaba nunca: el paso se cortaba, la rampa lo repetia, el 500 salia por la
+rama de error y el turno moria con la ventana al 96% sin haber liberado un
+byte. Ahora hay valvula ANTES de llamar: si lo que queda no da ni para que el
+turno cierre algo, se compacta primero.
+
+**5. Un tool call cortado no es un backend caido.** El HTTP 500 "Failed to
+parse tool call arguments as JSON" se clasificaba como `desconocido`, se
+reintentaba dos veces la misma peticion y el turno cerraba con
+`razon=error_backend` y **ni una linea de salida final**. Ahora cierra honesto
+y con lo que quedo escrito.
+
+**Bug adyacente que el arreglo volvia critico:** `apendar_archivo` hacia
+`.strip()` a todo, tambien a los trozos multilinea. Daba igual mientras era
+para bitacoras, pero desde que las tareas largas se escriben POR TROZOS esa es
+la tool que escribe el cuerpo de los ficheros grandes, y el strip se comia la
+INDENTACION de la primera linea de cada trozo: cosmetico en HTML,
+IndentationError en Python, en un fichero que el agente daba por escrito.
+
+### Puerta nueva en el CLI
+
+`/ventana` — ensena el numero que era invisible y que decidia si una tarea
+larga podia terminar: cuantos tokens de SALIDA deja la ventana despues del
+prompt, con la reserva del server, el minimo util por paso y el estado del
+pensamiento. `/ventana pensamiento auto|on|off` persiste la palanca.
+
+---
+
 ## [4.15.0] - 2026-08-30
 
 ### Revision profunda antes de entregar: el arnes CORRE lo construido

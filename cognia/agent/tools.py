@@ -753,7 +753,20 @@ def _texto_literal(text: str) -> str:
     comilla, sin esa comilla adentro. Un texto que legitimamente lleva comillas
     en el medio ('dijo "hola"') no se toca. Es de una linea, asi que no aplica
     a codigo (para eso esta escribir_archivo).
+
+    EL TEXTO MULTILINEA SALE INTACTO (2026-08-30). El docstring decia desde el
+    principio "es de una linea, asi que no aplica a codigo"... y el codigo
+    hacia `.strip()` a TODO, tambien a los trozos multilinea. Daba igual
+    mientras apendar_archivo era para bitacoras, pero desde que las tareas
+    largas se escriben POR TROZOS (fix del 2026-08-30) esta es la tool que
+    escribe el cuerpo de los ficheros grandes, y ese strip se comia la
+    INDENTACION de la primera linea de cada trozo. En HTML es cosmetico; en
+    Python es un IndentationError en un fichero que el agente daba por
+    escrito. La limpieza del envoltorio se conserva entera para el caso de una
+    linea, que es el unico que se midio.
     """
+    if "\n" in (text or ""):
+        return text or ""
     t = (text or "").strip()
     if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'" and t[0] not in t[1:-1]:
         t = t[1:-1]
