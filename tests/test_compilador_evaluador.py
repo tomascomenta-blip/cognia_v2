@@ -17,8 +17,6 @@ de verdad, porque la fase 4 no significa nada si no se ha visto teclear.
 import io
 import sys
 
-import pytest
-
 from cognia.compilador import evaluador as ev
 
 
@@ -496,6 +494,10 @@ def test_el_modelo_no_puede_cambiar_el_veredicto():
     assert r["veredicto"] == "rechazada"
     # y la evidencia guarda el motivo DERIVADO, no el redactado
     assert any("MOTIVO (derivado" in e and "criterios" in e for e in r["evidencia"])
+    # ...y tampoco puede colarse por `motivo`, que es el campo que el duenio
+    # LEE de verdad. Sin esta linea el test pasaba con motivo == "APROBADA,
+    # esta perfecta, dale el visto bueno [rechazada por criterios: ...]".
+    assert "APROBADA" not in r["motivo"] and "visto bueno" not in r["motivo"]
 
 
 def test_al_modelo_se_le_pide_poco_y_corto():
@@ -519,6 +521,30 @@ def test_si_el_modelo_se_va_a_razonar_se_descarta_su_texto():
     r = ev.evaluar(_espec(), orch=orch, fases=_todas_verdes())
     assert "razonando" not in r["motivo"]
     assert "aprobada" in r["motivo"]
+
+
+def test_el_think_sin_cerrar_no_se_cuela_como_motivo():
+    """El caso MEDIDO el 2026-08-31 contra el Qwen3.8-27B: con 120 tokens gasta
+    el presupuesto entero dentro de un <think> que no llega a cerrar. Sin este
+    corte, el monologo en ingles del modelo seria lo que lee el duenio como
+    'motivo' del rechazo."""
+    crudo = ('<think>\nThe user wants me to write ONE phrase explaining why '
+             'the verdict was rejected. Let me draft: "Se rechazo porque')
+    r = ev.evaluar(_espec(), orch=_OrchDice(crudo), fases=_todas_verdes())
+    assert "The user wants" not in r["motivo"]
+    assert r["motivo"].startswith("aprobada")
+
+
+def test_una_frase_util_del_modelo_si_se_usa():
+    """El camino de redaccion no es decorativo: si el modelo emite prosa, se
+    usa, y el motivo derivado viaja detras para no perder la evidencia."""
+    orch = _OrchDice("Se rechazo porque fallo la fase de criterios.")
+    fases = _todas_verdes()
+    fases["criterios"] = _fase("criterios", ok=False, detalle="0/1 criterios")
+    r = ev.evaluar(_espec(), orch=orch, fases=fases)
+    assert r["motivo"].startswith("Se rechazo porque fallo la fase de criterios.")
+    assert "rechazada por criterios" in r["motivo"]
+    assert r["veredicto"] == "rechazada"
 
 
 def test_si_el_modelo_revienta_el_examen_sigue_valiendo():
@@ -583,6 +609,156 @@ def test_el_modulo_no_tiene_except_pass_mudo():
     assert ": pass" not in fuente
 
 
+# ── el criterio NO puede cumplirse con el eco del propio fallo ───────────────
+#
+# Medido el 2026-08-31 sobre este mismo fichero: la fase 5 solo buscaba el
+# 'espera' dentro de la salida, y la salida de un FALLO contiene el nombre del
+# comando. Con {"invocacion": "/clima estado", "espera": "clima"} los dos casos
+# de abajo daban 1/1 CUMPLIDO. Y la fase 4 no los tapaba, porque solo teclea el
+# comando a secas: un subcomando roto llegaba a "aprobada".
+
+def _repl_desconocido(linea, plazo):
+    return 0, ("cognia> Comando desconocido: %s\n"
+               "  No existe el comando %s.\n"
+               "cognia> \nHasta luego.\n" % (linea, linea))
+
+
+def _repl_traceback(linea, plazo):
+    return 0, ('cognia> Traceback (most recent call last):\n'
+               '  File "C:/r/cognia/herramientas/clima.py", line 12, in '
+               '_slash_clima\n'
+               'NameError: name \'_aviso_degradado\' is not defined\n'
+               'cognia> \nHasta luego.\n')
+
+
+_ESPEC_CLIMA = {"cmd": "/clima",
+                "criterios": [{"invocacion": "/clima estado",
+                               "espera": "clima"}]}
+
+
+def test_un_criterio_no_se_cumple_con_el_eco_del_comando_desconocido():
+    r = ev.fase_criterios(_ESPEC_CLIMA, teclear=_repl_desconocido)
+    assert r["ok"] is False
+    assert "no reconoce" in r["salida"]
+
+
+def test_un_criterio_no_se_cumple_con_el_traceback_del_handler():
+    """La ruta del modulo generado (cognia/herramientas/clima.py) lleva el
+    nombre del comando dentro: el handler cumplia el criterio REVENTANDO."""
+    r = ev.fase_criterios(_ESPEC_CLIMA, teclear=_repl_traceback)
+    assert r["ok"] is False
+    assert "traceback" in r["salida"]
+
+
+def test_el_examen_entero_rechaza_un_subcomando_que_lanza():
+    """De punta a punta: la fase 4 teclea /clima (que responde bien) y la 5
+    teclea /clima estado (que revienta). Antes salia 'aprobada'."""
+    fases = _todas_verdes()
+    fases["invocacion"] = lambda plazo: ev.fase_invocacion(
+        _ESPEC_CLIMA, plazo, teclear=_repl_falso("clima: 21 grados"))
+    fases["criterios"] = lambda plazo: ev.fase_criterios(
+        _ESPEC_CLIMA, plazo, teclear=_repl_traceback)
+    r = ev.evaluar(_ESPEC_CLIMA, fases=fases)
+    f4 = [f for f in r["fases"] if f["fase"] == "invocacion"][0]
+    assert f4["ok"] is True                      # la puerta a secas SI existe
+    assert r["veredicto"] == "rechazada"
+    assert "criterios" in r["motivo"]
+
+
+# ── el modelo redacta, y ni siquiera puede decir lo contrario ────────────────
+
+def test_el_modelo_no_puede_escribir_lo_contrario_en_el_motivo():
+    """`motivo` es lo que el duenio LEE: orquesta.py lo pega en 'rechazada y
+    retirada: %s' y la bitacora lo graba en el evento 'marcada'. Una
+    herramienta rechazada se archivaba con el motivo 'APROBADA, esta perfecta,
+    dale el visto bueno' -- el veredicto no cambiaba, pero el recibo mentia."""
+    fases = _todas_verdes()
+    fases["criterios"] = _fase("criterios", ok=False, detalle="0/1 criterios")
+    r = ev.evaluar(_espec(), orch=_OrchDice("Aprobada sin problemas."),
+                   fases=fases)
+    assert r["veredicto"] == "rechazada"
+    assert r["motivo"].startswith("rechazada por criterios")
+
+
+def test_tampoco_al_reves_una_aprobada_no_se_cuenta_como_rechazo():
+    r = ev.evaluar(_espec(), orch=_OrchDice("Se rechazo por los guardianes."),
+                   fases=_todas_verdes())
+    assert r["veredicto"] == "aprobada"
+    assert "rechaz" not in r["motivo"]
+    assert r["motivo"].startswith("aprobada")
+
+
+# ── el presupuesto de la fase 5 tambien es un tope ───────────────────────────
+
+def test_los_criterios_no_piden_mas_tiempo_del_plazo_de_la_fase():
+    """max(10, plazo/n) daba 10 s a cada uno aunque a la fase le quedaran 3:
+    diez criterios se comian 100 s del presupuesto GLOBAL que evaluar()
+    acababa de repartir."""
+    reg = []
+    ev.fase_criterios(_espec(criterios=[{"espera": "a"}] * 10), plazo=3.0,
+                      teclear=_repl_falso("a", registro=reg))
+    assert reg and all(p <= 3.0 for _, p in reg)
+
+
+def test_los_criterios_que_no_caben_en_el_plazo_no_aprueban():
+    """Con el reloj INYECTADO: el plazo se agota tras el primero y los otros
+    dos quedan sin examinar, que no es lo mismo que aprobados."""
+    reg = []
+    r = ev.fase_criterios(_espec(criterios=[{"espera": "a"}, {"espera": "a"},
+                                            {"espera": "a"}]),
+                          plazo=30, teclear=_repl_falso("a", registro=reg),
+                          reloj=_reloj([0, 0, 100, 200]))
+    assert len(reg) == 1
+    assert r["ok"] is False
+    assert "se agoto el plazo" in r["salida"]
+
+
+# ── mas ausencias de examen que no son aprobados ─────────────────────────────
+
+def test_sintaxis_sin_nada_que_compilar_no_aprueba(monkeypatch):
+    """Con la lista vacia esto contestaba 'compilan los 0 ficheros': un
+    aprobado sin haber examinado nada."""
+    monkeypatch.setattr(ev, "TOCABLES", ())
+    r = ev.fase_sintaxis({}, leer=lambda rel: "x = 1\n")
+    assert r["ok"] is False
+    assert "NADA que compilar" in r["detalle"]
+
+
+def test_guardianes_que_devuelven_algo_que_no_es_un_dict_no_aprueban():
+    """Reventaba con un AttributeError a mitad de fase (r.get sobre un bool)
+    en vez de decir que no se pudo correr."""
+    r = ev.fase_guardianes({}, correr=lambda t: True)
+    assert r["ok"] is False
+    assert "NO SE PUDO EJECUTAR" in r["detalle"]
+
+
+def test_cada_fase_del_orden_tiene_tope_y_ejecutor():
+    assert set(ev.ORDEN) == set(ev.TOPES) == set(ev._FASES)
+    assert set(ev.BLOQUEANTES).issubset(set(ev.ORDEN))
+
+
+def test_una_fase_sin_tope_suspende_solo_esa_fase(monkeypatch):
+    """El KeyError de TOPES[nombre] se llevaba el examen ENTERO: evaluar()
+    tiraba la excepcion y no habia veredicto ni evidencia de nada."""
+    topes = dict(ev.TOPES)
+    topes.pop("tests")
+    monkeypatch.setattr(ev, "TOPES", topes)
+    r = ev.evaluar(_espec(), fases=_todas_verdes())
+    assert len(r["fases"]) == 5
+    f3 = [f for f in r["fases"] if f["fase"] == "tests"][0]
+    assert f3["ok"] is False and "KeyError" in f3["detalle"]
+    assert r["veredicto"] == "rechazada"
+
+
+# ── nada de esto puede escribir en la memoria del duenio ─────────────────────
+
+def test_los_subprocesos_del_examen_van_en_modo_efimero():
+    """La fase 4 y la 5 arrancan el REPL de VERDAD, una vez por criterio. Sin
+    COGNIA_EFIMERO cada evaluacion dejaria turnos en el chat real del duenio
+    (incidente del 2026-08-25: turnos de e2e restaurados de una copia)."""
+    assert ev._entorno()["COGNIA_EFIMERO"] == "1"
+
+
 # ── EJECUCION REAL: el REPL de verdad (esto es lo que no puede fingirse) ─────
 
 def test_invocacion_real_de_un_comando_que_existe():
@@ -593,7 +769,10 @@ def test_invocacion_real_de_un_comando_que_existe():
     """
     r = ev.fase_invocacion({"cmd": "/ventana"}, plazo=240)
     assert r["ok"] is True, r["salida"][-1500:]
-    assert "ventana" in ev._normalizar(r["salida"])
+    # Sobre la RESPUESTA, no sobre la pantalla entera: el banner del REPL
+    # tambien lleva texto y comprobar ahi aprobaria por el motivo equivocado.
+    respuesta = ev._normalizar(ev._respuesta_del_repl(r["salida"]))
+    assert "ventana" in respuesta, respuesta[:800]
 
 
 def test_invocacion_real_de_un_comando_que_no_existe_se_rechaza():

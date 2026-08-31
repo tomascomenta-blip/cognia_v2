@@ -1,0 +1,8 @@
+Title         : ZooLex — Text Similarity Analyzer
+Category      : text similarity analyzer with sample texts
+Created at    : 2026-08-29T20:20:01.747627
+Score         : auto-asignado 8.9/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  An animated-free, self-verifying terminal analyzer that compares animal-themed sample texts (plus a Python-language text) using Jaccard, cosine, and Levenshtein metrics, then prints colored matrices, rankings, and PASS/FAIL checks.

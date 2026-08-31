@@ -360,14 +360,23 @@ def senal_silencio(entradas) -> list:
 
 # ── Senial 2: deriva de vocabulario ──────────────────────────────────────────
 
-def senal_deriva(entradas, desde: float = 0.0, modo: str = "") -> list:
+def senal_deriva(entradas, desde: float = 0.0, modo: str = "",
+                 informe: dict = None) -> list:
     """[{t, fuerza, cobertura, sostenida, modo}] en cada frontera de entrada.
 
     `desde` es el inicio del bloque abierto: la comparacion es ventana nueva
     contra BLOQUE, no contra los ultimos tres minutos (ver cabecera). Por eso
     esta funcion se llama otra vez cada vez que se acepta un corte.
+
+    `informe` es un dict opcional donde se deja `{"modo": ...}` con la medida
+    que de VERDAD se uso. Hace falta porque aqui dentro se puede caer de
+    embeddings a lexico (backend muerto) y quien llama tiene que poder
+    DECLARARLO: la lista devuelta puede venir vacia, y entonces el modo real
+    no se podria leer de ella.
     """
     modo = modo or ("embeddings" if embeddings_activos() else "lexica")
+    if informe is not None:
+        informe["modo"] = modo
     hab = _habladas(_normalizar_entradas(entradas))
     if len(hab) < 2:
         return []
@@ -382,6 +391,17 @@ def senal_deriva(entradas, desde: float = 0.0, modo: str = "") -> list:
         log.warning("clases/materias: el backend semantico no devolvio ningun "
                     "vector; deriva medida con lexico")
         modo = "lexica"
+    elif modo == "embeddings":
+        # Perdida PARCIAL: las ventanas que caigan en el hueco compararian
+        # contra un vector medio que no existe, y `_coseno` devuelve ahi 1.0
+        # (= "no hay evidencia de cambio"). Eso no puede pasar callando: seria
+        # una jornada sin cortar por un backend a medias, sin nada que lo diga.
+        muertos = sum(1 for v in vectores if not v)
+        if muertos:
+            log.warning("clases/materias: %d de %d entradas sin vector; esas "
+                        "ventanas no miden deriva", muertos, len(vectores))
+    if informe is not None:
+        informe["modo"] = modo
 
     fuera = []
     for i in range(1, len(hab)):
@@ -521,12 +541,23 @@ def senal_horario(pistas, fin: float) -> list:
     for franja in horario:
         try:
             desde = float(franja.get("desde", 0.0))
-            hasta = float(franja.get("hasta", desde))
             materia = str(franja.get("materia") or "").strip()
         except (AttributeError, TypeError, ValueError) as e:
             log.warning("clases/materias: franja de horario ignorada (%s): %r",
                         type(e).__name__, franja)
             continue
+        # `hasta` se valida APARTE y no descalifica la franja. Lo que fija el
+        # corte es `desde`; `hasta` solo lo publica esta funcion. Tirar la
+        # clase entera porque el duenio escribio mal el final era perder la
+        # senial que "manda" sobre todas por un campo que nadie lee, y encima
+        # el hueco lo rellenaba la materia anterior extendiendose sobre ella.
+        try:
+            hasta = float(franja.get("hasta", desde))
+        except (TypeError, ValueError):
+            log.warning("clases/materias: 'hasta' ilegible en la franja %r; "
+                        "vale el 'desde' y el limite lo pone la franja "
+                        "siguiente", franja)
+            hasta = desde
         if not materia or desde > fin:
             continue
         fuera.append({"t": max(0.0, desde), "materia": materia, "hasta": hasta})
@@ -591,6 +622,16 @@ def _preguntar_al_modelo(texto: str, materias_conocidas, orch):
     Se pide el nombre EXACTO de la lista para poder validar la respuesta
     contra ella: un modelo que conteste "creo que es algo de ciencias" no
     puede acabar siendo una materia del cuaderno.
+
+    SE LEE POR EL FINAL, y esto NO es un detalle. El mismo motivo que obliga a
+    MAX_TOKENS_NOMBRE=160 -- el cerebro de la casa es un razonador y escribe
+    su cadena de pensamiento en el MISMO campo que la respuesta -- hace que el
+    texto contenga los nombres que el modelo considero y DESCARTO:
+    "podria ser Matematicas, pero habla de trincheras: es Historia". Buscar
+    "la primera materia de la lista que aparezca" devolvia ahi Matematicas,
+    o sea la que el modelo acababa de rechazar, y con confianza 0.7. Se mira
+    primero la ULTIMA linea (donde el razonador pone la conclusion) y, si ahi
+    no hay ninguna, la ULTIMA mencion del texto entero.
     """
     lista = ", ".join(str(m) for m in materias_conocidas if str(m).strip())
     fragmento = " ".join(str(texto or "").split())[:900]
@@ -607,12 +648,37 @@ def _preguntar_al_modelo(texto: str, materias_conocidas, orch):
                     type(e).__name__, e)
         return None
     plano = _sin_acentos(salida).lower()
-    for materia in materias_conocidas:
-        if _sin_acentos(str(materia)).lower().strip() in plano:
-            return str(materia)
+    lineas = [l for l in plano.splitlines() if l.strip()]
+    elegida = (_ultima_materia_en(lineas[-1], materias_conocidas) if lineas
+               else None)
+    if elegida is None:
+        elegida = _ultima_materia_en(plano, materias_conocidas)
+    if elegida is not None:
+        return elegida
     log.warning("clases/materias: respuesta del modelo fuera de la lista "
                 "(%r); queda el nombre deterministico", salida.strip()[:60])
     return None
+
+
+def _ultima_materia_en(plano: str, materias_conocidas):
+    """La materia de la lista mencionada MAS TARDE en `plano`, o None.
+
+    La ultima y no la primera porque la respuesta del razonador es lo ultimo
+    que escribe (ver `_preguntar_al_modelo`). A igualdad de posicion gana el
+    nombre mas largo: con "Historia" y "Historia del Arte" en la lista, la
+    unica lectura que no pierde informacion es la larga.
+    """
+    mejor, pos_mejor, largo_mejor = None, -1, -1
+    for materia in materias_conocidas or []:
+        clave = _sin_acentos(str(materia)).lower().strip()
+        if not clave:
+            continue
+        pos = plano.rfind(clave)
+        if pos < 0:
+            continue
+        if pos > pos_mejor or (pos == pos_mejor and len(clave) > largo_mejor):
+            mejor, pos_mejor, largo_mejor = str(materia), pos, len(clave)
+    return mejor
 
 
 def nombrar(texto, materias_conocidas=None, orch=None) -> tuple:
@@ -767,10 +833,18 @@ def detectar(entradas, materias_conocidas=None, pistas=None, orch=None) -> list:
     cortes = [{"t": 0.0, "evidencia": 1.0, "por": []}]
     ultimo = 0.0
     guardia = 0
+    # `modo` es la medida PEDIDA; `modo_real` la que senal_deriva pudo usar.
+    # No son la misma cosa cuando el backend semantico se cae a mitad, y el
+    # "por" tiene que declarar la que se uso: escribir "deriva embeddings"
+    # sobre un corte decidido con lexico invalida los umbrales que el lector
+    # creeria aplicados (UMBRAL_COSENO=0.75 vs UMBRAL_COBERTURA=0.30).
+    modo_real = modo
     while guardia < 64:
         guardia += 1
-        derivas = (senal_deriva(hab, desde=ultimo, modo=modo)
+        informe = {}
+        derivas = (senal_deriva(hab, desde=ultimo, modo=modo, informe=informe)
                    if activas["deriva"] else [])
+        modo_real = informe.get("modo", modo_real)
         por_t = {}
         for d in derivas:
             if d["fuerza"] > 0:
@@ -797,7 +871,8 @@ def detectar(entradas, materias_conocidas=None, pistas=None, orch=None) -> list:
             if fd > 0:
                 motivos.append("vocabulario nuevo sostenido (deriva %s, "
                                "similitud %.2f)"
-                               % (modo, por_t[t]["deriva"]["cobertura"]))
+                               % (por_t[t]["deriva"]["modo"],
+                                  por_t[t]["deriva"]["cobertura"]))
                 if fs <= 0:
                     # Con pausa, el corte ya esta en el sitio exacto (el
                     # primer segundo de habla tras el hueco). Sin pausa hay
@@ -831,8 +906,10 @@ def detectar(entradas, materias_conocidas=None, pistas=None, orch=None) -> list:
         motivos = list(c["por"]) or ["inicio de jornada"]
         if not activas["deriva"]:
             motivos.append("deriva apagada")
-        elif modo == "lexica":
-            motivos.append("medida lexica (sin embeddings)")
+        elif modo_real == "lexica":
+            motivos.append("medida lexica (sin embeddings)"
+                           if modo == "lexica" else
+                           "medida lexica (el backend de embeddings fallo)")
         if not materias_conocidas:
             motivos.append("sin materias conocidas")
         fuera.append({"t": round(float(c["t"]), 3), "materia": materia,
@@ -849,11 +926,21 @@ def _fundir(cortes: list) -> list:
     silencio, y ahi el corte es correcto pero la sesion no: son dos horas de
     lo mismo. Fundir aqui y no evitar el corte deja la evidencia intacta (el
     silencio se detecto) sin partir la sesion en el cuaderno.
+
+    LA FUSION SE DECLARA EN "por", y no es adorno. Sin decirlo, un corte de
+    mas DENTRO de una misma materia -- el fallo caro de este modulo -- es
+    INVISIBLE desde fuera: los dos bloques se llaman igual, se funden, y el
+    resultado tiene el mismo aspecto que no haber cortado. Los
+    contrafactuales del test (una sola materia seguida, la digresion de la
+    pizza) no podian distinguir "no corto" de "corto y se tapo".
     """
     fuera = []
     for c in sorted(cortes, key=lambda x: float(x["t"])):
         if fuera and fuera[-1]["materia"] == c["materia"]:
             fuera[-1]["confianza"] = max(fuera[-1]["confianza"], c["confianza"])
+            fuera[-1]["por"] = ("%s; fundido con el bloque de %ds (misma "
+                                "materia)" % (fuera[-1]["por"],
+                                              int(float(c["t"]))))
             continue
         fuera.append(dict(c))
     if fuera:

@@ -1,0 +1,8 @@
+Title         : Animal Python Text Similarity Zoo
+Category      : text similarity analyzer with sample texts
+Created at    : 2026-08-26T15:27:09.376756
+Score         : auto-asignado 9.0/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  Automatically analyzes built-in animal and Python texts with Jaccard and cosine similarity, prints counts, results, and PASS/FAIL verification checks.

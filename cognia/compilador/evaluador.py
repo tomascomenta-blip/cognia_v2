@@ -93,6 +93,7 @@ TOPE_SALIDA = 4000
 _RE_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 _RE_ESPACIOS = re.compile(r"\s+")
 _RE_THINK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+_RE_THINK_ABIERTO = re.compile(r"<think>.*\Z", re.DOTALL | re.IGNORECASE)
 
 
 # ── Lectura tolerante del espec ──────────────────────────────────────────────
@@ -218,6 +219,39 @@ def _respuesta_del_repl(salida: str) -> str:
     return medio.replace("Hasta luego.", "").strip()
 
 
+def _rechazo_de_la_puerta(linea: str, codigo, limpio: str,
+                          respuesta: str) -> str:
+    """Por que ESTA invocacion no cuenta como respuesta, o '' si responde.
+
+    Lo COMPARTEN la fase 4 y la fase 5, y esa es justo la correccion medida el
+    2026-08-31: la fase 5 solo buscaba el 'espera' dentro de la salida, y la
+    salida de un FALLO contiene el nombre del comando. Dos casos reales, los
+    dos verdes antes de esto:
+
+      - el REPL que no conoce el comando contesta "Comando desconocido:
+        /clima estado", que contiene "clima": el criterio
+        {"invocacion": "/clima estado", "espera": "clima"} se daba por
+        cumplido con el ECO de su propio fallo;
+      - un handler que revienta imprime 'File ".../cognia/herramientas/
+        clima.py", line 12, in _slash_clima', que tambien contiene "clima".
+
+    Y la fase 4 no tapaba el agujero, porque solo teclea el comando A SECAS:
+    un subcomando que lanza (o que no esta despachado) llegaba a "aprobada".
+    """
+    if codigo != 0:
+        return "el REPL murio con codigo %s" % codigo
+    if "Traceback (most recent call last)" in limpio:
+        return ("levanto un traceback: el handler puede llevarse el REPL por "
+                "delante")
+    if (("Comando desconocido: %s" % linea) in limpio
+            or "No existe el comando" in limpio):
+        return ("el REPL no reconoce la invocacion: la rama del despacho no "
+                "esta puesta")
+    if not respuesta:
+        return "no imprimio nada: puerta muda (indistinguible de rota)"
+    return ""
+
+
 # ── Fase 1: SINTAXIS ─────────────────────────────────────────────────────────
 
 def fase_sintaxis(espec=None, plazo: float = TOPES["sintaxis"],
@@ -237,6 +271,14 @@ def fase_sintaxis(espec=None, plazo: float = TOPES["sintaxis"],
     modulo = _campo(espec, "modulo", "ruta_modulo", "modulo_apoyo", defecto="")
     if modulo:
         objetivos.append(str(modulo))
+
+    if not objetivos:
+        # No puede pasar hoy (TOCABLES trae tres), pero con la lista vacia
+        # esto contestaba "compilan los 0 ficheros": un aprobado sin haber
+        # examinado nada, que es lo que este modulo existe para impedir.
+        return _resultado("sintaxis", False,
+                          "no hay NADA que compilar: sin examen no hay "
+                          "aprobado", "")
 
     lineas, malos = [], []
     for rel in objetivos:
@@ -293,6 +335,15 @@ def fase_guardianes(espec=None, plazo: float = TOPES["guardianes"],
         return _resultado("guardianes", False,
                           "NO SE PUDO EJECUTAR (%s: %s); sin examen no hay "
                           "aprobado" % (type(exc).__name__, exc), str(exc))
+    if not isinstance(r, dict):
+        # Un corredor que devuelve True (o una cadena) reventaba aqui con un
+        # AttributeError a mitad de fase: el examen moria por un detalle de
+        # tipado en vez de decir que no se pudo correr.
+        _log.error("el corredor de guardianes devolvio %r", type(r).__name__)
+        return _resultado("guardianes", False,
+                          "NO SE PUDO EJECUTAR: el corredor devolvio %s en vez "
+                          "de un dict; sin examen no hay aprobado"
+                          % type(r).__name__, str(r)[:200])
     ok = bool(r.get("ok"))
     fallos = r.get("fallos") or []
     salida = "\n".join([str(r.get("resumen", ""))] + [str(f) for f in fallos])
@@ -368,22 +419,10 @@ def fase_invocacion(espec=None, plazo: float = TOPES["invocacion"],
                           "arranque); sin examen no hay aprobado", salida)
     limpio = _RE_ANSI.sub("", salida or "")
     respuesta = _respuesta_del_repl(salida)
-    if codigo != 0:
-        return _resultado("invocacion", False,
-                          "el REPL murio con codigo %s al teclear %s"
-                          % (codigo, cmd), salida)
-    if "Traceback (most recent call last)" in limpio:
-        return _resultado("invocacion", False,
-                          "%s levanto un traceback: el handler puede llevarse "
-                          "el REPL por delante" % cmd, salida)
-    if ("Comando desconocido: %s" % cmd) in limpio or "No existe el comando" in limpio:
-        return _resultado("invocacion", False,
-                          "el REPL no reconoce %s: la rama del despacho no "
-                          "esta puesta" % cmd, salida)
-    if not respuesta:
-        return _resultado("invocacion", False,
-                          "%s no imprimio nada: puerta muda (indistinguible "
-                          "de rota)" % cmd, salida)
+    rechazo = _rechazo_de_la_puerta(cmd, codigo, limpio, respuesta)
+    if rechazo:
+        return _resultado("invocacion", False, "%s: %s" % (cmd, rechazo),
+                          salida)
     return _resultado("invocacion", True,
                       "%s responde en el REPL real (%d caracteres)"
                       % (cmd, len(respuesta)), salida)
@@ -405,15 +444,21 @@ def _pareja_criterio(c, cmd_defecto: str) -> tuple:
 
 
 def fase_criterios(espec=None, plazo: float = TOPES["criterios"],
-                   teclear=None) -> dict:
+                   teclear=None, reloj=None) -> dict:
     """Cada criterio del duenio, TECLEADO, y su 'espera' buscado en la salida.
 
     Esta es la postcondicion y es la que manda: el resto de fases dicen que el
     comando esta bien puesto y no revienta; esta dice que hace LO QUE SE PIDIO.
     Sin criterios no hay postcondicion que comprobar, y eso suspende: un
     comando aprobado por no tener con que compararlo es una firma en blanco.
+
+    `reloj` es la fuente de tiempo (por defecto time.monotonic) y entra por
+    parametro por el mismo motivo que en evaluar(): esta fase lleva SU propio
+    presupuesto y probar el reparto con el reloj de verdad exigiria esperar
+    minutos de sleeps.
     """
     teclear = teclear or teclear_en_el_repl
+    reloj = reloj or time.monotonic
     cmd_base = str(_campo(espec, "cmd", "comando", defecto="") or "")
     criterios = _campo(espec, "criterios", "postcondiciones", defecto=[]) or []
     if not criterios:
@@ -423,24 +468,48 @@ def fase_criterios(espec=None, plazo: float = TOPES["criterios"],
 
     lineas, fallos = [], 0
     # El plazo se reparte entre los criterios para que diez criterios lentos
-    # no desborden el presupuesto global del examen.
-    por_criterio = max(10.0, plazo / max(1, len(criterios)))
+    # no desborden el presupuesto global del examen. El suelo de 10 s evita
+    # plazos ridiculos, pero NO puede pasarse del plazo de la FASE: con diez
+    # criterios y 3 s de presupuesto restante, max(10, 0.3) daba 10 s a cada
+    # uno -- 100 s -- y la fase se comia el presupuesto global que evaluar()
+    # acababa de repartir. Por eso ademas se lleva la cuenta de lo gastado.
+    por_criterio = min(plazo, max(10.0, plazo / max(1, len(criterios))))
+    arranque = reloj()
     for i, c in enumerate(criterios, 1):
+        restante = plazo - (reloj() - arranque)
+        if restante <= 0:
+            # Igual que en evaluar(): lo que no se pudo teclear NO aprueba.
+            fallos += 1
+            lineas.append("[%d] %s -> NO SE PUDO EJECUTAR: se agoto el plazo "
+                          "de la fase (%ds)" % (i, _pareja_criterio(c, cmd_base)[0],
+                                                int(plazo)))
+            continue
         inv, esperados = _pareja_criterio(c, cmd_base)
         if not inv or not esperados:
             fallos += 1
             lineas.append("[%d] criterio incompleto (invocacion=%r espera=%r): "
                           "no se pudo ejecutar" % (i, inv, esperados))
             continue
-        codigo, salida = teclear(inv, por_criterio)
+        codigo, salida = teclear(inv, min(por_criterio, restante))
         if codigo is None:
             fallos += 1
             lineas.append("[%d] %s -> NO SE PUDO EJECUTAR: %s"
                           % (i, inv, str(salida)[:200]))
             continue
-        vista = _normalizar(_respuesta_del_repl(salida))
+        limpio = _RE_ANSI.sub("", salida or "")
+        respuesta = _respuesta_del_repl(salida)
+        vista = _normalizar(respuesta)
+        # PRIMERO la puerta y DESPUES el texto: si el REPL contesto con SU
+        # error, buscar el 'espera' dentro de ese error aprueba por el motivo
+        # equivocado, porque el error lleva el nombre del comando dentro.
+        rechazo = _rechazo_de_la_puerta(inv, codigo, limpio, respuesta)
+        if rechazo:
+            fallos += 1
+            lineas.append("[%d] %s -> FALLA: %s\n    visto: %s"
+                          % (i, inv, rechazo, _recortar(vista, 600)))
+            continue
         faltan = [e for e in esperados if _normalizar(e) not in vista]
-        if faltan or codigo != 0:
+        if faltan:
             fallos += 1
             lineas.append("[%d] %s -> FALLA (codigo %s); no aparece %r\n    "
                           "visto: %s"
@@ -503,9 +572,12 @@ def evaluar(espec, ruta_tests: str = "", orch=None, timeout: float = 900,
                             "presupuesto de tiempo agotado (%ds de %ds)"
                             % (int(gastado), int(timeout)))
         else:
-            plazo = min(TOPES[nombre], restante)
             funcion = fases.get(nombre)
             try:
+                # TOPES[nombre] va DENTRO del try: una fase aniadida a ORDEN
+                # sin su tope tiraba un KeyError que se llevaba el examen
+                # entero en vez de suspender esa fase.
+                plazo = min(TOPES[nombre], restante)
                 if funcion is not None:
                     r = funcion(plazo)
                 elif nombre == "tests":
@@ -553,14 +625,38 @@ def _motivo_base(veredicto: str, resultados: list, fallidas: list) -> str:
             % (", ".join(fallidas), " | ".join(detalles)[:600]))
 
 
+# Palabras que, en la frase del modelo, afirman lo contrario de lo ejecutado.
+_ANTONIMOS = {
+    "aprobada": ("rechaz", "suspend", "fallid", "no paso", "no supero"),
+    "rechazada": ("aprobad", "aprobo", "visto bueno", "esta perfecta",
+                  "sin problemas"),
+}
+
+
+def _contradice(veredicto: str, texto: str) -> bool:
+    """True si la frase redactada afirma lo CONTRARIO del veredicto."""
+    bajo = _normalizar(texto)
+    return any(p in bajo for p in _ANTONIMOS.get(veredicto, ()))
+
+
 def _redactar_motivo(orch, veredicto: str, resultados: list, base: str) -> str:
     """El modelo REDACTA la frase; jamas decide. Devuelve '' si no sirve.
 
     Presupuesto corto a proposito y medido el 2026-08-30: este razonador con
     max_tokens grande se va a razonar y NO EMITE NADA (52.535 caracteres de
-    pensamiento y cero salida con 20.000 tokens). Con 120 tokens y una tarea
-    de una frase o contesta o degrada, y degradar aqui no cuesta nada porque
-    el motivo determinista ya esta calculado.
+    pensamiento y cero salida con 20.000 tokens).
+
+    Y MEDIDO OTRA VEZ AQUI, el 2026-08-31, contra el Qwen3.8-27B real: ni
+    siquiera con 120 tokens contesta. Tres corridas, con y sin '/no_think'
+    delante: las tres gastaron el presupuesto entero DENTRO de un <think> que
+    ni llego a cerrar (474, 487 y 515 caracteres, cero prosa util). O sea que
+    hoy, en esta maquina, este camino SIEMPRE degrada y el motivo que ve el
+    duenio es el determinista. Eso no es un defecto del evaluador: el veredicto
+    y su explicacion salen de las fases ejecutadas, y el modelo solo podria
+    haber puesto la frase mas bonita. Se deja cableado porque con un modelo
+    que emita (o con el razonamiento apagado de verdad) suma sin arriesgar
+    nada; lo que NO se hace es subir max_tokens, que es exactamente lo que
+    empeora la medida.
     """
     if orch is None:
         return ""
@@ -576,7 +672,23 @@ def _redactar_motivo(orch, veredicto: str, resultados: list, base: str) -> str:
         _log.warning("el modelo no pudo redactar el motivo (%s); queda el "
                      "motivo determinista", exc)
         return ""
-    texto = _RE_THINK.sub("", texto).strip()
+    texto = _RE_THINK.sub("", texto)
+    # Un <think> SIN cerrar es el caso real medido: el razonador se quedo sin
+    # presupuesto a mitad de pensar. Hay que cortarlo tambien, o su monologo
+    # en ingles se colaria como "motivo" del duenio. Fiarlo al tope de 400
+    # caracteres funcionaba de casualidad: bastaba un pensamiento corto para
+    # que pasara.
+    texto = _RE_THINK_ABIERTO.sub("", texto).strip()
+    # El modelo no vota, pero hasta hoy SI podia mentir: `motivo` es el campo
+    # que el duenio LEE (orquesta.py lo pega en "rechazada y retirada: %s" y
+    # la bitacora lo graba en el evento 'marcada'). Con un orch empenado en
+    # aprobar, una herramienta RECHAZADA se archivaba con el motivo "APROBADA,
+    # esta perfecta, dale el visto bueno". Una frase que afirma lo contrario
+    # de lo EJECUTADO se tira: queda el motivo determinista.
+    if _contradice(veredicto, texto):
+        _log.warning("el modelo redacto lo CONTRARIO del veredicto (%s); "
+                     "queda el motivo determinista", veredicto)
+        return ""
     # Si volvio vacio (se fue a razonar) o desbordado, se queda el base: el
     # camino de degradacion es obligatorio, no un extra.
     if not texto or len(texto) > 400:

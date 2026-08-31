@@ -227,6 +227,17 @@ def _norm_criterio(item) -> tuple:
     if isinstance(item, dict):
         ent = (item.get("entrada") or item.get("arg") or item.get("dado")
                or item.get("cuando") or item.get("subcomando") or "")
+        # 'invocacion' es la clave que USA especificacion._criterios, y no
+        # estaba en la lista: el test generado llamaba al handler con cadena
+        # VACIA para todos los criterios. Medido el 2026-08-31: el criterio del
+        # subcomando inexistente ('/x zzz-inexistente' -> espera 'desconocido')
+        # invocaba '/x' a secas, salia el estado por defecto y el test fallaba
+        # con el handler perfectamente bien. El handler recibe el arg SIN el
+        # nombre del comando, asi que hay que quitarselo.
+        if not ent and item.get("invocacion"):
+            inv = str(item.get("invocacion") or "").strip()
+            partes = inv.split(None, 1)
+            ent = partes[1] if (len(partes) > 1 and partes[0].startswith("/")) else ""
         esp = (item.get("espera") or item.get("esperado") or item.get("entonces")
                or item.get("contiene") or item.get("salida") or "")
         return str(ent).strip(), str(esp).strip()
@@ -234,6 +245,30 @@ def _norm_criterio(item) -> tuple:
     esp = _atr(item, "espera", "esperado", "entonces", "contiene", "salida",
                defecto="")
     return str(ent).strip(), str(esp).strip()
+
+
+def _texto_seguro(txt, limite: int = 200) -> str:
+    """Texto de la espec listo para METERSE DENTRO del codigo generado.
+
+    Medido el 2026-08-31 sobre este mismo fichero: una descripcion con
+    unas comillas TRIPLES, una comilla doble, un salto de linea o una barra
+    invertida final producia un handler (y un modulo, y unos tests) que NO
+    COMPILAN -- o sea el peor fallo posible de este generador, porque lo que no
+    compila acaba dentro de cli.py y deja el producto sin arrancar. Y la espec
+    la escribe un modelo o llega de un JSON: ese texto no es de fiar nunca.
+
+    Se limpia lo minimo que hace falta para que el texto quepa igual en un
+    literal de una linea que en un docstring:
+      - la barra invertida se vuelve barra normal (rompe el literal y ademas
+        inventa escapes: 'C:\\Users' -> \\U truncado);
+      - saltos de linea y tabuladores se aplastan a un espacio;
+      - las comillas dobles (y las triples) pasan a simples, que es lo unico
+        que puede cerrar el literal o el docstring donde va metido.
+    """
+    t = str(txt or "").replace("\\", "/")
+    t = " ".join(t.split())
+    t = t.replace('"""', "'''").replace('"', "'")
+    return t[:limite].strip()
 
 
 def _slug(txt: str) -> str:
@@ -260,9 +295,19 @@ def _campos(espec) -> dict:
                       "comando que generar")
     if not cmd.startswith("/"):
         cmd = "/" + cmd
+    # El cmd se mete en literales y en markup de rich en los tres ficheros
+    # generados. Si trae una comilla o un corchete, lo generado no compila (o
+    # pinta basura), asi que se limpia AQUI -- una sola vez, para que handler,
+    # modulo y tests hablen del mismo nombre -- y se DICE si hubo que tocarlo.
+    cmd_limpio = _sin_markup(_texto_seguro(cmd, 64))
+    if cmd_limpio != cmd:
+        avisos.append("el nombre del comando traia caracteres que no pueden ir "
+                      "en el codigo generado: se usa %r en vez de %r"
+                      % (cmd_limpio, cmd))
+        cmd = cmd_limpio
 
-    descripcion = str(_atr(espec, "descripcion", "desc", "resumen", "doc",
-                           defecto="") or "").strip()
+    descripcion = _texto_seguro(_atr(espec, "descripcion", "desc", "resumen",
+                                     "doc", defecto=""))
     if not descripcion:
         descripcion = "comando %s generado por el compilador de herramientas" % cmd
         avisos.append("la espec no trae descripcion: se pone una generica, y "
@@ -275,7 +320,9 @@ def _campos(espec) -> dict:
         if not nom or nom in vistos:
             continue
         vistos.add(nom)
-        subs.append((nom, que))
+        # `que` acaba en el docstring del handler y del modulo: mismo peligro
+        # que la descripcion, misma limpieza.
+        subs.append((nom, _texto_seguro(que, 120)))
     if not subs:
         avisos.append("la espec no declara subcomandos: el comando solo tendra "
                       "el estado por defecto")
@@ -329,7 +376,16 @@ def plantilla_handler(espec) -> str:
              'def _slash_%s(arg: str = "") -> None:' % nombre)
 
     subs_txt = " | ".join(n for n, _ in d["subs"]) or "(ninguno)"
-    uso = "Uso: %s %s" % (cmd, " | ".join([n for n, _ in d["subs"]] + ["estado"]))
+    # "subcomando desconocido" y NO solo "Uso: ..." (2026-08-31). Dos motivos,
+    # y el segundo es el que manda: (a) es el patron de la casa -- el resto de
+    # comandos del CLI nombran lo que no entendieron antes de dar el uso, y
+    # decir solo el uso deja al duenio sin saber si es que tecleo mal o si el
+    # comando no hace lo que creia; (b) es la POSTCONDICION que la espec pide
+    # comprobar en toda herramienta compilada, porque una excepcion en esta
+    # rama se lleva por delante el REPL entero. Medido: sin la palabra, toda
+    # herramienta generada suspendia su tercer criterio con el codigo bien.
+    uso = "subcomando desconocido. Uso: %s %s" % (
+        cmd, " | ".join([n for n, _ in d["subs"]] + ["estado"]))
 
     L = [firma]
     L.append('    """`%s`: %s' % (cmd, d["descripcion"].rstrip(".") + "."))
@@ -615,8 +671,12 @@ def plantilla_tests(espec) -> str:
     for i, (ent, esp) in enumerate(d["criterios"], 1):
         L.append("")
         L.append("def test_%s_criterio_%d(capsys):" % (slug, i))
+        # El criterio va DOS veces al fichero: al docstring (donde una comilla
+        # doble, un salto de linea o una barra invertida lo parten -- medido el
+        # 2026-08-31) y al assert, donde va con %r y NO se toca: ahi el texto
+        # tiene que ser el que pidio el duenio, letra por letra.
         L.append('    """Criterio de la espec: %s"""'
-                 % _sin_comillas("%s -> %s" % (ent or "(sin argumento)",
+                 % _texto_seguro("%s -> %s" % (ent or "(sin argumento)",
                                                esp or "(imprime algo)")))
         L.append("    _handler()(%r)" % ent)
         L.append("    out = _salida(capsys)")
@@ -631,11 +691,6 @@ def plantilla_tests(espec) -> str:
     return "\n".join(L) + "\n"
 
 
-def _sin_comillas(txt: str) -> str:
-    """Texto seguro dentro de un docstring generado."""
-    return (txt or "").replace('"""', "'''").replace("\\", "/")
-
-
 # ── La validacion ────────────────────────────────────────────────────────────
 
 def validar_codigo(codigo, nombre) -> list:
@@ -648,11 +703,22 @@ def validar_codigo(codigo, nombre) -> list:
       3. tiene docstring (sitio 2 de la receta);
       4. ningun `except` desnudo ni `except ...: pass` mudo: 'no lo cablearon'
          y 'se rompio' no pueden verse igual desde afuera;
-      5. ningun `raise` sin capturar: el REPL no tiene red debajo;
+      5. ninguna excepcion que pueda ESCAPAR al REPL: ni un `raise` suelto en
+         el handler, ni uno escondido en una funcion auxiliar a la que el
+         handler llama sin protegerse, ni uno a nivel de modulo (ese sube al
+         importar cli.py y se lleva el producto entero);
       6. ningun import perezoso fuera de try/except, por lo mismo;
       7. solo helpers del CLI que EXISTEN (HELPERS_CLI);
       8. sin ejecucion dinamica ni imports peligrosos (ver la nota sobre donde
-         se pone la frontera, arriba en este fichero).
+         se pone la frontera, arriba en este fichero);
+      9. que el handler IMPRIMA algo por algun camino: un comando mudo y uno
+         roto se ven igual desde afuera, que es la unica cosa que este repo
+         tiene prohibida.
+
+    Los puntos 4, 5, 7 y 8 se miran sobre TODO el codigo, no solo sobre la
+    funcion del handler: lo que devuelve el modelo (y lo que el injertador
+    pega) puede traer funciones auxiliares y sentencias de modulo, y esas
+    corren igual dentro de cli.py.
     """
     problemas = []
     codigo = codigo or ""
@@ -669,11 +735,19 @@ def validar_codigo(codigo, nombre) -> list:
                          "injertador lo comprueba literalmente) y empieza por %r"
                          % (esperada, codigo.strip()[:48]))
 
-    funcs = [n for n in arbol.body if isinstance(n, ast.FunctionDef)]
-    fn = next((f for f in funcs if f.name == esperada), None)
+    # AsyncFunctionDef entra en la lista a proposito: si el modelo devuelve
+    # `async def _slash_x`, el handler NO sirve (el REPL lo llama sincrono),
+    # pero el mensaje tiene que decir que la funcion esta ahi y es async, no
+    # "no hay ninguna" -- un diagnostico que miente cuesta mas que el fallo.
+    funcs = [n for n in arbol.body
+             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    fn = next((f for f in funcs
+               if f.name == esperada and isinstance(f, ast.FunctionDef)), None)
     if fn is None:
+        hay = ", ".join(("async def " if isinstance(f, ast.AsyncFunctionDef)
+                         else "") + f.name for f in funcs)
         problemas.append("no hay ninguna funcion %s en el codigo (hay: %s)"
-                         % (esperada, ", ".join(f.name for f in funcs) or "ninguna"))
+                         % (esperada, hay or "ninguna"))
         return problemas
 
     if not (fn.args.args and fn.args.args[0].arg == "arg"):
@@ -683,17 +757,40 @@ def validar_codigo(codigo, nombre) -> list:
         problemas.append("sin docstring: la receta exige que diga que hace y "
                          "cual es el punto de extension")
 
-    problemas += _problemas_excepciones(fn)
-    problemas += _problemas_raise(fn)
+    problemas += _problemas_excepciones(arbol)
+    problemas += _problemas_raise(arbol, fn)
     problemas += _problemas_imports(arbol, codigo)
     problemas += _problemas_helpers(arbol)
     problemas += _problemas_peligrosos(arbol)
+    problemas += _problemas_mudez(fn)
     return problemas
 
 
-def _problemas_excepciones(fn) -> list:
-    fuera = []
+def _problemas_mudez(fn) -> list:
+    """Un handler que no imprime por NINGUN camino no esta entregado.
+
+    Es el fallo tipico de este repo -- el vacio silencioso -- y la validacion
+    lo dejaba pasar: un handler del modelo con el cuerpo a medias (`if x: pass`)
+    compilaba, cumplia la firma y entraba como via='modelo'. Desde fuera, un
+    comando mudo y uno roto se ven igual.
+    """
     for nodo in ast.walk(fn):
+        if (isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Name)
+                and nodo.func.id in (HELPERS_CLI + ("print",))):
+            return []
+    return ["el handler no imprime por ningun camino (ni %s ni print): un "
+            "comando mudo y uno roto se ven igual desde afuera"
+            % ", ".join(HELPERS_CLI[:3])]
+
+
+def _problemas_excepciones(arbol) -> list:
+    """`except` desnudos y `except: pass` mudos en TODO el codigo generado.
+
+    Se mira el arbol entero y no solo el handler: una funcion auxiliar con un
+    `except: pass` se pega igual dentro de cli.py y se traga igual el fallo.
+    """
+    fuera = []
+    for nodo in ast.walk(arbol):
         if not isinstance(nodo, ast.ExceptHandler):
             continue
         linea = getattr(nodo, "lineno", "?")
@@ -724,42 +821,139 @@ def _padres(raiz) -> dict:
     return mapa
 
 
-def _problemas_raise(fn) -> list:
-    """Un `raise` que puede escapar de la funcion = REPL caido.
+_FUNCIONES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
 
-    Se considera capturado solo si el raise esta en el CUERPO de un try (no en
-    su handler ni en su finally) que tiene un handler de Exception o
-    BaseException. Un raise dentro de un `except` es una relanzada: escapa.
+
+def _captura_todo(try_nodo) -> bool:
+    """True si ese try tiene un `except` que se queda con CUALQUIER excepcion."""
+    for h in try_nodo.handlers:
+        if h.type is None:
+            return True
+        if isinstance(h.type, ast.Name) and h.type.id in ("Exception",
+                                                          "BaseException"):
+            return True
+        if isinstance(h.type, ast.Tuple) and any(
+                isinstance(e, ast.Name) and e.id in ("Exception",
+                                                     "BaseException")
+                for e in h.type.elts):
+            return True
+    return False
+
+
+def _protegido(nodo, mapa) -> bool:
+    """True si `nodo` esta en el CUERPO de un try que captura todo.
+
+    Se sube hasta el borde de su funcion y NO mas alla: un try de la funcion de
+    fuera no captura lo que pasa dentro de un `def` anidado -- captura, como
+    mucho, la LLAMADA a ese def, que se juzga aparte. Tampoco cuenta estar en
+    el `except` ni en el `finally`: ahi la excepcion ya va subiendo.
     """
-    mapa = _padres(fn)
-    fuera = []
-    for nodo in ast.walk(fn):
-        if not isinstance(nodo, ast.Raise):
+    actual = nodo
+    while actual in mapa:
+        padre = mapa[actual]
+        if isinstance(padre, ast.Try) and actual in padre.body:
+            if _captura_todo(padre):
+                return True
+        if isinstance(padre, _FUNCIONES):
+            return False
+        actual = padre
+    return False
+
+
+def _funcion_contenedora(nodo, mapa):
+    """La funcion (o None, si es codigo de modulo) donde vive `nodo`."""
+    actual = nodo
+    while actual in mapa:
+        padre = mapa[actual]
+        if isinstance(padre, _FUNCIONES):
+            return padre
+        actual = padre
+    return None
+
+
+def _cuerpo_propio(f):
+    """Los nodos de `f` SIN entrar en las funciones anidadas dentro de ella."""
+    pila = list(f.body) if isinstance(f.body, list) else [f.body]
+    while pila:
+        n = pila.pop()
+        yield n
+        if isinstance(n, _FUNCIONES):
             continue
-        actual, capturado = nodo, False
-        while actual in mapa:
-            padre = mapa[actual]
-            if isinstance(padre, ast.Try) and actual in padre.body:
-                for h in padre.handlers:
-                    if h.type is None:
-                        capturado = True
-                    elif isinstance(h.type, ast.Name) and h.type.id in (
-                            "Exception", "BaseException"):
-                        capturado = True
-                    elif isinstance(h.type, ast.Tuple) and any(
-                            isinstance(e, ast.Name)
-                            and e.id in ("Exception", "BaseException")
-                            for e in h.type.elts):
-                        capturado = True
-            if isinstance(padre, ast.FunctionDef) and padre is not fn:
-                # raise dentro de una funcion anidada: no escapa al REPL por si
-                # solo, lo hara quien la llame -- y esa llamada si se juzga.
-                capturado = True
-            actual = padre
-        if not capturado:
-            fuera.append("raise sin capturar en la linea %s: una excepcion que "
-                         "sube desde el handler se lleva por delante el REPL"
-                         % getattr(nodo, "lineno", "?"))
+        pila.extend(ast.iter_child_nodes(n))
+
+
+def _funciones_que_lanzan(arbol, mapa) -> set:
+    """Nombres de las funciones del codigo desde las que PUEDE salir una
+    excepcion: o porque tienen un raise suelto, o porque llaman a otra que si.
+
+    Se itera a punto fijo porque la cadena encadena: _a llama a _b, que llama a
+    _c, que lanza. Sin esto, meter el raise una funcion mas adentro bastaba
+    para pasar la validacion -- que es exactamente el agujero medido el
+    2026-08-31: un `def _comprobar(): raise ValueError(...)` llamado desde el
+    handler pasaba la validacion y tumbaba el REPL al teclear el comando.
+    """
+    funcs = {}
+    for n in ast.walk(arbol):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            funcs.setdefault(n.name, n)
+    lanzan = set()
+    for _ in range(len(funcs) + 1):
+        nuevas = set()
+        for nom, f in funcs.items():
+            if nom in lanzan:
+                continue
+            for n in _cuerpo_propio(f):
+                if isinstance(n, ast.Raise) and not _protegido(n, mapa):
+                    nuevas.add(nom)
+                    break
+                if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                        and n.func.id in lanzan and not _protegido(n, mapa)):
+                    nuevas.add(nom)
+                    break
+        if not nuevas:
+            break
+        lanzan |= nuevas
+    return lanzan
+
+
+def _problemas_raise(arbol, fn) -> list:
+    """Toda excepcion que pueda llegar al REPL. Se miran TRES sitios:
+
+      1. el `raise` suelto dentro del handler (el caso obvio);
+      2. la LLAMADA sin proteger, desde el handler, a una funcion del propio
+         codigo que puede lanzar -- esconder el raise una funcion mas adentro
+         no lo hace inofensivo: sigue subiendo por la pila hasta el REPL;
+      3. el `raise` (o esa misma llamada) a nivel de MODULO: ese ni siquiera
+         espera a que tecleen el comando, sube al importar cli.py y deja el
+         producto entero sin arrancar.
+    """
+    mapa = _padres(arbol)
+    lanzan = _funciones_que_lanzan(arbol, mapa)
+    fuera = []
+    for nodo in ast.walk(arbol):
+        es_raise = isinstance(nodo, ast.Raise)
+        es_llamada = (isinstance(nodo, ast.Call)
+                      and isinstance(nodo.func, ast.Name)
+                      and nodo.func.id in lanzan)
+        if not (es_raise or es_llamada):
+            continue
+        cont = _funcion_contenedora(nodo, mapa)
+        if cont is not None and cont is not fn:
+            continue      # dentro de otra funcion: se juzga en su llamada
+        if _protegido(nodo, mapa):
+            continue
+        linea = getattr(nodo, "lineno", "?")
+        donde = ("" if cont is fn else
+                 " (a nivel de modulo: sube al IMPORTAR cli.py)")
+        if es_raise:
+            fuera.append("raise sin capturar en la linea %s%s: una excepcion "
+                         "que sube desde el handler se lleva por delante el "
+                         "REPL" % (linea, donde))
+        else:
+            fuera.append("llamada sin proteger a %s() en la linea %s%s: esa "
+                         "funcion lleva un raise sin capturar dentro, asi que "
+                         "la excepcion sube igual y se lleva el REPL"
+                         % (nodo.func.id, linea, donde))
     return fuera
 
 
@@ -858,6 +1052,18 @@ def _problemas_helpers(arbol) -> list:
     return fuera
 
 
+# Atributos que se LLAMAN igual que un prohibido pero no son el prohibido.
+# `re.compile` es el caso que muerde: `re` esta en la allowlist justamente
+# para que un comando pueda buscar en un texto, y sin esta excepcion el
+# validador rechazaba `re.compile(...)` como "ejecucion dinamica de codigo".
+# Un gate que prohibe el uso normal del modulo que el mismo permite importar
+# es un gate que acaba apagado; y el peligro real (`builtins.compile`) sigue
+# cazado, porque ahi el receptor no es `re`.
+_ATRIBUTOS_QUE_NO_SON_LO_QUE_PARECEN = frozenset({
+    ("re", "compile"), ("regex", "compile"), ("_re", "compile"),
+})
+
+
 def _problemas_peligrosos(arbol) -> list:
     prohibidos = _nombres_prohibidos()
     fuera = []
@@ -867,6 +1073,9 @@ def _problemas_peligrosos(arbol) -> list:
                          "dinamica de codigo)"
                          % (getattr(nodo, "lineno", "?"), nodo.id))
         elif isinstance(nodo, ast.Attribute) and nodo.attr in prohibidos:
+            receptor = nodo.value.id if isinstance(nodo.value, ast.Name) else ""
+            if (receptor, nodo.attr) in _ATRIBUTOS_QUE_NO_SON_LO_QUE_PARECEN:
+                continue
             fuera.append("atributo prohibido en la linea %s: .%s"
                          % (getattr(nodo, "lineno", "?"), nodo.attr))
     return fuera

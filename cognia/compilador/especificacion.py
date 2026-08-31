@@ -18,14 +18,17 @@ LO QUE ESTE MODULO NO HACE. No escribe codigo ni toca ficheros del repo: solo
 produce un dato. Todo el riesgo vive en el injertador; aqui, como mucho, sale
 una espec mala -- y para eso esta `validar()`, que se corre ANTES de injertar.
 
-EL MODELO LOCAL MUERDE (medido 2026-08-30). El cerebro es un razonador
-(Qwen3.8-27B): con presupuesto grande se va a razonar y NO EMITE NADA
-(52.535 chars de razonamiento y cero salida con 20.000 tokens). Por eso al
-modelo se le pide lo MINIMO que solo el puede aportar -- un nombre y una frase
--- en DOS lineas, con `MAX_TOKENS_ESPEC` corto, y hay camino deterministico
-para todo. Sin `orch`, o con `orch` mudo, sale una espec peor pero REAL, con
-el aviso puesto para que nadie confunda "no habia modelo" con "el modelo
-decidio esto".
+EL MODELO LOCAL MUERDE, POR LOS DOS LADOS (medido contra el 27B vivo el
+2026-08-31, tabla en MAX_TOKENS_ESPEC). El cerebro es un razonador: con
+presupuesto GRANDE se va a razonar y no emite nada (52.535 chars y cero salida
+con 20.000 tokens), pero con presupuesto DEMASIADO CORTO pasa exactamente lo
+mismo -- con 160 tokens la cadena de pensamiento se los come y la respuesta no
+llega, 3 pedidos de 3 vacios. Hay una VENTANA, y esta medida: 384 tokens con
+`/no_think`. Por eso al modelo se le pide lo minimo que solo el puede aportar
+-- un nombre y una frase, en DOS lineas -- y hay camino deterministico para
+todo. Sin `orch`, o con `orch` mudo, sale una espec peor pero REAL, con el
+aviso puesto para que nadie confunda "no habia modelo" con "el modelo decidio
+esto".
 
 API publica:
 
@@ -41,22 +44,99 @@ import logging
 import re
 import unicodedata
 from dataclasses import dataclass, field, asdict
+from functools import lru_cache
 
 from cognia.compilador import receta as rec
 
 log = logging.getLogger(__name__)
 
 
+# ── Las consultas a la receta, cacheadas por HUELLA del fichero ──────────────
+#
+# MEDIDO en esta maquina el 2026-08-31, con `time.time()` alrededor de cada
+# llamada: `receta.catalogo()` tarda 2,24 s, `validar_nombre()` 2,26 s y
+# `categorias_con_hueco()` 2,38 s. No es culpa de la receta: cada una lee
+# cli.py (23.000 lineas) y lo pasa por `ast.parse`, y esa es EXACTAMENTE la
+# regla con la que examinan los guardianes, o sea que esta bien que lo haga
+# asi. Lo que no puede ser es llamarla en bucle: elegir un nombre prueba hasta
+# 17 candidatos, o sea 40 s para bautizar un comando.
+#
+# La cache se invalida por HUELLA (mtime en ns + tamanio) de los ficheros que
+# deciden la respuesta. Una cache por tiempo, o sin invalidar, seria un error
+# grave aqui: justo despues de un injerto cli.py CAMBIA, y un catalogo rancio
+# haria que el compilador propusiera un nombre que se acaba de dar de alta.
+def _huella(*relativos) -> tuple:
+    """(mtime_ns, tamanio) de cada fichero. Si uno no se puede leer se marca
+    con ceros y se avisa: una huella que no se puede tomar tiene que fallar la
+    comparacion, no fingir que nada cambio."""
+    marcas = []
+    for rel in relativos:
+        try:
+            st = (rec.RAIZ / rel).stat()
+            marcas.append((st.st_mtime_ns, st.st_size))
+        except OSError as e:
+            log.warning("compilador/especificacion: no se pudo medir %s "
+                        "(%s: %s); la cache se salta", rel, type(e).__name__, e)
+            marcas.append((0, 0))
+    return tuple(marcas)
+
+
+@lru_cache(maxsize=2048)
+def _validar_nombre_cacheado(cmd: str, huella: tuple) -> tuple:
+    return rec.validar_nombre(cmd)
+
+
+def validar_nombre_repo(cmd: str) -> tuple:
+    """`receta.validar_nombre` con cache por huella de cli.py.
+
+    Es el validador por defecto de `desde_texto`/`validar`. Se expone porque
+    quien inyecte el suyo (los tests, o un compilador que ya tenga el catalogo
+    en la mano) tiene que poder envolver este y no el crudo.
+    """
+    return _validar_nombre_cacheado(cmd, _huella(rec.CLI))
+
+
+@lru_cache(maxsize=8)
+def _categorias_cacheadas(huella: tuple) -> tuple:
+    return tuple(rec.categorias_con_hueco())
+
+
+def categorias_libres_repo() -> list:
+    """`receta.categorias_con_hueco` con cache por huella de cli.py y de
+    harness/ayuda.py, que son los dos ficheros que deciden la ocupacion."""
+    return list(_categorias_cacheadas(_huella(rec.CLI, rec.AYUDA)))
+
+
 # ── Medidas y topes ──────────────────────────────────────────────────────────
 
 CUBOS_VALIDOS = ("NUCLEO", "AVANZADO", "LABORATORIO")
 
-# 160 y no 2.000: al razonador se le pide UNA palabra y UNA frase. El techo
-# real de generacion es n_ctx menos el prompt (no max_tokens), asi que el
-# prompt tambien va corto; y un presupuesto amplio aqui no da mejor nombre,
-# da cero salida (medido 2026-08-30).
-MAX_TOKENS_ESPEC = 160
+# PRESUPUESTO MEDIDO contra el Qwen3.8-27B vivo (:8080) el 2026-08-31, con
+# este mismo prompt. La primera version puso 160 "por ser corto" y estaba MAL:
+#
+#   presupuesto   razonamiento   salida        tiempo
+#   160           562 chars      VACIA         3,5 s
+#   384           971 chars      las 2 lineas  6,2 s
+#   768         1.883 chars      las 2 lineas 11,3 s
+#   384 + /no_think 634 chars    las 2 lineas  4,3 s
+#
+# Dos cosas que solo se ven midiendo. (1) Un presupuesto DEMASIADO CORTO falla
+# igual que uno demasiado largo: la cadena de pensamiento se come los 160
+# tokens y la respuesta no llega nunca -- 3 de 3 pedidos salieron vacios. (2)
+# El razonamiento CRECE hasta llenar lo que le des (562 -> 971 -> 1.883), que
+# es el mismo mecanismo que con 20.000 tokens da 52.535 chars y cero salida.
+# O sea que hay una ventana, y 384 esta dentro con margen.
+MAX_TOKENS_ESPEC = 384
 TEMP_ESPEC = 0.2
+
+# `/no_think` es la convencion de Qwen3 para saltarse la cadena de
+# pensamiento. Medido arriba: al mismo presupuesto baja el razonamiento de 971
+# a 634 chars y el tiempo de 6,2 s a 4,3 s, o sea deja mas sitio para la
+# respuesta dentro de la misma ventana. Con un modelo que no sea de la familia
+# Qwen es texto de mas al final del prompt, inocuo; y si aun asi le molestase,
+# el camino de degradacion (salida vacia -> reglas deterministicas) ya esta
+# probado y avisa.
+SUFIJO_SIN_RAZONAR = " /no_think"
 
 # El texto del duenio se recorta antes de entrar al prompt: un prompt largo
 # alarga la cadena de pensamiento del razonador, que es justo el fallo que
@@ -70,6 +150,12 @@ TOPE_NOMBRE = 20           # deja sitio a los sufijos de desambiguacion
 # Cubo por defecto. AVANZADO y no NUCLEO: una herramienta recien compilada no
 # es de uso diario hasta que el duenio la usa, y NUCLEO es la portada.
 CUBO_DEFECTO = "AVANZADO"
+
+# Nombre de ultimo recurso, cuando en el texto no queda ni un sustantivo util
+# (pasa con pedidos escritos entero en verbos). Se avisa siempre que sale: un
+# comando llamado asi no dice lo que hace, y eso el duenio tiene que saberlo
+# ANTES de injertarlo, no despues de buscarlo en /ayuda.
+BASE_GENERICA = "utilidad"
 
 
 # ── La trampa de la descripcion ──────────────────────────────────────────────
@@ -104,11 +190,14 @@ _RX_TRAMPA_PALABRA = re.compile(r"\b(tarea|tareas|agente|agentes|plan|planes|"
 # Reemplazos con el mismo significado y sin la palabra prohibida. Se aplican
 # por palabra entera: sustituir por substring convierte 'traspaso' en
 # 'trasetapa', que es peor que el problema.
+# El genero importa: 'tarea' -> 'trabajo' deja "la trabajo", que en /ayuda se
+# lee como una errata. Cada sinonimo conserva el genero del original
+# ('labor' y 'tramo' en vez de 'trabajo' y 'etapa').
 _SINONIMOS = {
-    "tarea": "trabajo", "tareas": "trabajos",
+    "tarea": "labor", "tareas": "labores",
     "agente": "asistente", "agentes": "asistentes",
     "plan": "guion", "planes": "guiones",
-    "paso": "etapa", "pasos": "etapas",
+    "paso": "tramo", "pasos": "tramos",
 }
 
 
@@ -151,16 +240,23 @@ def cae_en_trampa(descripcion: str) -> str:
     return ""
 
 
-def _desactivar_trampa(descripcion: str) -> tuple:
-    """(descripcion_limpia, palabra_cambiada|""). Cambia la palabra por su
-    sinonimo; si aun asi cae (p.ej. 'traspaso', donde 'paso' esta DENTRO de
-    otra palabra y el clasificador igual lo ve), el que llama tiene que
-    reconstruir la frase: aqui se devuelve la palabra que sigue molestando."""
-    mala = cae_en_trampa(descripcion)
+def _desactivar_trampa(frase: str) -> tuple:
+    """(frase_limpia, palabra_cambiada|""). Cambia la palabra por su sinonimo.
+
+    Recibe la FRASE, nunca la descripcion ya compuesta: esta lleva dentro
+    "Uso: /pasos [ver | estado]" y la sustitucion convertia el nombre del
+    comando en /tramos, o sea una plantilla de uso que nombra un comando
+    inexistente.
+
+    Si tras el cambio sigue cayendo (p.ej. 'traspaso', donde 'paso' esta
+    DENTRO de otra palabra y el clasificador igual lo ve), el que llama tiene
+    que reconstruir la frase; aqui se devuelve la palabra que molestaba.
+    """
+    mala = cae_en_trampa(frase)
     if not mala:
-        return descripcion, ""
+        return frase, ""
     limpia = re.sub(r"\b(%s)\b" % "|".join(_SINONIMOS),
-                    lambda m: _SINONIMOS[m.group(1)], descripcion,
+                    lambda m: _SINONIMOS[m.group(1).lower()], frase,
                     flags=re.IGNORECASE)
     return limpia, mala
 
@@ -262,7 +358,8 @@ favor porfa please dime diga digas decir dice diciendo muestra mostrar
 muestre mostrarme ver veo vea saber sepa sepas conocer mire mirar listar
 liste lista listado dar da poder pueda puedas puedo sirva sirve tenga tener
 tiene hay habia sobre entre desde hasta cuando luego despues antes tambien
-solo solamente siempre nunca ahora hoy ayer manana rapido rapida bien mejor
+solo solamente siempre nunca ahora hoy ayer anoche manana rapido rapida
+bien mejor peor
 """.split())
 
 
@@ -289,7 +386,19 @@ calcula calcule calcular ordena ordene ordenar detecta detecte
 visita visite visito indica indique avisa avise sugiere sugiera
 aprender estudiar repasar razonar pulir autorizar bloquear desbloquear
 recorrer escanear interpretar clasificar responder
+recuerda recuerde recordar recuerdame avise notifique notifica
+numera numere numerar cuenta cuente contar hizo haga hagan
+dejo deja deje dejar dejaron pasa pase
 """.split())
+
+# Las cuatro palabras que el clasificador de /ayuda usa para mandar un comando
+# a "Agente y tareas" (llena) tampoco valen como NOMBRE: `clasificar()` mira
+# la descripcion Y el nombre del comando, asi que un '/paso' se autoclasifica
+# en la categoria llena mientras nadie le de de alta su patron.
+_PROHIBIDO_COMO_NOMBRE = frozenset((
+    "tarea", "tareas", "agente", "agentes",
+    "plan", "planes", "paso", "pasos",
+))
 
 _PALABRAS_DOMINIO = {p for palabras in AFINIDAD.values() for p in palabras
                      if " " not in p and p not in _VERBOS_FUERA}
@@ -304,14 +413,15 @@ def _base_del_nombre(texto: str) -> str:
     'utilidad'. Es peor que un nombre pensado por el modelo, y por eso el
     camino sin modelo deja aviso.
     """
-    toks = [t for t in _tokens(texto) if t not in _VERBOS_FUERA]
+    toks = [t for t in _tokens(texto)
+            if t not in _VERBOS_FUERA and t not in _PROHIBIDO_COMO_NOMBRE]
     for t in toks:
         if t in _PALABRAS_DOMINIO and not t.isdigit():
             return t
     for t in toks:
         if len(t) >= 4 and not t.isdigit():
             return t
-    return toks[0] if toks else "utilidad"
+    return toks[0] if toks else BASE_GENERICA
 
 
 def _sanear_nombre(bruto: str) -> str:
@@ -342,13 +452,14 @@ def _candidatos(base: str, texto: str) -> list:
     son numericos, feos pero validos: mejor un '/carpetas-2' que devolver una
     espec con un nombre ya usado, que es lo unico que la receta prohibe.
     """
-    base = _sanear_nombre(base) or "utilidad"
+    base = _sanear_nombre(base) or BASE_GENERICA
     fuera = [base, _plural(base)]
     # Compuesto con la siguiente palabra util del texto, EN ORDEN: asi
     # "/notas" ocupado da "/notas-duplicadas" y no "/notas-info", que no dice
     # nada. Los verbos quedan fuera por el mismo motivo que en el nombre base.
     otras = [t for t in _tokens(texto)
-             if t not in _VERBOS_FUERA and _sanear_nombre(t) and t != base]
+             if t not in _VERBOS_FUERA and t not in _PROHIBIDO_COMO_NOMBRE
+             and _sanear_nombre(t) and t != base]
     for t in otras[:2]:
         fuera.append("%s-%s" % (base, _sanear_nombre(t)))
     for sufijo in ("info", "ver", "resumen", "local"):
@@ -368,11 +479,12 @@ def _candidatos(base: str, texto: str) -> list:
 def elegir_nombre(base: str, texto: str = "", validador=None) -> tuple:
     """(cmd, avisos). Prueba candidatos hasta que `validador` acepte uno.
 
-    `validador` se inyecta por parametro (por defecto `receta.validar_nombre`)
-    porque es lo unico que consulta el estado REAL del repo: asi el test puede
-    simular una colision sin tener que dar de alta un comando de verdad.
+    `validador` se inyecta por parametro (por defecto `validar_nombre_repo`,
+    que es `receta.validar_nombre` cacheado) porque es lo unico que consulta el
+    estado REAL del repo: asi el test puede simular una colision sin tener que
+    dar de alta un comando de verdad.
     """
-    validador = validador or rec.validar_nombre
+    validador = validador or validar_nombre_repo
     avisos, rechazos = [], []
     for nombre in _candidatos(base, texto):
         cmd = "/" + nombre
@@ -498,16 +610,25 @@ def _criterios(cmd: str, subcomandos: list, asunto: str) -> list:
     invoc = ("%s %s" % (cmd, principal)).strip()
     if args and not args.startswith("["):
         invoc = "%s %s" % (invoc, args.strip("<>"))
+    # `espera` TIENE QUE SER UNA MARCA LITERAL, no una descripcion (2026-08-31,
+    # medido en la primera compilacion real). El evaluador teclea la invocacion
+    # en el REPL de verdad y busca `espera` COMO SUBCADENA de la salida; con una
+    # frase en prosa ("imprime al menos una linea y no lanza excepcion") ningun
+    # criterio puede cumplirse jamas, y la primera herramienta salio
+    # "0/3 criterios" con el comando funcionando perfectamente. La intencion en
+    # prosa se conserva en `que`, que es para leerlo un humano, y lo que se
+    # COMPRUEBA es la marca.
     return [
         {"invocacion": invoc,
-         "espera": "imprime al menos una linea con informacion de %s y no "
-                   "lanza ninguna excepcion" % asunto},
+         "espera": principal,
+         "que": "imprime informacion de %s sin lanzar" % asunto},
         {"invocacion": "%s estado" % cmd,
-         "espera": "imprime la config activa y la ultima degradacion (o que no "
-                   "hubo ninguna); nunca lanza"},
+         "espera": "estado",
+         "que": "la puerta de diagnostico responde"},
         {"invocacion": "%s zzz-subcomando-inexistente" % cmd,
-         "espera": "avisa de subcomando desconocido y lista los subcomandos "
-                   "validos; no lanza ni deja el REPL en mal estado"},
+         "espera": "desconocido",
+         "que": ("avisa de subcomando desconocido en vez de reventar: una "
+                 "excepcion en un handler se lleva por delante el REPL")},
     ]
 
 
@@ -539,6 +660,12 @@ def _componer_descripcion(frase: str, cmd: str, subcomandos: list) -> str:
     receta. Sin comillas dobles (el injertador las cambiaria por simples) y en
     UNA sola linea (el dict se lee con ast.literal_eval)."""
     frase = " ".join(str(frase or "").split()).strip(" .;,").replace('"', "'")
+    if frase:
+        # Mayuscula inicial aqui y no en cada camino: la frase puede venir del
+        # modelo (que la escribe en minusculas) o de las reglas, y en /ayuda
+        # las descripciones se leen en columna, donde una minuscula suelta
+        # canta.
+        frase = frase[0].upper() + frase[1:]
     nombres = " | ".join(s["nombre"] for s in subcomandos) or "estado"
     desc = "%s. Uso: %s [%s]" % (frase, cmd, nombres)
     if len(desc) > TOPE_DESCRIPCION:
@@ -566,7 +693,8 @@ def _preguntar_al_modelo(texto: str, orch) -> tuple:
     prompt = ("Comando de consola pedido asi: \"%s\"\n"
               "Responde EXACTAMENTE dos lineas, sin explicar nada:\n"
               "nombre: <una palabra en minusculas, sin acentos>\n"
-              "frase: <para que sirve, menos de 12 palabras>" % fragmento)
+              "frase: <para que sirve, menos de 12 palabras>%s"
+              % (fragmento, SUFIJO_SIN_RAZONAR))
     try:
         salida = orch.infer(prompt, max_tokens=MAX_TOKENS_ESPEC,
                             temperature=TEMP_ESPEC).text or ""
@@ -577,9 +705,11 @@ def _preguntar_al_modelo(texto: str, orch) -> tuple:
         return "", "", ("el modelo fallo (%s); nombre y descripcion "
                         "deterministicos" % type(e).__name__)
     if not salida.strip():
-        # Este es EL fallo medido del razonador: se va a razonar y no emite
-        # nada. No es un error que se pueda reintentar mas fuerte -- subir el
-        # presupuesto lo empeora -- asi que se degrada y se dice.
+        # EL fallo del razonador: se va a razonar y no emite nada. No se
+        # reintenta con mas presupuesto -- el razonamiento CRECE hasta llenar
+        # lo que le des (562 -> 971 -> 1.883 chars segun se sube; medido), asi
+        # que reintentar mas grande es pagar mas por el mismo vacio. Se degrada
+        # y se dice.
         return "", "", ("el modelo devolvio vacio (razonador sin salida); "
                         "nombre y descripcion deterministicos")
     campos = {k.lower(): v for k, v in _RX_LINEA.findall(salida)}
@@ -638,6 +768,9 @@ def desde_texto(texto, orch=None, *, validador_nombre=None,
 
     avisos = []
     base = _base_del_nombre(texto)
+    if base == BASE_GENERICA:
+        avisos.append("no hay ningun sustantivo util en el pedido: el nombre "
+                      "sale generico y conviene darlo a mano")
     frase = ""
 
     if orch is None:
@@ -647,7 +780,10 @@ def desde_texto(texto, orch=None, *, validador_nombre=None,
         nombre_llm, frase_llm, aviso = _preguntar_al_modelo(texto, orch)
         if aviso:
             avisos.append(aviso)
-        if nombre_llm:
+        if nombre_llm and nombre_llm in _PROHIBIDO_COMO_NOMBRE:
+            avisos.append("el modelo propuso el nombre %r, que se autoclasifica "
+                          "en 'Agente y tareas' (llena): se ignora" % nombre_llm)
+        elif nombre_llm:
             base = nombre_llm
         if frase_llm:
             frase = frase_llm
@@ -658,7 +794,7 @@ def desde_texto(texto, orch=None, *, validador_nombre=None,
         # Se sigue construyendo la espec igual: validar() la va a rechazar con
         # el motivo delante. Devolver None obligaria a todos los llamadores a
         # distinguir dos formas de fallo para el mismo problema.
-        cmd = "/" + (_sanear_nombre(base) or "utilidad")
+        cmd = "/" + (_sanear_nombre(base) or BASE_GENERICA)
     nombre = cmd.lstrip("/").replace("-", "_")
 
     asunto = base.replace("-", " ")
@@ -666,8 +802,13 @@ def desde_texto(texto, orch=None, *, validador_nombre=None,
         frase = _frase_deterministica(texto, asunto)
 
     subcomandos = _subcomandos(texto)
+    # La trampa se desactiva sobre la FRASE y no sobre la descripcion ya
+    # compuesta: la descripcion lleva dentro "Uso: /pasos [...]", y sustituir
+    # ahi convertia el comando /pasos en /tramos -- una plantilla de uso que
+    # nombra un comando que no existe. Cazado tecleando los ejemplos del
+    # duenio, no por la suite.
+    frase, mala = _desactivar_trampa(frase)
     descripcion = _componer_descripcion(frase, cmd, subcomandos)
-    descripcion, mala = _desactivar_trampa(descripcion)
     if mala:
         avisos.append("la descripcion llevaba %r, que manda el comando a "
                       "'Agente y tareas' (25/25): reescrita" % mala)
@@ -681,7 +822,7 @@ def desde_texto(texto, orch=None, *, validador_nombre=None,
 
     if categorias_libres is None:
         try:
-            libres = rec.categorias_con_hueco()
+            libres = categorias_libres_repo()
         except Exception as e:                  # noqa: BLE001 - motivo visible
             log.warning("compilador/especificacion: no se pudo medir la "
                         "ocupacion de /ayuda (%s: %s)", type(e).__name__, e)
@@ -699,12 +840,16 @@ def desde_texto(texto, orch=None, *, validador_nombre=None,
     necesita_modulo = any((" %s " % p) in plano for p in _NECESITA_MODULO)
     modulo = ("cognia/herramientas/%s.py" % nombre) if necesita_modulo else ""
 
+    # El pedido va entre comillas SIMPLES y con las dobles cambiadas: que_hace
+    # acaba dentro del docstring de _slash_<nombre>, y un '"' del texto del
+    # duenio cerraria el triple-quote y dejaria cli.py sin compilar.
+    pedido = " ".join(texto.split())[:200].replace('"', "'")
     que_hace = (
-        "%s. Se pidio asi: \"%s\". El comando expone %s; el trabajo de verdad "
+        "%s. Se pidio asi: '%s'. El comando expone %s; el trabajo de verdad "
         "%s. Punto de extension: una entrada por subcomando en el despacho "
         "interno del handler."
         % (_primera_frase(descripcion),
-           " ".join(texto.split())[:200],
+           pedido,
            " y ".join("'%s'" % s["nombre"] for s in subcomandos),
            ("vive en %s, que se importa de forma perezosa y en try/except"
             % modulo) if modulo else
@@ -741,7 +886,7 @@ def validar(espec, *, validador_nombre=None, categorias_libres=None) -> list:
     if not cmd:
         problemas.append("cmd vacio")
     else:
-        validador = validador_nombre or rec.validar_nombre
+        validador = validador_nombre or validar_nombre_repo
         try:
             ok, motivo = validador(cmd)
         except Exception as e:                  # noqa: BLE001 - motivo visible
@@ -784,7 +929,7 @@ def validar(espec, *, validador_nombre=None, categorias_libres=None) -> list:
 
     if categorias_libres is None:
         try:
-            libres = rec.categorias_con_hueco()
+            libres = categorias_libres_repo()
         except Exception as e:                  # noqa: BLE001 - motivo visible
             libres = []
             problemas.append("no se pudo medir que categorias tienen hueco "

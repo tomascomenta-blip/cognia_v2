@@ -52,8 +52,11 @@ DISPOSICION EN DISCO
       fichas/<cmd>/ficha.json      la evidencia completa   atomico
       fichas/<cmd>/handler.py      codigo generado
       fichas/<cmd>/modulo.py       codigo generado
-      copias/<sello>/              copias del injertador (las hace el, aqui
-                                   solo se guarda el sello para revertir)
+      copias/<sello>/              las hace el injertador y NO se mueven con
+                                   COGNIA_COMPILADOR_DIR: injertador.DIR_COPIAS
+                                   esta clavado en ~/.cognia. Aqui solo se
+                                   guarda el sello; quien revierta lo busca en
+                                   el HOME, no en esta carpeta.
 """
 
 from __future__ import annotations
@@ -79,6 +82,10 @@ DIR_FICHAS = "fichas"
 # convierte listar(estado=...) en una loteria de erratas.
 ESTADOS = ("viva", "retirada", "fallida")
 
+# Las claves del dict del generador que traen FUENTE. El resto ('via',
+# 'ruta_modulo', 'ruta_tests') son metadatos y no se escriben como .py.
+CLAVES_CODIGO = ("handler", "modulo", "tests")
+
 
 def dir_bitacora() -> Path:
     """~/.cognia/compilador, creada. COGNIA_COMPILADOR_DIR la mueve.
@@ -101,6 +108,22 @@ def _ruta_indice() -> Path:
     return dir_bitacora() / INDICE
 
 
+def _norm(cmd) -> str:
+    """La clave canonica de un comando: '/algo'. Sin excepciones.
+
+    `registrar` anadia la barra que faltase y `marcar`/`obtener` no, asi que
+    `orquesta._registrar()` daba de alta '/x' y acto seguido marcaba 'x': el
+    marcado se perdia con un warning en el log y la herramienta que el
+    evaluador habia RECHAZADO se quedaba 'viva' en el indice. Un rechazo que
+    se lee como aprobado es el peor fallo que puede tener una bitacora, asi
+    que la normalizacion vive en un sitio y la usan TODAS las puertas.
+    """
+    c = str(cmd or "").strip()
+    if not c:
+        return ""
+    return c if c.startswith("/") else "/" + c
+
+
 def _slug(cmd: str) -> str:
     """Nombre de carpeta seguro para un comando. '/mi-cmd' -> 'mi-cmd'.
 
@@ -111,6 +134,27 @@ def _slug(cmd: str) -> str:
                      for c in (cmd or "").strip().lstrip("/"))
     limpio = limpio.strip("-_")[:60]
     return limpio or "sin-nombre"
+
+
+def _dir_ficha(cmd: str, fila=None) -> Path:
+    """La carpeta de la ficha, SIEMPRE dentro de la bitacora activa.
+
+    La ficha guarda su 'ruta' absoluta, y esa ruta es de la maquina y del
+    directorio en los que se registro. Honrarla a ciegas hace que, con
+    COGNIA_COMPILADOR_DIR puesto o la carpeta movida, se lea la evidencia de
+    OTRA bitacora (o de un tmp_path de test que ya no existe). La ruta
+    guardada solo vale si sigue cayendo dentro de esta bitacora.
+    """
+    base = dir_bitacora()
+    guardada = (fila or {}).get("ruta")
+    if guardada:
+        p = Path(guardada)
+        try:
+            if p.is_absolute() and p.resolve().is_relative_to(base.resolve()):
+                return p
+        except (OSError, ValueError):
+            pass
+    return base / DIR_FICHAS / _slug(cmd)
 
 
 def _a_dict(obj) -> dict:
@@ -134,7 +178,25 @@ def _a_dict(obj) -> dict:
         return {"valor": str(obj)}
     # Round-trip por JSON con default=str: si algo no es serializable (un
     # Path, un datetime) se guarda su texto en vez de tirar el registro.
-    return json.loads(json.dumps(crudo, ensure_ascii=False, default=str))
+    try:
+        return json.loads(json.dumps(crudo, ensure_ascii=False, default=str))
+    except (TypeError, ValueError) as exc:
+        # `default=str` NO cubre ni una referencia circular ni una clave que no
+        # sea de tipo basico: eso lanza. Y lanzar aqui contradice el parrafo de
+        # arriba, porque cuando esto corre el injerto YA esta hecho: quedarse
+        # sin registro de un cambio ya aplicado a cli.py es el peor estado.
+        _log.error("bitacora: %s no serializable (%s); se guarda campo a campo",
+                   type(obj).__name__, exc)
+        salvado = {}
+        for k, v in crudo.items():
+            try:
+                salvado[str(k)] = json.loads(
+                    json.dumps(v, ensure_ascii=False, default=str))
+            except (TypeError, ValueError):
+                salvado[str(k)] = str(v)
+        salvado["aviso_bitacora"] = ("campos no serializables guardados como "
+                                     "texto: %s" % exc)
+        return salvado
 
 
 def _primero(d: dict, claves, defecto=""):
@@ -157,22 +219,65 @@ def _criterios(espec: dict, evaluacion: dict) -> list:
     Se miran los dos lados: la espec dice que se pedia, la evaluacion dice
     cual se cumplio. Si solo hay uno, se usa ese; sin criterios, la ficha
     seria un veredicto sin razones.
+
+    LA FORMA REAL MANDA. `especificacion.py` produce criterios
+    {'invocacion': '/clima estado', 'espera': 'imprime la config activa'}, no
+    {'texto': ...}. Mirando solo los alias de 'texto', la ficha guardaba el
+    json.dumps CRUDO del criterio como si fuese su enunciado. Se leen las dos
+    formas porque las dos existen: la del generador de hoy y la que traiga un
+    modulo vecino manana.
     """
     crudos = _primero(evaluacion, ("criterios", "criterios_aceptacion",
                                    "aceptacion", "pruebas"), None)
+    if not isinstance(crudos, list):        # 'pruebas' puede venir como dict, y
+        crudos = None                       # iterarlo daria las CLAVES por criterio
     if not crudos:
         crudos = _primero(espec, ("criterios", "criterios_aceptacion",
-                                  "aceptacion"), None)
+                                  "aceptacion", "postcondiciones"), None)
+        if not isinstance(crudos, list):
+            crudos = None
     fuera = []
     for c in (crudos or []):
         if isinstance(c, dict):
-            texto = str(_primero(c, ("texto", "criterio", "nombre", "que"),
-                                 json.dumps(c, ensure_ascii=False)))
+            invoc = str(_primero(c, ("invocacion", "comando", "teclear"), ""))
+            espera = str(_primero(c, ("espera", "esperado", "postcondicion"), ""))
+            if invoc or espera:
+                texto = " -> ".join(x for x in (invoc, espera) if x)
+            else:
+                texto = str(_primero(c, ("texto", "criterio", "nombre", "que"),
+                                     json.dumps(c, ensure_ascii=False)))
             ok = c.get("ok", c.get("paso", c.get("cumple")))
             fuera.append({"texto": texto,
                           "ok": None if ok is None else bool(ok)})
         else:
             fuera.append({"texto": str(c), "ok": None})
+    return fuera
+
+
+def _fases(evaluacion: dict) -> list:
+    """Las fases EJECUTADAS del examen, normalizadas a [{fase, ok, detalle}].
+
+    Esta es la evidencia de verdad y faltaba ENTERA. `evaluador.evaluar()` no
+    devuelve un ok por criterio: devuelve las CINCO fases que corrio
+    (sintaxis, guardianes, tests, invocacion, criterios) con su detalle, y el
+    veredicto es 'aprobada' solo si las cinco dieron ok. Guardar el veredicto
+    y tirar las fases deja la ficha contestando "aprobada" a la pregunta "y
+    esto por que se dio por bueno", que es no contestarla.
+    """
+    crudas = _primero(evaluacion, ("fases", "etapas"), None)
+    if not isinstance(crudas, list):
+        return []
+    fuera = []
+    for f in crudas:
+        if not isinstance(f, dict):
+            fuera.append({"fase": str(f), "ok": None, "detalle": ""})
+            continue
+        ok = f.get("ok")
+        fuera.append({
+            "fase": str(_primero(f, ("fase", "nombre", "etapa"), "?")),
+            "ok": None if ok is None else bool(ok),
+            "detalle": str(_primero(f, ("detalle", "motivo", "resumen"), ""))[:300],
+        })
     return fuera
 
 
@@ -201,6 +306,13 @@ def _guardar_codigo(destino: Path, codigo) -> dict:
     {'handler':..., 'modulo':..., 'tests':...}. Se guarda tal cual, sin
     validar: la bitacora registra lo que PASO, incluso el codigo de un
     injerto que fallo -- que es precisamente el que hay que poder leer luego.
+
+    Lo que NO se guarda es lo que no es codigo. `orquesta.py` pasa el dict
+    ENTERO del generador, que ademas del fuente lleva 'ruta_modulo',
+    'ruta_tests' y 'via': escribirlas dejaba en la ficha un via.py con la
+    palabra "modelo" dentro y tres lineas "codigo <clave> ...py" que no son el
+    codigo de nada. Se aceptan las claves de fuente conocidas y, para no
+    perder lo que anada un modulo vecino, cualquier valor multilinea.
     """
     if not codigo:
         return {}
@@ -213,6 +325,10 @@ def _guardar_codigo(destino: Path, codigo) -> dict:
     rutas = {}
     for nombre, texto in codigo.items():
         if not isinstance(texto, str) or not texto.strip():
+            continue
+        if nombre not in CLAVES_CODIGO and "\n" not in texto.strip():
+            _log.debug("bitacora: %r (%r) no es fuente, no se guarda como .py",
+                       nombre, texto[:40])
             continue
         fichero = destino / ("%s.py" % _slug(str(nombre)))
         try:
@@ -265,11 +381,11 @@ def _reconstruir() -> dict:
     Las lineas rotas se saltan (lo hace leer_jsonl): la ultima linea de un
     JSONL cortado a mitad no puede invalidar los 40 comandos anteriores.
     """
-    comandos = {}
+    comandos, huerfanos = {}, set()
     for ev in leer_jsonl(_ruta_eventos()):
         if not isinstance(ev, dict):
             continue
-        cmd = ev.get("cmd")
+        cmd = _norm(ev.get("cmd"))
         if not cmd:
             continue
         tipo = ev.get("evento")
@@ -277,15 +393,25 @@ def _reconstruir() -> dict:
             ficha_ev = ev.get("ficha")
             if isinstance(ficha_ev, dict):
                 comandos[cmd] = dict(ficha_ev)
+                huerfanos.discard(cmd)
         elif tipo in ("evaluada", "marcada"):
             fila = comandos.get(cmd)
             if fila is None:
+                huerfanos.add(cmd)
                 continue
-            for k in ("estado", "motivo", "veredicto", "criterios",
+            for k in ("estado", "motivo", "veredicto", "criterios", "fases",
                       "evaluacion"):
                 if k in ev:
                     fila[k] = ev[k]
             fila["ultimo_cambio"] = ev.get("t", fila.get("ultimo_cambio"))
+    if huerfanos:
+        # Su alta se perdio (la linea rota del final de un JSONL cortado).
+        # Callarlo hace DESAPARECER el comando de listar() sin un solo aviso,
+        # que es el vacio silencioso de siempre: "no lo hubo" y "se perdio"
+        # tienen que verse distintos desde fuera.
+        _log.warning("bitacora: %d comando(s) con eventos pero SIN alta en %s, "
+                     "no salen en el indice: %s", len(huerfanos), EVENTOS,
+                     ", ".join(sorted(huerfanos)))
     idx = {"version": 1, "comandos": comandos}
     _guardar_indice(idx)
     return idx
@@ -310,18 +436,16 @@ def registrar(espec, resultado_injerto, evaluacion, codigo=None,
     injerto_d = _a_dict(resultado_injerto)
     eval_d = _a_dict(evaluacion)
 
-    cmd = str(_primero(espec_d, ("cmd", "comando", "slash"), "")).strip()
+    cmd = _norm(_primero(espec_d, ("cmd", "comando", "slash"), ""))
     if not cmd:
-        cmd = str(_primero(injerto_d, ("cmd", "comando"), "")).strip()
+        cmd = _norm(_primero(injerto_d, ("cmd", "comando"), ""))
     if not cmd:
         raise ValueError("registrar necesita un comando: ni la espec ni el "
                          "resultado del injerto traen 'cmd'")
-    if not cmd.startswith("/"):
-        cmd = "/" + cmd
 
     nombre = str(_primero(espec_d, ("nombre", "funcion", "handler"),
                           cmd.lstrip("/").replace("-", "_")))
-    dir_ficha = dir_bitacora() / DIR_FICHAS / _slug(cmd)
+    dir_ficha = _dir_ficha(cmd)
     rutas_codigo = _guardar_codigo(dir_ficha, codigo)
 
     ficha_d = {
@@ -346,6 +470,7 @@ def registrar(espec, resultado_injerto, evaluacion, codigo=None,
         "guardianes": injerto_d.get("guardianes") or {},
         "motivo": str(injerto_d.get("motivo") or ""),
         "criterios": _criterios(espec_d, eval_d),
+        "fases": _fases(eval_d),
         "codigo": rutas_codigo,
         "ruta": str(dir_ficha),
         "espec": espec_d,
@@ -365,7 +490,8 @@ def registrar(espec, resultado_injerto, evaluacion, codigo=None,
     guardar_json(dir_ficha / "ficha.json", ficha_d)
     if eval_d:
         _evento("evaluada", cmd, ahora, veredicto=ficha_d["veredicto"],
-                criterios=ficha_d["criterios"], evaluacion=eval_d)
+                criterios=ficha_d["criterios"], fases=ficha_d["fases"],
+                evaluacion=eval_d)
     idx["comandos"][cmd] = ficha_d
     _guardar_indice(idx)
     return ficha_d
@@ -379,6 +505,12 @@ def marcar(cmd: str, estado: str, motivo: str = "",
     lanza ValueError a proposito: es un bug del que llama, y tragarselo
     dejaria la bitacora diciendo algo que nadie podria filtrar despues.
 
+    Un motivo VACIO no borra el que hubiera: el motivo de una ficha fallida
+    es el diagnostico del injerto ("no encuentro el ancla"), y retirarla
+    despues con `marcar(cmd, "retirada")` lo dejaba en "" -- o sea, perdia la
+    unica razon registrada de por que aquello no entro. Para cambiarlo hay que
+    pasar uno nuevo.
+
     Devuelve la ficha actualizada, o {} si el comando no esta registrado (se
     avisa por log; no se inventa una ficha vacia).
     """
@@ -386,19 +518,31 @@ def marcar(cmd: str, estado: str, motivo: str = "",
         raise ValueError("estado invalido %r; los validos son %s"
                          % (estado, ", ".join(ESTADOS)))
     ahora = time.time() if ahora is None else float(ahora)
+    cmd = _norm(cmd)
     idx = _indice()
     fila = idx["comandos"].get(cmd)
     if fila is None:
         _log.warning("bitacora: marcar(%r) pero no esta registrado", cmd)
         return {}
     fila["estado"] = estado
-    fila["motivo"] = motivo
     fila["ultimo_cambio"] = ahora
-    _evento("marcada", cmd, ahora, estado=estado, motivo=motivo)
+    extra = {"estado": estado}
+    if motivo:
+        fila["motivo"] = motivo
+        extra["motivo"] = motivo
+    # El evento lleva el motivo solo si lo hay, para que _reconstruir() (que
+    # copia las claves presentes) llegue exactamente al mismo estado que esta
+    # rama. Si el evento llevase motivo="" siempre, reconstruir borraria el
+    # motivo que aqui se conserva y las dos vias dirian cosas distintas.
+    _evento("marcada", cmd, ahora, **extra)
     _guardar_indice(idx)
-    dir_ficha = Path(fila.get("ruta") or (dir_bitacora() / DIR_FICHAS / _slug(cmd)))
+    dir_ficha = _dir_ficha(cmd, fila)
     if dir_ficha.is_dir():
         guardar_json(dir_ficha / "ficha.json", fila)
+    else:
+        _log.warning("bitacora: %s marcado %s pero su carpeta %s no esta; "
+                     "el indice y los eventos SI quedan al dia",
+                     cmd, estado, dir_ficha)
     return fila
 
 
@@ -427,10 +571,9 @@ def obtener(cmd: str) -> dict:
     Se prefiere la ficha del disco a la fila del indice porque la ficha es la
     que sobrevive a que alguien borre indice.json, y ambas se escriben juntas.
     """
+    cmd = _norm(cmd)
     fila = _indice()["comandos"].get(cmd)
-    ruta = Path(fila["ruta"]) / "ficha.json" if (fila and fila.get("ruta")) \
-        else dir_bitacora() / DIR_FICHAS / _slug(cmd) / "ficha.json"
-    en_disco = leer_json(ruta, None)
+    en_disco = leer_json(_dir_ficha(cmd, fila) / "ficha.json", None)
     if isinstance(en_disco, dict) and en_disco:
         if fila:
             # El indice manda en lo que cambia (estado, motivo); la ficha
@@ -450,8 +593,9 @@ def eventos(cmd: str = "") -> list:
     abrir el JSONL a mano, y la ficha necesita la linea de tiempo.
     """
     todos = [e for e in leer_jsonl(_ruta_eventos()) if isinstance(e, dict)]
+    cmd = _norm(cmd)
     if cmd:
-        todos = [e for e in todos if e.get("cmd") == cmd]
+        todos = [e for e in todos if _norm(e.get("cmd")) == cmd]
     return todos
 
 
@@ -462,6 +606,7 @@ def ficha(cmd: str) -> str:
     tocaron, guardianes, sello de la copia y donde esta el codigo. Es lo que
     contesta "y esto por que se dio por bueno".
     """
+    cmd = _norm(cmd)
     f = obtener(cmd)
     if not f:
         return "No hay ficha de %s en la bitacora (%s)." % (cmd, dir_bitacora())
@@ -480,9 +625,26 @@ def ficha(cmd: str) -> str:
 
     crit = f.get("criterios") or []
     ok_n = sum(1 for c in crit if c.get("ok"))
-    lin.append("  veredicto  %s%s" % (
-        f.get("veredicto", "sin evaluar"),
-        ("  (%d/%d criterios)" % (ok_n, len(crit))) if crit else ""))
+    juzgados = [c for c in crit if c.get("ok") is not None]
+    if not crit:
+        cola = ""
+    elif juzgados:
+        cola = "  (%d/%d criterios)" % (ok_n, len(crit))
+    else:
+        # "0/3" cuando NADIE marco los criterios uno a uno es una mentira que
+        # se lee como tres fallos. El evaluador marca las FASES, no cada
+        # criterio, asi que hay que decir que no hay marca en vez de inventar
+        # un cero.
+        cola = "  (%d criterios, sin marcar uno a uno)" % len(crit)
+    lin.append("  veredicto  %s%s" % (f.get("veredicto", "sin evaluar"), cola))
+
+    fases = f.get("fases") or []
+    if fases:
+        lin.append("  fases")
+        for x in fases:
+            marca = "??" if x.get("ok") is None else ("ok" if x["ok"] else "NO")
+            lin.append("    [%s] %-11s %s" % (marca, x.get("fase", "?"),
+                                              x.get("detalle", "")))
     if crit:
         lin.append("  criterios")
         for c in crit:

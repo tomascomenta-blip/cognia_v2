@@ -219,6 +219,10 @@ def test_compactar_es_deterministico_y_conserva_el_orden():
     assert a == ap.compactar(texto, 500)
     # Las frases elegidas salen en el orden en que se dijeron, no por ranking.
     pos = [texto.find(f.strip()) for f in a.split(". ") if len(f.strip()) > 20]
+    # El assert de orden es VACUO si la lista sale vacia (un dia que compactar
+    # devuelva "" pasaria igual de verde): se exige que haya varias frases que
+    # ordenar, que es lo unico que hace falsable la comprobacion de abajo.
+    assert len(pos) >= 3, a
     assert all(p >= 0 for p in pos)
     assert pos == sorted(pos)
 
@@ -228,13 +232,27 @@ def test_compactar_con_tope_cero_o_texto_corto():
     assert ap.compactar("  corto  ", 100) == "corto"
 
 
-def test_compactar_prefiere_lo_denso_y_tira_la_muletilla():
-    texto = ("Vale. Bueno, a ver. Seguimos. La velocidad media se define como "
-             "el cociente entre el espacio recorrido y el tiempo empleado. Eso. "
-             "Ya está. Venga.")
-    salida = ap.compactar(texto, 120)
-    assert "velocidad media" in salida
-    assert "Venga" not in salida
+RELLENO = ("Bueno, vale, entonces claro, mira, venga, vamos, veis, bien, pues, "
+           "eso, esto, ahora, vale")
+DENSA = ("La velocidad media se define como el cociente entre el espacio "
+         "recorrido y el tiempo empleado")
+
+
+def test_compactar_elige_por_densidad_y_no_por_orden():
+    """El que decide tiene que ser el RANKING, no el filtro de largo.
+
+    La version anterior de este test usaba muletillas de una palabra ("Vale.",
+    "Venga.") y comprobaba que no salieran: eso lo cumple `_frases`, que tira
+    toda frase de menos de 12 chars ANTES de puntuar nada, asi que el test
+    pasaba igual aunque `_puntuar` devolviera una constante -- medido: con
+    `_puntuar` fijo la salida no cambiaba. Aqui las dos frases pasan el filtro
+    de largo (89 y 93 chars), solo cabe UNA en el tope, y la de relleno va
+    PRIMERA: si el ranking no ordena, gana ella y este test se pone rojo.
+    """
+    texto = RELLENO + ". " + DENSA + "."
+    salida = ap.compactar(texto, len(DENSA) + 4)
+    assert salida == DENSA, salida
+    assert "venga" not in salida.lower()
 
 
 # ── La jornada entera, persistida ────────────────────────────────────────────
@@ -375,3 +393,135 @@ def test_ventanas_trocean_con_solape_y_cubren_todo():
     # Sin solape, una definicion partida por la mitad se pierde en las dos
     # ventanas; se comprueba que la cola de una reaparece en la siguiente.
     assert trozos[0][-40:].strip() in trozos[1]
+    # Y "cubren todo" se COMPRUEBA, no se anuncia en el nombre: un hueco entre
+    # dos ventanas es transcripcion que el modelo no ve y que no chilla en
+    # ningun sitio. Se rehace el texto pegando cada ventana desde donde acaba
+    # la anterior; tiene que salir el original entero.
+    rehecho = trozos[0]
+    for t in trozos[1:]:
+        corte = max((i for i in range(1, len(t) + 1) if rehecho.endswith(t[:i])),
+                    default=0)
+        assert corte > 0, "hueco entre ventanas: se perdio transcripcion"
+        rehecho += t[corte:]
+    assert rehecho.split() == texto.split()
+
+
+# ── Regresiones de la revision adversarial del 2026-08-31 ────────────────────
+
+class _Respuesta:
+    def __init__(self, text):
+        self.text = text
+
+
+class _OrchFalso:
+    """El modelo, sin modelo. Cuenta las llamadas: el tope de llamadas por
+    sesion es una promesa del modulo y sin contarlas no se puede comprobar."""
+
+    def __init__(self, respuesta="", resumen="", revienta=False):
+        self.respuesta = respuesta
+        # Por defecto MUDO en la llamada del resumen, que es lo medido con el
+        # razonador local: se va a pensar y agota el presupuesto sin emitir.
+        self.resumen = resumen
+        self.revienta = revienta
+        self.llamadas = []
+
+    def infer(self, prompt, max_tokens=0, temperature=0.0):
+        self.llamadas.append(max_tokens)
+        if self.revienta:
+            raise RuntimeError("el servidor del modelo no responde")
+        return _Respuesta(self.resumen if prompt.startswith("Resume")
+                          else self.respuesta)
+
+
+def test_regenerar_no_borra_nada_de_lo_que_ya_habia_en_apuntes_json():
+    """LA LINEA DURA: no se borran datos del duenio.
+
+    `apuntes.json` lo pinta `vista.py`, que acepta ortografias que este modulo
+    no genera ('puntos_clave', 'tareas') y ENSENIA en 'otros' cualquier clave
+    suelta. Hasta el 2026-08-31 `generar_jornada` reescribia cada entrada con
+    el dict normalizado, o sea que una regeneracion de rutina -- sin `forzar`,
+    la que hace el CLI -- dejaba el fichero sin esas claves, sin aviso y sin
+    copia. Reproducido antes del fix: 'mis_notas' desaparecia del disco.
+    """
+    nombre = _sembrar_jornada()
+    ruta = alm.dir_jornada(nombre) / alm.APUNTES
+    alm.guardar_json(ruta, {"0": {
+        "titulo": "Doppler",
+        "puntos_clave": ["la fuente que se acerca sube la frecuencia"],
+        "tareas": ["ejercicios 4 y 5"],
+        "mis_notas": ["esto lo escribi yo a mano"],
+    }})
+
+    ap.generar_jornada(nombre, orch=None)
+
+    en_disco = alm.leer_json(ruta, {})["0"]
+    assert en_disco["mis_notas"] == ["esto lo escribi yo a mano"]
+    assert en_disco["puntos_clave"] == ["la fuente que se acerca sube la frecuencia"]
+    assert en_disco["tareas"] == ["ejercicios 4 y 5"]
+
+
+def test_los_apuntes_viejos_se_leen_con_la_ortografia_que_la_vista_acepta():
+    """Y ademas se MIGRAN: si la vista sabe leer 'puntos_clave' y aqui se
+    ignorara, unos apuntes que se ven bien en el HTML volverian vacios de
+    `generar()`."""
+    s = _sesion()
+    s.apuntes = {"titulo": "De ayer", "puntos_clave": ["el MRU no acelera"],
+                 "tareas": ["los ejercicios 4 y 5"]}
+    salida = ap.generar(s, orch=None)
+    assert "el MRU no acelera" in salida["claves"]
+    assert salida["deberes"] == ["los ejercicios 4 y 5"]
+    # Y la lista devuelta no es la MISMA que la guardada en la sesion: quien
+    # retoque los apuntes en pantalla no puede estar editando el disco.
+    assert salida["deberes"] is not s.apuntes["tareas"]
+
+
+def test_una_clase_larga_respeta_el_tope_de_llamadas_al_modelo():
+    """_MAX_VENTANAS es un tope de TIEMPO del duenio (una jornada son 5-7
+    sesiones). El presupuesto de pre-compactado no descontaba el solape, asi
+    que 12 ventanas salian 13 -- 14 llamadas con la del resumen -- y el tope
+    era un comentario, no una garantia."""
+    largo = " ".join(TRANSCRIPCION * 30)
+    assert len(largo) > 50000                      # una clase de 50 min de verdad
+    entradas = [cua.Entrada(t=0.0, tipo=cua.TIPO_TRANSCRIPCION, texto=largo,
+                            t_fin=3000.0, fuente="sistema")]
+    s = cua.Sesion(materia="Fisica", t0=0.0, t1=3000.0, entradas=entradas)
+    orch = _OrchFalso("CLAVE: el MRU tiene velocidad constante")
+
+    salida = ap.generar(s, orch=orch)
+
+    assert len(orch.llamadas) <= ap._MAX_VENTANAS + 1, len(orch.llamadas)
+    assert salida["via"] == ap.VIA_MODELO
+    assert "pre-compactada" in salida["aviso"]
+
+
+def test_el_modelo_caido_no_se_lee_igual_que_el_modelo_mudo():
+    """Los dos acaban en apuntes extractivos, pero uno se arregla levantando
+    el servidor y el otro no. Si el 'aviso' dice lo mismo, el duenio no puede
+    distinguirlos -- el vacio silencioso que este repo tiene prohibido."""
+    caido = ap.generar(_sesion(), orch=_OrchFalso(revienta=True))
+    mudo = ap.generar(_sesion(), orch=_OrchFalso("mmm, deja que lo piense"))
+
+    assert caido["via"] == mudo["via"] == ap.VIA_EXTRACTIVO
+    assert "fallo" in caido["aviso"] and "RuntimeError" in caido["aviso"]
+    assert "fallo" not in mudo["aviso"]
+    assert "vacias" in mudo["aviso"]
+
+
+def test_con_modelo_lo_lexico_se_suma_y_el_resumen_dice_de_donde_sale():
+    """El camino del modelo no tenia NI UN test (solo se probaban sus piezas
+    sueltas). Se comprueba lo que el modulo promete: que un deber literal del
+    profesor no se pierde porque el modelo no lo mencionara, y que un resumen
+    que el modelo no escribio no se presenta como suyo."""
+    orch = _OrchFalso("CLAVE: el MRU tiene velocidad constante\n"
+                      "FORM: v = d / t\n")
+    salida = ap.generar(_sesion(), orch=orch)
+
+    assert salida["via"] == ap.VIA_MODELO
+    assert any("ejercicios 4 y 5" in d for d in salida["deberes"])
+    assert any("examen del viernes" in e for e in salida["examen"])
+    assert salida["claves"][0] == NOTA_IMPORTANTE
+    # El modelo devolvio etiquetas tambien a la llamada del resumen, o sea que
+    # el resumen NO es suyo: tiene que decirse.
+    assert "el resumen es extractivo" in salida["aviso"]
+    # Y el presupuesto de esa llamada no puede estar en la banda muda medida.
+    assert all(t >= 700 for t in orch.llamadas), orch.llamadas

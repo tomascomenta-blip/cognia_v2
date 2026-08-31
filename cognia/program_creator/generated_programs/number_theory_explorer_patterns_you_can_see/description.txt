@@ -1,0 +1,8 @@
+Title         : Number Theory Explorer: Patterns You Can See
+Category      : number theory explorer that prints interesting patterns
+Created at    : 2026-08-29T21:35:38.004705
+Score         : auto-asignado 9.4/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  A self-running tour of eight number-theory patterns — a Sierpinski fractal, a mod-13 kaleidoscope, a Collatz landscape, a Fibonacci wheel, and more — where every theorem is computed, compared, and printed as a PASS/FAIL verdict.

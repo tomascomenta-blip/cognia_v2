@@ -179,6 +179,11 @@ def test_una_sola_materia_seguida_no_produce_cortes():
     cortes = mat.detectar(entradas)
     assert len(cortes) == 1, [c["t"] for c in cortes]
     assert cortes[0]["t"] == 0.0
+    # `len(cortes) == 1` NO basta y por si solo este test pasaria por el
+    # motivo equivocado: dos bloques de la MISMA materia se funden
+    # (`_fundir`), asi que un corte de mas aqui saldria contado como uno solo.
+    # Lo que lo hace falsable es que la fusion se declara en "por".
+    assert "fundido" not in cortes[0]["por"], cortes[0]["por"]
 
 
 def test_cambio_de_ejemplo_dentro_de_la_materia_no_corta():
@@ -193,6 +198,10 @@ def test_cambio_de_ejemplo_dentro_de_la_materia_no_corta():
                               (MATE, 900.0, 0.0)])
     cortes = mat.detectar(entradas)
     assert len(cortes) == 1, [(c["t"], c["por"]) for c in cortes]
+    # Igual que arriba: el corte espurio al entrar o al salir de la pizza
+    # daria otra vez "Tema: derivada, ..." y `_fundir` lo taparia. Sin esta
+    # linea, el contrafactual mas importante del fichero no puede fallar.
+    assert "fundido" not in cortes[0]["por"], cortes[0]["por"]
 
 
 def test_pausa_corta_dentro_de_clase_no_corta():
@@ -200,7 +209,9 @@ def test_pausa_corta_dentro_de_clase_no_corta():
     SILENCIO_MINIMO, no es evidencia de nada."""
     entradas, _ = tira([(MATE, 900.0, 0.0), (MATE, 900.0, 40.0)])
     assert mat.senal_silencio(entradas) == []
-    assert len(mat.detectar(entradas)) == 1
+    cortes = mat.detectar(entradas)
+    assert len(cortes) == 1
+    assert "fundido" not in cortes[0]["por"], cortes[0]["por"]
 
 
 def test_dos_horas_de_la_misma_materia_con_recreo_se_funden():
@@ -214,6 +225,10 @@ def test_dos_horas_de_la_misma_materia_con_recreo_se_funden():
     assert len(mat.senal_silencio(entradas)) == 1
     cortes = mat.detectar(entradas)
     assert len(cortes) == 1, [(c["t"], c["materia"]) for c in cortes]
+    # Y la sesion unica NO es "aqui no paso nada": el corte existio y se
+    # fundio, y el cuaderno lo dice. Es la contraparte exacta de los tres
+    # contrafactuales de arriba, donde esta misma palabra no puede aparecer.
+    assert "fundido con el bloque de 2400s" in cortes[0]["por"], cortes[0]["por"]
 
 
 # ── Horario ──────────────────────────────────────────────────────────────────
@@ -258,6 +273,27 @@ def test_franja_de_horario_rota_no_tumba_la_deteccion():
                {"materia": "Biologia", "desde": verdad[2], "hasta": 9999.0}]
     cortes = mat.detectar(entradas, pistas={"horario": horario})
     assert [c["materia"] for c in cortes] == ["Matematicas", "Biologia"]
+
+
+def test_un_hasta_ilegible_no_tira_la_franja_entera():
+    """Degradar SOLO lo que se rompio. `hasta` no lo lee nadie (el limite de
+    un bloque lo pone el `desde` de la franja siguiente), asi que un final mal
+    escrito no puede borrar del horario una clase que el duenio SI declaro:
+    el hueco se lo tragaba la materia anterior extendiendose sobre ella.
+    """
+    entradas, verdad = jornada_tres_materias()
+    horario = [{"materia": "Matematicas", "desde": 0.0, "hasta": 1200.0},
+               {"materia": "Historia", "desde": verdad[1], "hasta": "las once"},
+               {"materia": "Biologia", "desde": verdad[2], "hasta": 9999.0}]
+    franjas = mat.senal_horario({"horario": horario}, 4200.0)
+    assert [f["materia"] for f in franjas] == ["Matematicas", "Historia",
+                                               "Biologia"]
+    cortes = mat.detectar(entradas, pistas={"horario": horario})
+    assert [c["materia"] for c in cortes] == ["Matematicas", "Historia",
+                                              "Biologia"]
+    # Y sin `desde` utilizable si se descarta: ese es el unico campo que manda.
+    solo_desde_roto = [{"materia": "Latin", "desde": "a las diez"}]
+    assert mat.senal_horario({"horario": solo_desde_roto}, 4200.0) == []
 
 
 # ── Sin materias, sin historial y sin modelo ─────────────────────────────────
@@ -415,6 +451,41 @@ def test_al_modelo_se_le_pregunta_con_presupuesto_acotado():
     assert "Historia" in prompt and len(prompt) < 1500
 
 
+def test_la_cadena_de_pensamiento_no_decide_por_el_modelo():
+    """El cerebro de la casa es un RAZONADOR: escribe lo que descarta antes de
+    responder, en el mismo campo (por eso MAX_TOKENS_NOMBRE=160). Aqui el
+    modelo considera Matematicas, la rechaza en voz alta y responde Historia.
+
+    Leyendo "la primera materia de la lista que aparezca" el modulo devolvia
+    Matematicas -- la que el modelo acababa de descartar -- y con confianza
+    0.7, o sea firmando una asignatura equivocada en el cuaderno.
+    """
+    orch = _OrchGuionizado(["Podria ser Matematicas por las formulas, pero el "
+                            "texto habla de trincheras y de Versalles.\n"
+                            "Historia"])
+    materia, conf = mat.nombrar(" ".join(HISTORIA),
+                                materias_conocidas=["Matematicas", "Historia"],
+                                orch=orch)
+    assert materia == "Historia", materia
+    assert conf >= 0.7
+
+
+def test_la_conclusion_manda_aunque_vaya_en_la_misma_linea():
+    """Sin salto de linea que separe la conclusion: entonces vale la ULTIMA
+    mencion, que es donde el razonador aterriza.
+
+    La lista va con Historia PRIMERA a proposito: con el orden al reves este
+    test pasaria tambien leyendo por el principio, o sea por el motivo
+    equivocado. Lo que tiene que decidir es la posicion en el TEXTO, no la
+    posicion en `materias_conocidas`.
+    """
+    orch = _OrchGuionizado(["descarto Historia, no hay fechas; es Matematicas"])
+    materia, _ = mat.nombrar(" ".join(MATE),
+                             materias_conocidas=["Historia", "Matematicas"],
+                             orch=orch)
+    assert materia == "Matematicas", materia
+
+
 def test_respuesta_del_modelo_fuera_de_la_lista_se_descarta():
     orch = _OrchGuionizado(["creo que estan dando Filosofia del Derecho"])
     materia, _ = mat.nombrar(" ".join(BIOLOGIA),
@@ -491,3 +562,47 @@ def test_con_embeddings_reales_los_cortes_siguen_donde_toca(monkeypatch):
     assert len(cortes) == 3, [(c["t"], c["por"]) for c in cortes]
     assert max(error_de_cortes(cortes, verdad)) <= 60.0
     assert "embeddings" in cortes[1]["por"]
+    # "embeddings" a secas lo escribia el modulo tambien cuando la medida
+    # habia caido a lexico (ver el test de abajo): esta linea es la que
+    # distingue "se midio con embeddings" de "se dijo que si".
+    assert "el backend de embeddings fallo" not in cortes[1]["por"]
+
+
+def test_si_el_backend_semantico_muere_el_por_no_dice_embeddings(monkeypatch):
+    """El campo "por" es lo unico que separa "no lo cablearon" de "se
+    rompio", y aqui mentia. Con el backend semantico VIVO al arrancar pero
+    muerto al pedir vectores, `senal_deriva` cae a lexico -- correctamente y
+    con warning -- pero `detectar` seguia escribiendo "deriva embeddings" en
+    cada corte, atribuyendo el corte a un umbral (0.75) que no se aplico: el
+    que decidio fue UMBRAL_COBERTURA=0.30. Un test que solo mirase
+    `"embeddings" in por` no puede cazar esto, porque pasa en los dos casos.
+    """
+    monkeypatch.setattr(mat, "embeddings_activos", lambda: True)
+    monkeypatch.setattr(mat, "_vector", lambda texto: None)
+
+    entradas, verdad = tira([(MATE, 1200.0, 0.0),
+                             (HISTORIA, 1200.0, 0.0),
+                             (BIOLOGIA, 1200.0, 0.0)])
+    cortes = mat.detectar(entradas, pistas={"senales": {"silencio": False}})
+
+    assert len(cortes) == 3, [(c["t"], c["por"]) for c in cortes]
+    assert max(error_de_cortes(cortes, verdad)) <= 30.0
+    for c in cortes:
+        assert "deriva embeddings" not in c["por"], c["por"]
+        assert "el backend de embeddings fallo" in c["por"], c["por"]
+    assert "deriva lexica" in cortes[1]["por"]
+
+
+def test_la_deriva_declara_la_medida_que_uso_de_verdad(monkeypatch):
+    """`senal_deriva` deja el modo REAL en `informe`, tambien cuando no
+    devuelve ninguna frontera: si solo se pudiera leer de la lista, una
+    jornada sin cortes no podria declarar que la medida se degrado."""
+    monkeypatch.setattr(mat, "_vector", lambda texto: None)
+    entradas, _ = tira([(MATE, 1200.0, 0.0)])
+    informe = {}
+    mat.senal_deriva(entradas, modo="embeddings", informe=informe)
+    assert informe["modo"] == "lexica"
+
+    informe = {}
+    mat.senal_deriva(entradas, modo="lexica", informe=informe)
+    assert informe["modo"] == "lexica"

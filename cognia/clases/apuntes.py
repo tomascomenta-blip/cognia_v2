@@ -10,7 +10,7 @@ transcrita, mas lo que el duenio aniadio a mano) y sale un dict con las
 secciones de una hoja de cuaderno: titulo, resumen, ideas clave,
 definiciones, formulas, deberes, dudas y "esto entra en el examen".
 
-TRES DECISIONES QUE MANDAN SOBRE EL RESTO
+CUATRO DECISIONES QUE MANDAN SOBRE EL RESTO
 
 1. LO DEL DUENIO NO SE TOCA. `Sesion.del_usuario()` (notas, marcas, fotos de
    la pizarra, clips) es el unico contenido del cuaderno del que CONSTA que a
@@ -31,11 +31,19 @@ TRES DECISIONES QUE MANDAN SOBRE EL RESTO
 
 3. LA CLASE NO CABE EN LA VENTANA. 50 minutos son del orden de 40 000 chars.
    Se trocea en ventanas con solape, se pide una extraccion CORTA por ventana
-   y se funden los resultados. MEDIDO EN ESTE REPO EL 2026-08-30: el modelo
-   local es un razonador y con `max_tokens` grande se va a pensar y devuelve
-   CERO contenido -- por eso cada llamada pide salida etiquetada, de pocas
-   lineas, con tope chico (_TOK_VENTANA). Una ventana que vuelve vacia cae al
-   extractivo SOLO en esa ventana y lo deja escrito en 'aviso'.
+   y se funden los resultados. Lo que se acota es la SALIDA PEDIDA (pocas
+   lineas etiquetadas), no el `max_tokens`: el modelo local es un razonador y
+   por debajo de ~700 tokens se gasta el presupuesto pensando y no emite NADA
+   (la tabla medida esta junto a _TOK_VENTANA). Una ventana que vuelve vacia
+   cae al extractivo SOLO en esa ventana y lo deja escrito en 'aviso'.
+
+4. NADA DE LO QUE YA ESTA EN apuntes.json SE BORRA. Regenerar una jornada
+   reescribe ese fichero, y hasta el 2026-08-31 lo reescribia NORMALIZADO: una
+   clave que este modulo no conociera (las ortografias que vista.py acepta
+   -- 'puntos_clave', 'tareas', 'conceptos' -- o lo que el duenio hubiera
+   metido a mano y la vista pinta en 'otros') desaparecia del disco sin aviso
+   y sin copia. Ahora se FUNDE sobre lo que habia: se sobreescribe lo que se
+   regenera y no se quita nada mas.
 
 QUE SE REUSA Y QUE NO
   - `compactacion.cap_chars()` (el knob COGNIA_COMPACT_CAP que ya gobierna
@@ -72,9 +80,15 @@ _log = logging.getLogger(__name__)
 # cae justo en el corte.
 _VENTANA_CHARS = 2500
 _SOLAPE_CHARS = 200
-# Tope de llamadas al modelo por sesion. Una clase muy larga se pre-compacta
-# a este presupuesto antes de trocear: 12 llamadas ya son minutos de espera y
-# el duenio genera la jornada entera, no una sesion.
+# Tope de ventanas (= llamadas al modelo por sesion, mas UNA la del resumen:
+# 13 en total, medido). Una clase muy larga se pre-compacta
+# antes de trocear: 12 llamadas ya son minutos de espera y el duenio genera la
+# jornada entera, no una sesion. El presupuesto de esa pre-compactacion NO es
+# _MAX_VENTANAS * _VENTANA_CHARS: cada ventana nueva solo AVANZA
+# (_VENTANA_CHARS - _SOLAPE_CHARS), asi que ese presupuesto daba 13 ventanas
+# medidas para una clase de 45 000 chars (14 llamadas con la del resumen) y el
+# tope era mentira. Se descuenta el solape y ademas se corta la lista, porque
+# el corte por espacio puede acortar una ventana y colar una de mas.
 _MAX_VENTANAS = 12
 # Presupuestos de salida. MEDIDOS el 2026-08-31 contra el modelo local del
 # duenio (llama-server, nemotron-3.5-lightning-30b-a3b Q4_0), una ventana de
@@ -92,7 +106,13 @@ _MAX_VENTANAS = 12
 # (la salida es de pocas lineas etiquetadas), pero el tope tiene que pagar
 # tambien el peaje del <think>.
 _TOK_VENTANA = 700
-_TOK_RESUMEN = 400
+# El resumen paga EL MISMO peaje: es otra llamada al mismo razonador. Estuvo en
+# 400 -- dentro de la banda MUDA de la tabla de arriba (320 no emitio nada), o
+# sea que la llamada del resumen estaba condenada por construccion: se pagaban
+# sus segundos y el resumen salia siempre del extractivo. No se baja de la
+# frontera medida por parecer "acotado": lo acotado es la salida pedida (3
+# frases), no el presupuesto.
+_TOK_RESUMEN = _TOK_VENTANA
 _TEMP = 0.2
 
 # Cuanto de cada seccion se guarda. Unos apuntes con 40 "ideas clave" no son
@@ -591,13 +611,24 @@ def _sin_razonamiento(texto: str) -> str:
     return limpio.strip()
 
 
-def _infer(orch, prompt: str, max_tokens: int) -> str:
+def _infer(orch, prompt: str, max_tokens: int, fallos=None) -> str:
     """Una llamada al modelo, con el motivo del fallo VISIBLE. Devuelve '' si
-    no hay texto util: el llamador decide si eso es caer al extractivo."""
+    no hay texto util: el llamador decide si eso es caer al extractivo.
+
+    `fallos` es la lista donde el llamador recoge los motivos para el 'aviso'.
+    No es adorno: sin ella, "el modelo se cayo" y "el modelo se fue a pensar y
+    no emitio" salian con el MISMO texto en la hoja de apuntes -- que es
+    exactamente el vacio silencioso que este repo tiene prohibido (un log que
+    el duenio no ve no cuenta como motivo). Es un parametro y no una variable
+    de modulo a proposito: el estado global lo comparten dos sesiones
+    generadas seguidas y acaba contando el fallo de la sesion anterior.
+    """
     try:
         r = orch.infer(prompt, max_tokens=max_tokens, temperature=_TEMP)
     except Exception as exc:
         _log.warning("apuntes: el modelo fallo (%s: %s)", type(exc).__name__, exc)
+        if fallos is not None:
+            fallos.append("%s: %s" % (type(exc).__name__, exc))
         return ""
     crudo = (getattr(r, "text", "") or "").strip()
     texto = _sin_razonamiento(crudo)
@@ -605,6 +636,15 @@ def _infer(orch, prompt: str, max_tokens: int) -> str:
         _log.warning("apuntes: el modelo no dejo nada util con max_tokens=%d "
                      "(%d chars, todos de razonamiento)", max_tokens, len(crudo))
     return texto
+
+
+def _presupuesto_troceo() -> int:
+    """Chars de clase que caben en _MAX_VENTANAS llamadas. La primera ventana
+    cuesta _VENTANA_CHARS y cada una de las siguientes solo AVANZA
+    (_VENTANA_CHARS - _SOLAPE_CHARS): olvidar el solape es lo que hacia que un
+    tope de 12 llamadas fueran 13 ventanas (medido con una clase de 45 000
+    chars el 2026-08-31)."""
+    return _MAX_VENTANAS * (_VENTANA_CHARS - _SOLAPE_CHARS) + _SOLAPE_CHARS
 
 
 def _ventanas(texto: str, ancho: int, solape: int) -> list:
@@ -678,18 +718,45 @@ def _plantilla() -> dict:
             "chars_entrada": 0, "chars_salida": 0, "via": VIA_VACIO, "aviso": ""}
 
 
+# Ortografias que puede tener una clave en un apuntes.json viejo. Es la MISMA
+# tabla que `vista._CAMPOS_APUNTES` acepta al pintar: si la vista sabe leer
+# 'puntos_clave' y aqui se ignora, unos apuntes que se ven bien en el HTML
+# vuelven VACIOS de `generar()` -- y como `generar_jornada` guarda lo que
+# `generar` devuelve, eso era una via de borrado.
+_ALIAS = {
+    "titulo": ("title",),
+    "resumen": ("sumario", "summary"),
+    "claves": ("puntos_clave", "puntos", "clave", "ideas"),
+    "definiciones": ("conceptos", "vocabulario"),
+    "formulas": ("ecuaciones",),
+    "deberes": ("tareas", "ejercicios", "homework"),
+    "examen": ("entra_en_examen", "evaluable", "para_el_examen"),
+    "dudas": ("preguntas",),
+}
+
+
 def _normalizar(crudo: dict) -> dict:
     """Fuerza el juego de claves EXACTO del contrato. Unos apuntes leidos del
     disco pueden venir de una version anterior del modulo, y la vista HTML
     hace `ap['formulas']` sin defensa: una clave que falta seria un KeyError
-    en mitad del cuaderno."""
+    en mitad del cuaderno.
+
+    Las listas se COPIAN: sin la copia, el dict devuelto comparte listas con
+    `sesion.apuntes` y quien retoque los apuntes en pantalla estaria editando
+    los del disco sin haberlos guardado.
+    """
     ap = _plantilla()
+    crudo = crudo or {}
     for k in _CLAVES_DICT:
-        if k not in (crudo or {}):
+        v = None
+        for nombre in (k,) + _ALIAS.get(k, ()):
+            if nombre in crudo and crudo[nombre] not in (None, "", [], {}):
+                v = crudo[nombre]
+                break
+        if v is None:
             continue
-        v = crudo[k]
         if isinstance(ap[k], list) and isinstance(v, list):
-            ap[k] = v
+            ap[k] = list(v)
         elif isinstance(ap[k], int) and not isinstance(ap[k], bool):
             try:
                 ap[k] = int(v)
@@ -710,7 +777,7 @@ def _chars_salida(ap: dict) -> int:
 
 
 def generar(sesion, orch=None, forzar=False) -> dict:
-    """Los apuntes de UNA sesion. Ver el encabezado del modulo para las tres
+    """Los apuntes de UNA sesion. Ver el encabezado del modulo para las
     decisiones que gobiernan el resultado."""
     if not (hasattr(sesion, "texto_dicho") and hasattr(sesion, "del_usuario")):
         _log.warning("apuntes: %s no es una Sesion del cuaderno", type(sesion).__name__)
@@ -766,23 +833,46 @@ def generar(sesion, orch=None, forzar=False) -> dict:
         texto, ext_deberes + ext_examen + ext_dudas + _frases_de(ext_resumen))
 
     del_modelo = {}
+    fallos: list = []
     if orch is not None:
         base = texto
-        if len(texto) > _MAX_VENTANAS * _VENTANA_CHARS:
-            base = compactar(texto, _MAX_VENTANAS * _VENTANA_CHARS)
+        if len(texto) > _presupuesto_troceo():
+            base = compactar(texto, _presupuesto_troceo())
             avisos.append("clase muy larga: pre-compactada a %d chars antes de trocear"
                           % len(base))
         ventanas = _ventanas(base, _VENTANA_CHARS, _SOLAPE_CHARS)
+        if len(ventanas) > _MAX_VENTANAS:
+            # El presupuesto por chars no basta: el corte por espacio acorta
+            # las ventanas y salen una o dos de mas. Se re-compacta en
+            # proporcion a lo que sobra -- compactar TIRA LO MENOS RELEVANTE DE
+            # TODA la clase, mientras que quedarse con las 12 primeras ventanas
+            # tiraria el final entero, que es donde el profesor manda los
+            # deberes.
+            base = compactar(base, max(_VENTANA_CHARS,
+                                       len(base) * _MAX_VENTANAS // len(ventanas)))
+            ventanas = _ventanas(base, _VENTANA_CHARS, _SOLAPE_CHARS)
+            avisos.append("re-compactada a %d chars para no pasar de %d llamadas"
+                          % (len(base), _MAX_VENTANAS))
+        if len(ventanas) > _MAX_VENTANAS:
+            # Ultimo recurso (texto casi sin espacios): se dice, no se calla.
+            avisos.append("%d ventanas pese al tope de %d: el final de la clase "
+                          "va solo extractivo" % (len(ventanas), _MAX_VENTANAS))
+            ventanas = ventanas[:_MAX_VENTANAS]
         mudas = 0
         for v in ventanas:
-            trozo = _parsear(_infer(orch, _PROMPT_VENTANA % v, _TOK_VENTANA))
+            trozo = _parsear(_infer(orch, _PROMPT_VENTANA % v, _TOK_VENTANA, fallos))
             if not any(trozo.values()):
                 mudas += 1
                 continue
             _fundir(del_modelo, trozo)
-        if mudas:
+        if fallos:
+            # El fallo del modelo NO puede leerse igual que "el modelo no tenia
+            # nada que decir": uno se arregla levantando el servidor y el otro no.
+            avisos.append("el modelo fallo en %d de %d llamadas (%s)"
+                          % (len(fallos), len(ventanas), fallos[0]))
+        if mudas > len(fallos):
             avisos.append("%d de %d ventanas volvieron vacias del modelo: "
-                          "esa parte va extractiva" % (mudas, len(ventanas)))
+                          "esa parte va extractiva" % (mudas - len(fallos), len(ventanas)))
 
     if any(del_modelo.get(k) for k in _ETIQUETAS.values()):
         ap["via"] = VIA_MODELO
@@ -811,8 +901,14 @@ def generar(sesion, orch=None, forzar=False) -> dict:
         resumen = _infer(orch, "Resume en espanol, en 3 frases cortas, estos "
                                "apuntes de %s. Responde solo el resumen.\n%s"
                          % (getattr(sesion, "materia", "clase"),
-                            "\n".join(ap["claves"])[:1500]), _TOK_RESUMEN)
-        ap["resumen"] = resumen[:_cap_resumen()] if resumen else ext_resumen
+                            "\n".join(ap["claves"])[:1500]), _TOK_RESUMEN, fallos)
+        if resumen:
+            ap["resumen"] = resumen[:_cap_resumen()]
+        else:
+            # Caer al extractivo esta bien; caer SIN decirlo no: el duenio ve
+            # 'via: modelo' y un resumen que el modelo no escribio.
+            ap["resumen"] = ext_resumen
+            avisos.append("el resumen es extractivo: el modelo no lo emitio")
         # El titulo NO se le pide al modelo. Medido el 2026-08-31: con 32
         # tokens (de sobra para 8 palabras) devolvio literalmente "<think>",
         # porque el peaje de razonamiento se cobra igual en una llamada
@@ -886,6 +982,14 @@ def generar_jornada(nombre: str, orch=None, progreso=None) -> dict:
     Las claves son str(indice), las MISMAS que relee `cuaderno.sesiones_de`;
     devolverlas como int haria que el llamador que compara con el disco no
     encontrara nada.
+
+    LO QUE HAY EN EL FICHERO NO SE BORRA. Se escribe lo generado ENCIMA de la
+    entrada que hubiera, clave a clave, en vez de sustituirla: reescribirla
+    entera tiraba todo lo que este modulo no nombra -- las ortografias que
+    vista.py si pinta ('puntos_clave', 'tareas', 'conceptos') y cualquier cosa
+    que el duenio hubiera puesto a mano, que la vista ensenia en 'otros'.
+    Reproducido el 2026-08-31: una `generar_jornada` de rutina, sin `forzar`,
+    dejaba el apuntes.json sin esas claves y sin copia de seguridad.
     """
     sesiones = cua.sesiones_de(nombre)
     ruta = alm.dir_jornada(nombre) / alm.APUNTES
@@ -894,7 +998,8 @@ def generar_jornada(nombre: str, orch=None, progreso=None) -> dict:
     for i, s in enumerate(sesiones):
         ap = generar(s, orch=orch)
         fuera[str(i)] = ap
-        mapa[str(i)] = ap
+        previo = mapa.get(str(i))
+        mapa[str(i)] = dict(previo, **ap) if isinstance(previo, dict) else ap
         alm.guardar_json(ruta, mapa)
         if callable(progreso):
             try:

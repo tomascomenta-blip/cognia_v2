@@ -1,0 +1,8 @@
+Title         : Owl Text Similarity Analyzer
+Category      : text similarity analyzer with sample texts
+Created at    : 2026-08-29T00:16:40.536056
+Score         : auto-asignado 9.2/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  A self-running analyzer that scores 5 animal-and-Python-themed sample texts with Jaccard, cosine, bigram, and edit-distance metrics, then proves the math with PASS/FAIL checks.
