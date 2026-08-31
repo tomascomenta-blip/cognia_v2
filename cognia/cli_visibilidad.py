@@ -147,7 +147,7 @@ AVANZADO: frozenset = frozenset({
     "/recap", "/repasar", "/reporte", "/reporte-completo", "/revisar", "/revision", "/rlm", "/seguridad",
     "/sesion-a-workflow", "/sesion-ver", "/session-to-workflow", "/shell-kill", "/shells",
     "/skill-cargar", "/skill-nuevo", "/spinner", "/stats", "/usuario", "/usuarios",
-    "/ver-contexto", "/vram", "/workflow", "/worktree", "/yo-actualizar",
+    "/ventana", "/ver-contexto", "/vram", "/workflow", "/worktree", "/yo-actualizar",
 })
 
 #: Experimentos, instrumentacion de investigacion del dueno, alias redundantes

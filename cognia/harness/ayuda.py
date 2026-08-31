@@ -211,8 +211,15 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     # tres contestan la MISMA pregunta -- que sabe hacer esta instalacion y que
     # cabe en esta maquina -- y juntos se explican entre si. Ademas /capacidades
     # caia en "Agente y tareas" y la dejaba en 26 con el tope en 25.
+    # /ventana entra aqui y NO en "Agente y tareas" (2026-08-30), por el mismo
+    # criterio con el que se abrio la categoria: contesta "que cabe en esta
+    # maquina" -- cuantos tokens de SALIDA deja la ventana despues del prompt --
+    # que es la misma pregunta que /vram, no una forma de mandar una tarea. Y de
+    # paso no repite la historia: "Agente y tareas" ya llego a 26 con el tope en
+    # 25 tres veces (con los permisos, con /capacidades y con /tx), y el
+    # guardian de desbordes lo caza en la suite.
     "Capacidades y maquina": (
-        "/capacidades", "/activar", "/vram",
+        "/capacidades", "/activar", "/vram", "/ventana",
     ),
     # Categoria propia (2026-08-19), por el MISMO criterio que las dos de
     # arriba: los dos comandos contestan la misma pregunta -- que recuerda de
