@@ -107,7 +107,7 @@ def test_chat_streaming_uses_active_effort_max_tokens_not_hardcoded():
     revierte al literal hardcodeado)."""
     import inspect
     import cognia.cli as cli_mod
-    src = inspect.getsource(cli_mod.repl)
+    src = inspect.getsource(cli_mod._repl_sesion)
     assert "max_tokens=1024" not in src
     assert '_active_effort()["max_tokens"]' in src
     # se usa en AMBAS ramas (stream_chat y stream_generate), no solo declarado

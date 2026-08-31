@@ -322,7 +322,11 @@ def test_fast_path_no_pinta_bajo_remoto_con_deltas_y_entrega_entera():
     2026-08-25: sin esto el entrelazado '@EV' a media frase volvio tal cual."""
     fuente = (RAIZ / "cognia" / "cli.py").read_text(encoding="utf-8")
     i = fuente.index("_pintar_stream = not _remoto_stream_vivo()")
-    j = fuente.index("for _tok in _stream_src(_mt_turno):", i)
+    # El bucle de pintado consume `_fuente` desde que la SALIDA CONTINUA
+    # (2026-08-31) puso el generador de tramos delante del stream; antes era
+    # `for _tok in _stream_src(_mt_turno):`. Lo que este guard protege no
+    # cambia: bajo remoto con deltas no se pinta token a token.
+    j = fuente.index("for _tok in _fuente:", i)
     assert "if not _pintar_stream:" in fuente[j:j + 300]
     k = fuente.index('_full_response = "".join(_tokens_buf).strip()', j)
     bloque = fuente[k:k + 1500]

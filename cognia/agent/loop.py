@@ -1378,6 +1378,82 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 print_fn(f"[detail]{_motivo}: pido {s['max_tokens']}[/detail]")
         return s
 
+    def _continuar_final(texto0: str):
+        """Completa una RESPUESTA FINAL que el tope corto a media frase.
+
+        La maquinaria de arriba (apagar pensamiento, compactar, rampa) cubre el
+        turno que se corta ANTES o DENTRO de un tool call. Esta rama es la otra
+        mitad: el modelo decidio contestar en prosa y el tope le corto la
+        respuesta — y hasta hoy eso se entregaba truncado y marcado como OK,
+        que es como el dueno acabo con "la tarea se corto antes de finalizar"
+        cinco veces seguidas en la misma tarea.
+
+        Se reusa agent/salida_continua tal cual: alli el tramo llega token a
+        token y aqui de una pieza, pero el contrato (pedir/parada) es el mismo.
+        La continuacion va SIN tools a proposito: el modelo ya eligio cerrar en
+        texto, y ofrecerle herramientas a mitad de frase lo saca del cierre.
+
+        Devuelve ``(texto, tokens_extra, tramos)``; con la puerta apagada o sin
+        nada que continuar devuelve el texto igual y 0 tramos extra.
+        """
+        try:
+            from cognia.agent import salida_continua as _sc
+        except Exception as exc:                      # nunca calla
+            print_fn(f"[detail]salida continua no disponible ({exc}): la "
+                     f"respuesta se entrega como llego[/detail]")
+            return texto0, 0, 0
+        if not _sc.activa():
+            return texto0, 0, 0
+        _est = {"finish": "length", "tokens": 0, "tramos": 0}
+
+        def _pedir(cola, chunk):
+            if cola is None:
+                return [texto0]           # el primer tramo ya esta generado
+            _est["tramos"] += 1
+            r = completar(_sc.continuacion_mensajes(mensajes, cola),
+                          **_sampling_ventana(), **_kwargs_stream())
+            _est["finish"] = r.finish_reason if r.ok else "error"
+            _est["tokens"] += int((r.usage or {}).get("completion_tokens") or 0)
+            return [r.texto or ""]
+
+        rondas_max, tope_tot = _sc.limites()
+        texto = "".join(_sc.stream_continuo(
+            _pedir, lambda: "limit" if _est["finish"] == "length" else "fin",
+            sampling["max_tokens"], rondas_max=rondas_max,
+            tope_total=tope_tot))
+        return texto, _est["tokens"], _est["tramos"]
+
+    def _insistir_final():
+        """El turno se cerro con SOLO razonamiento: pedir la respuesta ya.
+
+        Es el sintoma de chat_history id 1071 (2026-08-31): el modelo gasta el
+        turno pensando, cierra con content vacio y el bucle entrega el CoT
+        marcado como no-cumplido. Con el corte por TOPE (no por ventana) queda
+        sitio para escribir: lo que falta no son mas tokens para pensar sino
+        una peticion de que escriba. Se pide una vez, sin tools, y si esa
+        respuesta tambien se corta se continua con _continuar_final.
+
+        Devuelve ``(texto, tokens_extra)``; texto vacio = no hubo rescate.
+        """
+        try:
+            from cognia.agent import salida_continua as _sc
+        except Exception as exc:                      # nunca calla
+            print_fn(f"[detail]salida continua no disponible ({exc}): no se "
+                     f"insiste[/detail]")
+            return "", 0
+        if not _sc.activa():
+            return "", 0
+        r = completar(_sc.continuacion_mensajes(mensajes, ""),
+                      **_sampling_ventana(), **_kwargs_stream())
+        _tk = int((r.usage or {}).get("completion_tokens") or 0)
+        if not r.ok or not r.texto:
+            return "", _tk
+        _txt = r.texto
+        if r.finish_reason == "length":
+            _txt, _tk2, _ = _continuar_final(_txt)
+            _tk += _tk2
+        return _txt, _tk
+
     # Un transporte que NO respeta stream:true (un proxy delante, un backend
     # que no es llama-server) contesta 200 sin un solo frame SSE. chat_client
     # lo devuelve como error CON causa; aca se degrada UNA vez al camino
@@ -1892,17 +1968,49 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             finish = resp.finish_reason
             if resp.texto:
                 result_text, ok = resp.texto, True
+                if finish == "length":
+                    # El tope corto la respuesta final a media frase: se
+                    # continua en vez de entregarla truncada.
+                    _antes = len(result_text)
+                    result_text, _tk_cont, _tramos_cont = \
+                        _continuar_final(result_text)
+                    tokens_total += _tk_cont
+                    if _tramos_cont:
+                        print_fn(f"[detail]la respuesta se corto por el tope: "
+                                 f"la completo en {_tramos_cont} tramo(s) mas "
+                                 f"({_antes} -> {len(result_text)} chars)"
+                                 f"[/detail]")
             elif resp.reasoning_content:
-                # Rescate: el pensamiento SI existe; se entrega marcado y con
-                # ok=False (no lo pidio nadie asi, no es una respuesta). La
-                # COLA del CoT es donde vive la conclusion, no la cabeza.
-                print_fn("[warn_cl]el modelo cerro con la respuesta vacia "
-                         "(solo razonamiento): se entrega el razonamiento sin "
-                         "marcar la tarea como cumplida[/warn_cl]")
-                cola = resp.reasoning_content.strip()[-1200:]
-                result_text = ("(el modelo no emitio respuesta final; esto es "
-                               "su razonamiento) " + cola)
-                ok = False
+                # ANTES DE RENDIRSE: si el corte lo dio el TOPE y no la
+                # VENTANA, no falta sitio para pensar — falta que escriba. Se
+                # le pide la respuesta una vez. Con la ventana llena no se
+                # insiste: ahi lo unico que ayuda es liberar contexto, y
+                # gastar otra generacion entera para comprobarlo es justo la
+                # rampa inutil que este fichero ya documenta.
+                _rescate, _tk_ins = "", 0
+                if (finish == "length" and not _ps.es_corte_por_contexto(
+                        resp.usage, perfil.get("n_ctx"))):
+                    print_fn("[warn_cl]el turno se fue entero en razonar sin "
+                             "escribir la respuesta: se la pido "
+                             "directamente[/warn_cl]")
+                    _rescate, _tk_ins = _insistir_final()
+                    tokens_total += _tk_ins
+                if _rescate:
+                    result_text, ok = _rescate, True
+                    print_fn(f"[detail]respondio al insistir "
+                             f"({len(_rescate)} chars)[/detail]")
+                else:
+                    # Rescate: el pensamiento SI existe; se entrega marcado y
+                    # con ok=False (no lo pidio nadie asi, no es una
+                    # respuesta). La COLA del CoT es donde vive la conclusion,
+                    # no la cabeza.
+                    print_fn("[warn_cl]el modelo cerro con la respuesta vacia "
+                             "(solo razonamiento): se entrega el razonamiento "
+                             "sin marcar la tarea como cumplida[/warn_cl]")
+                    cola = resp.reasoning_content.strip()[-1200:]
+                    result_text = ("(el modelo no emitio respuesta final; esto "
+                                   "es su razonamiento) " + cola)
+                    ok = False
             else:
                 # Ni texto ni pensamiento: no hay nada. Se DICE.
                 print_fn("[err_cl]el modelo cerro con una respuesta vacia y "

@@ -14822,3 +14822,103 @@ Mas dos roturas de sintaxis heredadas de la revision adversarial.
   silencio largo de por medio.
 - El cuaderno no se ha probado sobre una jornada de 6 h de verdad: la mas
   larga medida es de 28,3 min.
+
+---
+
+## 2026-08-31 — SALIDA CONTINUA: la respuesta deja de truncarse por el tope
+
+### El sintoma, en las sesiones REALES del dueno
+
+`~/.cognia/cognia_memory.db`, tabla `chat_history`:
+
+- **id 1071** (2026-08-31 08:00, cwd `.../Ark`): el turno entrego 500 chars de
+  razonamiento PURO y se corto a media frase. Dentro de ese texto el modelo
+  cita sus propias memorias: *"5 memorias dicen: No se logro completar la tarea
+  de crear un juego completo en un unico archivo HTML. La tarea se corto antes
+  de finalizar."* Cinco intentos con el mismo final.
+- **id 1061** (2026-08-30 22:23): 253 fragmentos de respuesta y 77.907 chars de
+  razonamiento, y HTTP 500 del server — *"Failed to parse tool call arguments
+  as JSON ... missing closing quote; last read: '\"<!DOCTYPE html>...'"*: el
+  argumento del tool call cortado a media cadena.
+
+### La causa
+
+`cli.py`, fast-path del chat: ante `finish_reason='limit'` reintentaba UNA vez
+con el doble de `max_tokens` y hacia `_tokens_buf = []` — **tiraba todo lo ya
+generado**. Con un razonador el segundo intento vuelve a pensar lo mismo y
+muere en la misma columna. Es la rampa inutil que `presupuesto_salida` ya
+documentaba para el bucle del agente, viviendo tambien en el chat.
+
+### Lo construido
+
+`cognia/agent/salida_continua.py` (nuevo, aritmetica pura y testeable):
+
+- el tope pasa a ser el tamano de cada **TRAMO**, no el techo de la respuesta;
+- la continuacion re-ancla en la **COLA** de lo ya dicho (`cola_de`), asi el
+  prompt de cada tramo tiene tamano ACOTADO y el numero de tramos no lo limita
+  n_ctx — esa es la compactacion que permite una salida sin techo de ventana;
+- costura en dos formas medidas: repeticion literal (`solape`) y reescritura
+  que vuelve a pasar por el mismo punto (`reencuentro`);
+- frenos: tramo sin texto nuevo, tramo identico, `en_bucle` (huella de 300
+  chars reemitida), `rondas_max` (64) y `tope_total` (0 = sin tope).
+
+Cableado en `cli.py` (fast-path del chat) y en `agent/loop.py`
+(`_continuar_final` para la respuesta final cortada por tope, `_insistir_final`
+para el turno que se fue entero en razonar sin escribir).
+
+Puerta: `/ventana continuo [on|off|<rondas>|tramo N]`, en `_CMD_DESCRIPTIONS`,
+persistida en `~/.cognia_config.json`, con default sensato (ON, sin tope).
+
+### Verificacion REAL
+
+- `tests/test_salida_continua.py`: **43 passed**.
+- A/B contra backend real (llama3.2:3b, tramo de 120 tok): una pasada **402
+  chars** cortados a media palabra -> continua **3.481 chars en 8 tramos**,
+  0 lineas repetidas.
+- REPL tecleado (Qwen3-4B-Thinking en :8080, tramo 4096):
+  *"respuesta entregada entera en 2 tramos de 4096 tok (8607 chars); el tope no
+  la corto"*.
+- Agente end-to-end en el REPL: la tarea del snake HTML paso de
+  *"(el modelo no emitio respuesta final; esto es su razonamiento)"* — 126,8 s
+  y 12.368 tokens para NADA — a **OK (4178 chars escritos), 99,6 s** con la
+  ventana holgada.
+
+### Hallazgo aparte: CUATRO ficheros de guards estaban desconectados
+
+`repl()` quedo en una envoltura de 20 lineas cuando el cuerpo del REPL se movio
+a `_repl_sesion()`, y con el se quedaron ciegos TODOS los guards que leian
+`inspect.getsource(cli.repl)` — 14 tests que fallaban en bloque sin que nadie
+lo mirase:
+
+| fichero | tests |
+|---|---|
+| `test_fast_path_guard.py`   | 5 |
+| `test_repl_sin_consola.py`  | 5 |
+| `test_marco_prompt.py`      | 3 |
+| `test_effort_levels.py`     | 1 |
+
+Reconectados a `_repl_sesion()`. `test_fast_path_guard` lleva ademas un assert
+de tamano para que un futuro movimiento falle CON MOTIVO. Al reconectarlos
+salio una deriva REAL que llevaban sin ver: el respaldo sin consola ya no es
+`input(_g() + "cognia> "` sino `input(_g() + _etiqueta_prompt()`; el guard
+ahora fija el CAMINO, no el literal.
+
+Y uno mas, este si roto por el cambio de hoy y arreglado:
+`test_cli_remoto_paridad::test_fast_path_no_pinta_bajo_remoto_...` buscaba
+`for _tok in _stream_src(_mt_turno):`, que ahora consume el generador de
+tramos (`for _tok in _fuente:`). La propiedad que protege — bajo remoto con
+deltas no se pinta token a token — sigue intacta.
+
+### Limites declarados
+
+- Con un razonador PURO y un tramo pequeno la continuacion no rescata nada:
+  medido contra Qwen3-4B-Thinking-2507, "di en una frase que es una mudanza"
+  con 400 tokens devuelve 1.552 chars de razonamiento y CERO de content, y el
+  switch `/no_think` no le hace efecto. Las palancas que si funcionan son subir
+  el tramo por encima de `MINIMO_UTIL` (4096) o apagar el pensamiento. El CLI
+  lo dice ahora en el aviso en vez de callarse.
+- La repeticion PARAFRASEADA (texto distinto que dice lo mismo) no la caza la
+  costura: contra eso juega la instruccion de continuar, no la aritmetica.
+- La medicion A/B contra el 27B del dueno quedo a medias: el llama-server de
+  :8080 se cayo durante la prueba (el mismo `WinError 10061` de la sesion
+  id 1069) y las medidas se completaron con llama3.2:3b y Qwen3-4B.

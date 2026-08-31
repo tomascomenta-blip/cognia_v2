@@ -3246,7 +3246,7 @@ _CMD_DESCRIPTIONS = {
     "/bucle":           "Higiene del lazo del agente: recordatorio advisory de repeticion (misma tool + mismos args), nudge por ediciones al mismo fichero y timeout por tool con resultado tipado. Uso: /bucle [estado | on | off | umbrales <a,b,c> | fichero <n> | timeout <s>]",
     "/revision":        "Revision profunda antes de entregar: el arnes CORRE lo construido (sintaxis + tests que lo cubren + arrancar el producto de punta a punta) y le devuelve el fallo real al modelo  [estado | on|off | ejecutar on|off | rondas <n> | segundos <n> | informe | ahora <ruta...>]  (env COGNIA_REVISION=0 la apaga; COGNIA_REVISION_EJECUTAR=0 apaga solo el arranque del producto)",
     "/confianza":       "Niveles de confianza: investiga en la web cuando no sabe  [estado | on|off | previa on|off | posterior on|off | acciones on|off | segundos <n> | paginas <n> | probar <pregunta>]  (env COGNIA_CONFIANZA=0 apaga todo; COGNIA_CHAT_AFIRMACIONES=0 apaga el detector de acciones inventadas)",
-    "/ventana":         "Presupuesto de SALIDA real: cuantos tokens deja la ventana (n_ctx) despues del prompt — el techo que de verdad corta las tareas largas, no max_tokens. Uso: /ventana [estado | pensamiento auto|on|off]",
+    "/ventana":         "Presupuesto de SALIDA real: cuantos tokens deja la ventana (n_ctx) despues del prompt — el techo que de verdad corta las tareas largas, no max_tokens. Uso: /ventana [estado | pensamiento auto|on|off | continuo on|off|<rondas>|tramo N]. Con 'continuo' la respuesta no se trunca: al llegar al tope sigue donde murio y se pega sin costura",
     "/compilar":           "Cognia se fabrica sus propias herramientas: de una frase a un comando del CLI, generado, injertado, evaluado ejecutandolo y registrado. Uso: /compilar [<descripcion> | ensayo <desc> | lista | ver <cmd> | retirar <cmd> | receta | copias | revertir <sello>]",
     "/grabar-clase":    "Graba tus clases y arma un cuaderno por materias con apuntes, imagenes y audio; detecta el cambio de asignatura solo. Uso: /grabar-clase [iniciar | parar | ver | nota <txt> | imagen <ruta> | materia <n> | olvidar]",
     "/horizonte":     "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
@@ -14506,17 +14506,76 @@ def _slash_ventana(arg: str = "") -> None:
       pensamiento auto|on|off -> clave 'thinking' (COGNIA_THINKING). 'auto' es
         el default: el bucle lo apaga SOLO si un paso se le va entero en
         razonar sin llegar a llamar la herramienta.
+      continuo on|off|<rondas>|tramo N -> SALIDA CONTINUA del chat
+        (agent/salida_continua). 'on' (default) hace que el tope de tokens sea
+        el tamano de cada TRAMO y no el techo de la respuesta: al cortarse, el
+        turno sigue re-anclado en la cola de lo ya dicho. <rondas> pone el
+        freno duro de tramos (0 = sin freno) y 'tramo N' fija los tokens de
+        cada tramo (0 = los del nivel /esfuerzo).
     Punto de extension: los subcomandos son ramas de este if; la aritmetica
     vive entera en presupuesto_salida (disponible/clamp/es_corte_por_contexto).
     """
     try:
         from cognia.agent import presupuesto_salida as _ps
+        from cognia.agent import salida_continua as _sc
         from cognia.agent.model_profiles import perfil_del_agente
     except Exception as exc:
         _aviso_degradado("ventana", f"modulo no importable: {exc}")
         return
     arg = (arg or "").strip()
     bajo = arg.lower()
+    if bajo.startswith("continuo"):
+        val = bajo[len("continuo"):].strip()
+        cfg = _load_config()
+        if val in ("on", "off"):
+            cfg["salida_continua"] = val
+            _save_config(cfg)
+            os.environ.pop(_sc.ENV_ACTIVA, None)
+            _print_line(f"[info_dim]salida continua del chat: {val} "
+                        f"(guardado)[/info_dim]")
+            return
+        if val.startswith("tramo"):
+            n = val[len("tramo"):].strip()
+            if not n.isdigit():
+                _print_line("[warn_cl]Uso: /ventana continuo tramo <tokens> "
+                            "(0 = el max_tokens de /esfuerzo)[/warn_cl]")
+                return
+            cfg["salida_continua_tramo"] = int(n)
+            _save_config(cfg)
+            os.environ.pop(_sc.ENV_TRAMO, None)
+            _print_line(f"[info_dim]tokens por tramo: "
+                        f"{'los de /esfuerzo' if n == '0' else n} "
+                        f"(guardado)[/info_dim]")
+            return
+        if val.isdigit():
+            cfg["salida_continua_rondas"] = int(val)
+            _save_config(cfg)
+            os.environ.pop(_sc.ENV_RONDAS, None)
+            _print_line(f"[info_dim]freno de tramos: "
+                        f"{'sin freno' if val == '0' else val} "
+                        f"(guardado)[/info_dim]")
+            return
+        if val:
+            _print_line("[warn_cl]Uso: /ventana continuo "
+                        "on|off|<rondas>|tramo <tokens>[/warn_cl]")
+            return
+        _rondas, _tope = _sc.limites(cfg)
+        _tramo_tok = _sc.tramo(_active_effort()["max_tokens"], cfg)
+        _print_line(
+            f"  [mod]{'salida continua':<22}[/mod] "
+            f"{'ENCENDIDA' if _sc.activa(cfg) else 'apagada'}")
+        _print_line(f"  [mod]{'freno de tramos':<22}[/mod] "
+                    f"{_rondas or 'sin freno'}")
+        _print_line(f"  [mod]{'tope total':<22}[/mod] "
+                    f"{f'{_tope:,} tokens' if _tope else 'sin tope'}")
+        _print_line(f"  [mod]{'tokens por tramo':<22}[/mod] {_tramo_tok:,}")
+        _print_line(f"  [mod]{'cola de re-anclaje':<22}[/mod] "
+                    f"{_sc.COLA_REANCLAJE} chars por tramo")
+        _print_line("[info_dim]con la salida continua el tope de /esfuerzo es "
+                    "el tamano de cada TRAMO, no el techo de la respuesta: al "
+                    "cortarse, el turno sigue donde murio y se pega sin "
+                    "costura.[/info_dim]")
+        return
     if bajo.startswith("pensamiento"):
         val = bajo[len("pensamiento"):].strip()
         if val not in ("auto", "on", "off"):
@@ -14556,6 +14615,9 @@ def _slash_ventana(arg: str = "") -> None:
                          else ("encendido" if piensa else "apagado"))),
         ("override del dueno",
          os.environ.get("COGNIA_THINKING", "") or "(auto)"),
+        ("salida continua",
+         "ENCENDIDA (el tope corta el TRAMO, no la respuesta)"
+         if _sc.activa(_load_config()) else "apagada (el tope trunca)"),
     ]
     for k, v in filas:
         _print_line(f"  [mod]{k:<22}[/mod] {_escape(v)}")
@@ -23922,20 +23984,51 @@ def _repl_sesion():
                                     # el 20B pensando y contenido 0).
                                     _effort_max_tokens = presupuesto_chat(
                                         _effort_max_tokens, True)
-                                # Las lambdas toman max_tokens como parametro: el
-                                # reintento por truncado (abajo) rellama con el doble.
+                                # SALIDA CONTINUA (agent/salida_continua): la
+                                # fuente del stream toma (cola, max_tokens). `cola`
+                                # es el re-anclaje del tramo anterior — vacia en el
+                                # primero — y por eso el mismo callback sirve para
+                                # el endpoint de chat (mensajes) y para el de
+                                # completado crudo (prompt + lo ya emitido).
+                                try:
+                                    from cognia.agent import salida_continua as _sc
+                                except Exception as _e_sc:
+                                    _aviso_degradado(
+                                        "salida_continua",
+                                        f"modulo no importable ({_e_sc}); la "
+                                        "respuesta se entrega en un solo tramo")
+                                    _sc = None
+                                # _cola: None = primer tramo; str = continuacion
+                                # (y "" cuando el tramo anterior se fue entero en
+                                # razonar y no hay texto que re-anclar).
                                 if _use_chat:
-                                    _stream_src = lambda _mt=_effort_max_tokens: _llama_turn.stream_chat(
-                                        _messages, max_tokens=_mt,
-                                        temperature=GEN_CHAT_TEMPERATURE)
+                                    def _stream_src(_cola=None, _mt=_effort_max_tokens):
+                                        _msgs = (_messages if _cola is None or _sc is None
+                                                 else _sc.continuacion_mensajes(
+                                                     _messages, _cola))
+                                        return _llama_turn.stream_chat(
+                                            _msgs, max_tokens=_mt,
+                                            temperature=GEN_CHAT_TEMPERATURE)
                                 else:
                                     from node.inference_pipeline import _apply_qwen_template
                                     _formatted = _apply_qwen_template(
                                         _messages[-1]["content"], _system,
                                         history=_hist_ctx or None)
-                                    _stream_src = lambda _mt=_effort_max_tokens: _llama_turn.stream_generate(
-                                        _formatted, max_tokens=_mt,
-                                        temperature=GEN_CHAT_TEMPERATURE)
+
+                                    def _stream_src(_cola=None, _mt=_effort_max_tokens):
+                                        # Completado crudo: el tramo siguiente se
+                                        # pega LITERAL al turno del asistente a
+                                        # medias — la costura mas limpia que hay,
+                                        # sin instruccion de "continua" de por medio.
+                                        # Con la cola vacia no hay nada que pegar y
+                                        # el prompt sale igual que el anterior: aqui
+                                        # el freno del tramo-sin-texto (sin_texto_max)
+                                        # es lo unico que evita repetir el mismo
+                                        # razonamiento, porque esta via no admite una
+                                        # instruccion extra sin tocar la plantilla.
+                                        return _llama_turn.stream_generate(
+                                            _formatted + (_cola or ""), max_tokens=_mt,
+                                            temperature=GEN_CHAT_TEMPERATURE)
                                 _tokens_buf = []
                                 # Streaming SUAVE (estilo conversacional 2026-08-02):
                                 # los tokens se agrupan en trozos de palabra en vez de
@@ -23987,58 +24080,90 @@ def _repl_sesion():
                                         _supr_stream = None
                                     print("", flush=True)
                                     _mt_turno = _effort_max_tokens
-                                    for _intento in (1, 2):
-                                        for _tok in _stream_src(_mt_turno):
-                                            _tokens_buf.append(_tok)
-                                            if not _pintar_stream:
-                                                pass    # remoto: solo acumula (deltas por el bus)
-                                            elif _flujo is not None:
-                                                _flujo.escribir(_tok)
-                                            elif _HAS_RICH and _console:
-                                                # markup=False: el texto del MODELO
-                                                # no es markup. Sin esto rich se
-                                                # come cualquier [1], [TODO] o
-                                                # array en prosa, y un [/x] mal
-                                                # balanceado levanta MarkupError a
-                                                # mitad de respuesta. La leccion ya
-                                                # estaba escrita 130 lineas mas
-                                                # abajo y este camino se la salto.
-                                                _console.print(_tok, end="", style=_ACCENT,
-                                                               highlight=False, markup=False)
-                                            else:
-                                                print(_tok, end="", flush=True)
-                                        # finish_reason REAL del backend ('limit' =
-                                        # length): el server corto por max_tokens,
-                                        # la respuesta NO termino — con razonadores
-                                        # el pensamiento se come el presupuesto. UN
-                                        # reintento con el doble, avisando; a un
-                                        # segundo limit se entrega lo que haya
-                                        # (mejor truncado visible que bucle).
-                                        if (_intento == 1 and getattr(
-                                                _llama_turn, "last_stop_reason",
-                                                None) == "limit"):
-                                            if _flujo is not None:
-                                                _flujo.cerrar()
-                                            print()
-                                            _txt_trunc = (
-                                                f"respuesta truncada por presupuesto "
-                                                f"({_mt_turno} tok); reintento con "
-                                                f"{_mt_turno * 2}")
-                                            try:
-                                                from cognia.ux.events import (
-                                                    Aviso as _EvAv, emitir as _ev_em)
-                                                _ev_em(_EvAv(texto=_txt_trunc,
-                                                             origen="cli.fast_path"))
-                                            except Exception:
-                                                pass
-                                            _print_line(f"[detail][{_txt_trunc}][/detail]")
-                                            _tokens_buf = []   # el truncado no cuenta
-                                            _mt_turno *= 2
-                                            continue
-                                        break
+                                    # El corte por tope (finish_reason='limit') ya
+                                    # NO tira lo generado ni repite el turno con el
+                                    # doble: eso regeneraba el mismo pensamiento y
+                                    # moria en la misma columna (chat_history id
+                                    # 1071, 2026-08-31: 500 chars de <think> y cero
+                                    # respuesta, con el modelo citando sus CINCO
+                                    # memorias de "la tarea se corto antes de
+                                    # finalizar"). Ahora se pide el tramo siguiente
+                                    # re-anclado en la COLA de lo ya dicho y se pega
+                                    # sin costura: el tope pasa a ser el tamano del
+                                    # TRAMO, no el techo de la respuesta.
+                                    # Los tramos no se anuncian a media respuesta
+                                    # (romperia el markdown vivo): se cuentan aqui y
+                                    # se resumen en una linea al cerrar.
+                                    _tramos = [0, 0]        # [rondas, chars totales]
+
+                                    def _apunta_tramo(_r, _n, _t, _acc=_tramos):
+                                        _acc[0], _acc[1] = _r, _t
+                                    _cfg_sc = _load_config()
+                                    if _sc is not None and _sc.activa(_cfg_sc):
+                                        # El tamano del tramo (override de
+                                        # /ventana continuo tramo, si lo hay).
+                                        _mt_turno = _sc.tramo(_mt_turno, _cfg_sc)
+                                        _rondas_max, _tope_tot = _sc.limites(_cfg_sc)
+                                        _fuente = _sc.stream_continuo(
+                                            _stream_src,
+                                            lambda: getattr(_llama_turn,
+                                                            "last_stop_reason", None),
+                                            _mt_turno, rondas_max=_rondas_max,
+                                            tope_total=_tope_tot,
+                                            on_tramo=_apunta_tramo)
+                                    else:
+                                        # None, no "": "" significa "continua
+                                        # sin texto previo" y armaria el turno
+                                        # de continuacion en la PRIMERA
+                                        # llamada.
+                                        _fuente = _stream_src(None, _mt_turno)
+                                    for _tok in _fuente:
+                                        _tokens_buf.append(_tok)
+                                        if not _pintar_stream:
+                                            pass    # remoto: solo acumula (deltas por el bus)
+                                        elif _flujo is not None:
+                                            _flujo.escribir(_tok)
+                                        elif _HAS_RICH and _console:
+                                            # markup=False: el texto del MODELO
+                                            # no es markup. Sin esto rich se
+                                            # come cualquier [1], [TODO] o
+                                            # array en prosa, y un [/x] mal
+                                            # balanceado levanta MarkupError a
+                                            # mitad de respuesta. La leccion ya
+                                            # estaba escrita 130 lineas mas
+                                            # abajo y este camino se la salto.
+                                            _console.print(_tok, end="", style=_ACCENT,
+                                                           highlight=False, markup=False)
+                                        else:
+                                            print(_tok, end="", flush=True)
                                     if _flujo is not None:
                                         _flujo.cerrar()
                                     print()
+                                    if _tramos[0] > 1:
+                                        # El aviso dice lo que PASO, no lo que
+                                        # se esperaba: varios tramos sin un
+                                        # solo char es el razonador comiendose
+                                        # el tramo entero, y llamar a eso
+                                        # "entregada entera" seria la
+                                        # degradacion silenciosa de siempre.
+                                        _txt_cont = (
+                                            f"respuesta entregada entera en "
+                                            f"{_tramos[0]} tramos de {_mt_turno} tok "
+                                            f"({_tramos[1]} chars); el tope no la corto"
+                                            if _tramos[1] else
+                                            f"{_tramos[0]} tramos de {_mt_turno} tok se "
+                                            f"fueron enteros en razonar sin escribir "
+                                            f"nada: sube el tramo "
+                                            f"(/ventana continuo tramo N) o apaga el "
+                                            f"pensamiento (/ventana pensamiento off)")
+                                        try:
+                                            from cognia.ux.events import (
+                                                Aviso as _EvAv, emitir as _ev_em)
+                                            _ev_em(_EvAv(texto=_txt_cont,
+                                                         origen="cli.fast_path"))
+                                        except Exception:
+                                            pass
+                                        _print_line(f"[detail][{_txt_cont}][/detail]")
                                     _full_response = "".join(_tokens_buf).strip()
                                     # An empty stream (backend hiccup) is NOT a real answer:
                                     # leave _streamed False so we fall through to the

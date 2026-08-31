@@ -2,6 +2,50 @@
 
 ---
 
+## [4.19.0] - 2026-08-31
+
+### SALIDA CONTINUA: la respuesta ya no se trunca por el tope
+
+El tope de tokens deja de ser el techo de la RESPUESTA y pasa a ser el tamano
+de cada TRAMO. Cuando el turno se corta por presupuesto, Cognia pide el tramo
+siguiente re-anclado en la cola de lo ya dicho y lo pega sin costura: para
+quien mira, la respuesta sale de un solo tiron.
+
+POR QUE. En las sesiones reales del dueno (`chat_history`), id 1071 entrego 500
+chars de razonamiento y se corto — con el modelo citando sus CINCO memorias de
+"la tarea se corto antes de finalizar" — y id 1061 murio con un HTTP 500 del
+server por un tool call cortado a media cadena. La causa: ante
+`finish_reason='limit'` el chat reintentaba con el doble de `max_tokens` y
+TIRABA lo ya generado; con un razonador, el segundo intento piensa lo mismo y
+muere en la misma columna.
+
+SIN TECHO DE VENTANA. La continuacion no reenvia la respuesta entera, solo su
+cola, asi que el prompt de cada tramo tiene tamano acotado y el numero de
+tramos no lo limita `n_ctx`.
+
+- `cognia/agent/salida_continua.py` (nuevo): costura por repeticion literal
+  (`solape`) y por reescritura (`reencuentro`), compactacion por cola
+  (`cola_de`) y frenos — tramo sin texto, tramo repetido, `en_bucle` (huella de
+  300 chars reemitida), `rondas_max` (64) y `tope_total` (0 = sin tope).
+- `cognia/cli.py`: cableado en el fast-path del chat.
+- `cognia/agent/loop.py`: la respuesta final cortada por tope se continua, y el
+  turno que se va entero en razonar pide la respuesta antes de rendirse (nunca
+  cuando el corte lo dio la VENTANA: ahi solo ayuda liberar contexto).
+- Puerta: `/ventana continuo [on|off|<rondas>|tramo N]`.
+
+Medido: una pasada de 402 chars cortados a media palabra -> 3.481 chars en 8
+tramos contra backend real; y en el REPL, "respuesta entregada entera en 2
+tramos de 4096 tok (8607 chars)".
+
+Ademas: **14 guards de fuente llevaban tiempo fallando en bloque** —
+`test_fast_path_guard` (5), `test_repl_sin_consola` (5), `test_marco_prompt`
+(3) y `test_effort_levels` (1) leian `repl()`, que habia quedado en una
+envoltura de 20 lineas tras moverse el cuerpo a `_repl_sesion()`. Reconectados,
+y con ellos salio una deriva que ninguno veia: el respaldo sin consola ya no
+usa el literal `"cognia> "` sino `_etiqueta_prompt()`.
+
+---
+
 ## [4.18.0] - 2026-08-31
 
 ### DOS SISTEMAS: el cuaderno de clase, y Cognia fabricandose herramientas

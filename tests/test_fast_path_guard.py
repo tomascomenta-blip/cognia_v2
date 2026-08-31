@@ -15,7 +15,20 @@ import cognia.cli as cli_mod
 
 
 def _repl_src() -> str:
-    return inspect.getsource(cli_mod.repl)
+    """El fuente del turno del REPL.
+
+    Apuntaba a ``repl()``, pero el cuerpo del REPL se movio a
+    ``_repl_sesion()`` y ``repl()`` quedo en una envoltura de 20 lineas: desde
+    entonces los CINCO guards de este fichero fallaban a la vez (2026-08-31),
+    o sea que llevaban tiempo sin guardar nada. Se comprueba aqui mismo que la
+    funcion que se lee es la grande, para que un refactor futuro que la vuelva
+    a mover falle CON UN MOTIVO en vez de con un assert de texto suelto.
+    """
+    src = inspect.getsource(cli_mod._repl_sesion)
+    assert len(src.splitlines()) > 500, (
+        "el cuerpo del REPL ya no esta en _repl_sesion: estos guards estan "
+        "leyendo la funcion equivocada")
+    return src
 
 
 def test_desvios_gated_por_razonador_grande():
@@ -47,12 +60,24 @@ def test_presupuesto_cubre_pensamiento():
     assert "presupuesto_chat" in src
 
 
-def test_reintento_por_finish_length():
-    """finish_reason REAL ('limit') dispara UN reintento con presupuesto x2."""
+def test_corte_por_finish_length_continua_no_reintenta():
+    """El corte por tope CONTINUA la respuesta; ya no la tira para repetirla.
+
+    Hasta 2026-08-31 esto era un reintento con el doble de max_tokens que
+    hacia `_tokens_buf = []`: con un razonador, el segundo intento vuelve a
+    pensar lo mismo y muere en la misma columna (chat_history id 1071). El
+    guard fija el comportamiento nuevo Y que no vuelva el viejo.
+    """
     src = _repl_src()
-    assert 'last_stop_reason' in src
-    assert '== "limit"' in src
-    assert "_mt_turno *= 2" in src
+    assert "last_stop_reason" in src
+    assert "salida_continua" in src
+    assert "stream_continuo" in src
+    assert "_mt_turno *= 2" not in src, "volvio la rampa que regeneraba igual"
+    # `_tokens_buf = []` solo puede aparecer UNA vez: la inicializacion. Una
+    # segunda es el descarte de lo ya generado volviendo por la puerta de atras.
+    assert src.count("_tokens_buf = []") == 1, (
+        "hay mas de una asignacion de _tokens_buf: alguien volvio a tirar lo "
+        "que el modelo ya habia escrito")
 
 
 def test_stepwise_solo_perfiles_chicos():

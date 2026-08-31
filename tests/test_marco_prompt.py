@@ -148,7 +148,7 @@ class TestElReplUsaElMarco:
 
     def test_el_repl_pide_el_mensaje_y_el_pie(self):
         import inspect
-        fuente = inspect.getsource(C.repl)
+        fuente = inspect.getsource(C._repl_sesion)
         assert "session.prompt(_mensaje_prompt)" in fuente
         assert "_pie_prompt(" in fuente
         assert "_estilo_prompt()" in fuente
@@ -424,7 +424,7 @@ class TestLasOtrasPiezas:
 
     def test_el_repl_usa_la_barra_por_secciones_y_la_continuacion(self):
         import inspect
-        fuente = inspect.getsource(C.repl)
+        fuente = inspect.getsource(C._repl_sesion)
         assert "toolbar_partes(_datos_barra_estado" in fuente
         assert "opciones=_opciones_barra" in fuente
         assert "session.prompt(\n                        _mensaje_continuacion" in fuente or \
@@ -592,7 +592,7 @@ class TestPulsoDelPromptP9:
 
     def test_el_repl_y_la_espera_rodean_el_prompt_con_el_pulso(self):
         import inspect
-        fuente = inspect.getsource(C.repl)
+        fuente = inspect.getsource(C._repl_sesion)
         i = fuente.index("_arrancar_pulso_prompt(session.app)")
         j = fuente.index("session.prompt(_mensaje_prompt, default=_pre)")
         k = fuente.index("_cerrar_pulso_prompt()")

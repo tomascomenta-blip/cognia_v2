@@ -25,22 +25,25 @@ import cognia.cli as C
 class TestElReplSobreviveSinConsola:
 
     def test_la_creacion_del_prompt_va_protegida(self):
-        fuente = inspect.getsource(C.repl)
+        fuente = inspect.getsource(C._repl_sesion)
         i_try = fuente.find("try:")
         i_sess = fuente.find("session = PromptSession")
         assert i_try != -1 and i_sess != -1
         assert i_try < i_sess, "PromptSession debe crearse dentro de un try"
 
     def test_hay_camino_alternativo_con_input(self):
-        fuente = inspect.getsource(C.repl)
+        fuente = inspect.getsource(C._repl_sesion)
         assert "session = None" in fuente
         # _G paso a ser _g() en 2026-08-17: el verde del respaldo tambien
-        # tiene que obedecer a /tema (en 'claro' salia lima a 1,53:1).
-        assert 'input(_g() + "cognia> "' in fuente
+        # tiene que obedecer a /tema (en 'claro' salia lima a 1,53:1). Y el
+        # literal "cognia> " paso a _etiqueta_prompt() — deriva que este guard
+        # no vio porque llevaba tiempo leyendo repl() (la envoltura) en vez de
+        # _repl_sesion(). Lo que se protege es el CAMINO, no el literal.
+        assert "input(_g() + _etiqueta_prompt()" in fuente
 
     def test_avisa_de_que_pierde_el_autocompletado(self):
         """Degradar en silencio confunde: hay que decir que modo se uso."""
-        fuente = inspect.getsource(C.repl)
+        fuente = inspect.getsource(C._repl_sesion)
         assert "Sin consola interactiva" in fuente
         assert "autocompletado" in fuente
 
@@ -48,10 +51,10 @@ class TestElReplSobreviveSinConsola:
 class TestNoSeRompioElCaminoNormal:
 
     def test_sigue_usando_PromptSession_cuando_hay_consola(self):
-        fuente = inspect.getsource(C.repl)
+        fuente = inspect.getsource(C._repl_sesion)
         assert "session.prompt(" in fuente, "el camino interactivo debe seguir"
 
     def test_la_continuacion_con_barra_sigue_existiendo(self):
         """Las lineas que acaban en \\ se siguen concatenando."""
-        fuente = inspect.getsource(C.repl)
+        fuente = inspect.getsource(C._repl_sesion)
         assert 'line.endswith("\\\\")' in fuente
