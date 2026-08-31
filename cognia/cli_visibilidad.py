@@ -116,6 +116,7 @@ __all__ = [
 NUCLEO: frozenset = frozenset({
     "/avanzado", "/ayuda", "/biblioteca", "/bots", "/buscar", "/buscar-historial", "/cancelar",
     "/capacidades", "/cat", "/cognia-aprende", "/cognia-info", "/cognia-olvida", "/cognia-sabe",
+    "/grabar-clase",
     "/color", "/comandos", "/compactar", "/confianza", "/config", "/construir",
     "/contexto-vivo", "/costo", "/crear", "/deshacer", "/deshacer-borrado", "/diff", "/doctor",
     "/editar", "/ejecutar", "/escribir", "/esfuerzo", "/estado", "/estilo", "/exportar",

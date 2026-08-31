@@ -3247,6 +3247,7 @@ _CMD_DESCRIPTIONS = {
     "/revision":        "Revision profunda antes de entregar: el arnes CORRE lo construido (sintaxis + tests que lo cubren + arrancar el producto de punta a punta) y le devuelve el fallo real al modelo  [estado | on|off | ejecutar on|off | rondas <n> | segundos <n> | informe | ahora <ruta...>]  (env COGNIA_REVISION=0 la apaga; COGNIA_REVISION_EJECUTAR=0 apaga solo el arranque del producto)",
     "/confianza":       "Niveles de confianza: investiga en la web cuando no sabe  [estado | on|off | previa on|off | posterior on|off | acciones on|off | segundos <n> | paginas <n> | probar <pregunta>]  (env COGNIA_CONFIANZA=0 apaga todo; COGNIA_CHAT_AFIRMACIONES=0 apaga el detector de acciones inventadas)",
     "/ventana":         "Presupuesto de SALIDA real: cuantos tokens deja la ventana (n_ctx) despues del prompt — el techo que de verdad corta las tareas largas, no max_tokens. Uso: /ventana [estado | pensamiento auto|on|off]",
+    "/grabar-clase":    "Graba tus clases y arma un cuaderno por materias con apuntes, imagenes y audio; detecta el cambio de asignatura solo. Uso: /grabar-clase [iniciar | parar | ver | nota <txt> | imagen <ruta> | materia <n> | olvidar]",
     "/horizonte":     "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
@@ -9682,7 +9683,30 @@ def _slash_flujoteca(arg: str = "", ai=None) -> None:
     cmd = partes[0].lower() if partes else ""
     resto = partes[1].strip() if len(partes) > 1 else ""
 
-    if cmd in ("", "lista", "listar"):
+    if cmd == "":
+        # A SECAS ABRE EL HTML (2026-08-31, pedido del duenio: "haz que
+        # /flujoteca me abra el HTML de una"). Antes caia en la misma rama que
+        # 'lista' y solo pintaba una tabla de texto: el editor visual existia
+        # desde hacia semanas y habia que saberse '/flujoteca editor' para
+        # verlo. Un producto cuya mejor vista esta escondida detras de un
+        # subcomando, para el duenio no existe.
+        #
+        # 'lista' sigue estando para quien quiere el terminal, y si abrir
+        # falla se CAE a la lista en vez de dejar la pantalla muda: el fallo
+        # de abrir un navegador no puede costar el acceso a los flujos.
+        res = _abrir_editor_flujo("")
+        if res.get("ok"):
+            destino = res.get("url") or res.get("ruta")
+            _print_line(f"[info_dim]flujoteca abierta en el navegador: "
+                        f"{_escape(str(destino))}[/info_dim]")
+            _print_line("[detail]/flujoteca lista para verlo en el terminal"
+                        "[/detail]")
+            return None
+        _print_line("[warn_cl]no pude abrir el navegador; te la pinto aqui"
+                    "[/warn_cl]")
+        return _flujoteca_pintar_lista()
+
+    if cmd in ("lista", "listar"):
         return _flujoteca_pintar_lista()
 
     if cmd in ("ayuda", "-h", "--help"):
@@ -14538,6 +14562,267 @@ def _slash_ventana(arg: str = "") -> None:
                 f"{_ps.disponible(n_ctx, 0):,} tokens de salida; cada token de "
                 f"contexto se los quita uno a uno. El razonamiento sale de "
                 f"ESE mismo hueco.[/info_dim]")
+
+
+def _slash_grabar_clase(arg: str = "", ai=None) -> None:
+    """`/grabar-clase`: puerta del CUADERNO DE CLASE (paquete cognia/clases).
+
+    Graba la jornada entera capturando el audio que SUENA en el equipo (una
+    clase virtual entra por los altavoces, no por el microfono), la transcribe
+    en caliente, detecta los cambios de asignatura y arma un cuaderno por
+    materias con apuntes, imagenes y clips.
+
+    Subcomandos (el punto de extension es este if/elif; la logica vive entera
+    en cognia/clases/, aqui solo esta la puerta):
+      (sin arg)              estado: si graba, que materia y cuanto lleva
+      iniciar [micro|ambas]  arranca la jornada (default: audio del sistema)
+      parar                  cierra, detecta materias y genera los apuntes
+      ver                    abre el CUADERNO en el navegador
+      materia <nombre>       corrige a mano la asignatura en curso
+      nota <texto>           apunta algo en el minuto exacto en que estas
+      importante <texto>     igual, pero marcado: no se resume ni se olvida
+      imagen <ruta>          mete una foto de la pizarra en el cuaderno
+      audio <ruta>           mete un clip de audio
+      marcar                 marca este instante sin escribir nada
+      materias <a,b,c>       declara las asignaturas (mejora la deteccion)
+      apuntes                regenera los apuntes de la ultima jornada
+      transcribir            transcribe el audio que quedo pendiente
+      olvidar [plan]         aplica el olvido ('plan' solo lo ensenia)
+    """
+    try:
+        from cognia.clases import jornada as _cj
+        from cognia.clases import cuaderno as _cc
+        from cognia.clases import almacen as _ca
+    except Exception as exc:
+        _aviso_degradado("clases", f"modulo no importable: {exc}")
+        return
+
+    arg = (arg or "").strip()
+    partes = arg.split(None, 1)
+    cmd = partes[0].lower() if partes else ""
+    resto = partes[1].strip() if len(partes) > 1 else ""
+
+    if cmd in ("ayuda", "-h", "--help"):
+        _show_response(_CMD_DETAILS.get("/grabar-clase", ""), "listado")
+        return
+
+    # -- arrancar ----------------------------------------------------------
+    if cmd in ("iniciar", "empezar", "start", "on"):
+        fuente = (resto or "sistema").lower()
+        if fuente not in ("sistema", "micro", "ambas"):
+            _print_line("[warn_cl]Uso: /grabar-clase iniciar "
+                        "[sistema|micro|ambas][/warn_cl]")
+            return
+        _orch = getattr(ai, "_orchestrator", None) if ai is not None else None
+        jv, motivo = _cj.arrancar(fuente=fuente, orch=_orch)
+        if jv is None:
+            _print_line(f"[err_cl]no puedo grabar: {_escape(motivo)}[/err_cl]")
+            _aviso_degradado("clases.captura", motivo)
+            return
+        _print_line(f"[ok]grabando la jornada {jv.nombre}[/ok]  "
+                    f"[detail]({_escape(motivo)})[/detail]")
+        _print_line("[detail]sigue usando Cognia con normalidad; "
+                    "/grabar-clase parar cuando acabes[/detail]")
+        return
+
+    if cmd in ("parar", "fin", "stop", "off"):
+        if _cj.viva() is None:
+            _print_line("[warn_cl]no hay ninguna jornada grabando[/warn_cl]")
+            return
+        _print_line("[detail]cerrando: transcribo lo pendiente, detecto "
+                    "materias y genero apuntes...[/detail]")
+        res = _cj.parar()
+        ses = _cc.sesiones_de(res.get("jornada", ""))
+        mins = int(float(res.get("segundos") or 0.0) // 60)
+        _print_line(f"[ok]jornada {_escape(res.get('jornada',''))} cerrada[/ok]")
+        _print_line(f"  [mod]{'duracion':<16}[/mod] {mins} min")
+        _print_line(f"  [mod]{'materias':<16}[/mod] "
+                    f"{_escape(', '.join(sorted({s.materia for s in ses})) or '-')}")
+        _print_line(f"  [mod]{'sesiones':<16}[/mod] {len(ses)}")
+        for a in (res.get("avisos") or [])[-3:]:
+            _print_line(f"[warn_cl]{_escape(str(a))}[/warn_cl]")
+        _print_line("[detail]/grabar-clase ver  para abrir el cuaderno[/detail]")
+        return
+
+    # -- el cuaderno -------------------------------------------------------
+    if cmd in ("ver", "cuaderno", "abrir"):
+        try:
+            from cognia.clases import vista as _cv
+        except Exception as exc:
+            _aviso_degradado("clases.vista", f"no importable: {exc}")
+            return
+        try:
+            ruta = _cv.export(open_browser=_abrir_en_navegador())
+        except Exception as exc:
+            _aviso_degradado("clases.vista", f"{type(exc).__name__}: {exc}")
+            _print_line("[err_cl]no pude generar el cuaderno[/err_cl]")
+            return
+        _print_line(f"[info_dim]cuaderno: {_escape(str(ruta))}[/info_dim]")
+        return
+
+    # -- lo que aniade el duenio -------------------------------------------
+    if cmd in ("nota", "importante", "imagen", "audio", "marcar", "materia"):
+        jv = _cj.viva()
+        if jv is None:
+            _print_line("[warn_cl]no hay jornada grabando: esto se apunta EN "
+                        "el minuto de la clase. Arranca con "
+                        "/grabar-clase iniciar[/warn_cl]")
+            return
+        if cmd == "materia":
+            if not resto:
+                _print_line("[warn_cl]Uso: /grabar-clase materia <nombre>"
+                            "[/warn_cl]")
+                return
+            jv.marcar_materia(resto)
+            _print_line(f"[ok]desde ahora: {_escape(resto)}[/ok]")
+            return
+        if cmd == "marcar":
+            jv.anotar(_cc.TIPO_MARCA, texto="", importante=True)
+            _print_line("[ok]marcado este instante[/ok]")
+            return
+        if cmd in ("nota", "importante"):
+            if not resto:
+                _print_line(f"[warn_cl]Uso: /grabar-clase {cmd} <texto>"
+                            f"[/warn_cl]")
+                return
+            jv.anotar(_cc.TIPO_NOTA, texto=resto,
+                      importante=(cmd == "importante"))
+            _print_line("[ok]apuntado[/ok]" if cmd == "nota"
+                        else "[ok]apuntado y marcado como importante[/ok]")
+            return
+        # imagen / audio: se COPIA dentro de la jornada
+        if not resto:
+            _print_line(f"[warn_cl]Uso: /grabar-clase {cmd} <ruta>[/warn_cl]")
+            return
+        try:
+            nombre = _ca.copiar_adjunto(
+                jv.nombre, resto, prefijo="img" if cmd == "imagen" else "clip")
+        except Exception as exc:
+            _print_line(f"[err_cl]no pude copiar {_escape(resto)}: "
+                        f"{_escape(str(exc))}[/err_cl]")
+            return
+        jv.anotar(_cc.TIPO_IMAGEN if cmd == "imagen" else _cc.TIPO_AUDIO,
+                  texto="", adjunto=nombre, importante=True)
+        _print_line(f"[ok]{cmd} anadida al cuaderno ({_escape(nombre)})[/ok]")
+        return
+
+    # -- mantenimiento -----------------------------------------------------
+    if cmd == "materias":
+        if not resto:
+            _print_line(f"  [mod]{'materias':<16}[/mod] "
+                        f"{_escape(', '.join(_cc.materias_conocidas()) or '(ninguna)')}")
+            _print_line("[detail]/grabar-clase materias Fisica, Historia, Ingles"
+                        "[/detail]")
+            return
+        decl = _cc.declarar_materias([x.strip() for x in resto.split(",")])
+        _print_line(f"[ok]materias del curso: {_escape(', '.join(decl))}[/ok]")
+        return
+
+    if cmd == "apuntes":
+        ult = _ca.jornadas()
+        if not ult:
+            _print_line("[warn_cl]no hay ninguna jornada todavia[/warn_cl]")
+            return
+        try:
+            from cognia.clases import apuntes as _ap
+        except Exception as exc:
+            _aviso_degradado("clases.apuntes", f"no importable: {exc}")
+            return
+        _orch = getattr(ai, "_orchestrator", None) if ai is not None else None
+        _print_line(f"[detail]generando apuntes de {ult[0]}...[/detail]")
+        try:
+            hechos = _ap.generar_jornada(ult[0], orch=_orch)
+        except Exception as exc:
+            _aviso_degradado("clases.apuntes", f"{type(exc).__name__}: {exc}")
+            return
+        _print_line(f"[ok]apuntes de {len(hechos)} sesiones[/ok]")
+        return
+
+    if cmd == "transcribir":
+        ult = _ca.jornadas()
+        if not ult:
+            _print_line("[warn_cl]no hay ninguna jornada todavia[/warn_cl]")
+            return
+        try:
+            from cognia.clases import transcripcion as _tr
+        except Exception as exc:
+            _aviso_degradado("clases.transcripcion", f"no importable: {exc}")
+            return
+        _print_line(f"[detail]transcribiendo lo pendiente de {ult[0]}..."
+                    f"[/detail]")
+        try:
+            res = _tr.transcribir_pendientes(ult[0])
+        except Exception as exc:
+            _aviso_degradado("clases.transcripcion",
+                             f"{type(exc).__name__}: {exc}")
+            return
+        _print_line(f"[ok]{res['transcritos']} trozos nuevos "
+                    f"({res['ya_estaban']} ya estaban, "
+                    f"{res['silencios']} en silencio)[/ok]")
+        return
+
+    if cmd == "olvidar":
+        try:
+            from cognia.clases import olvido as _ol
+        except Exception as exc:
+            _aviso_degradado("clases.olvido", f"no importable: {exc}")
+            return
+        solo_plan = resto.lower().startswith("plan")
+        try:
+            if solo_plan:
+                acciones = _ol.plan()
+                if not acciones:
+                    _print_line("[info_dim]no hay nada que olvidar todavia"
+                                "[/info_dim]")
+                    return
+                for a in acciones[:20]:
+                    _print_line(f"  [mod]{str(a.get('accion','')):<22}[/mod] "
+                                f"{_escape(str(a.get('objetivo','')))} "
+                                f"[detail]({int(a.get('bytes',0))//1024} KB - "
+                                f"{_escape(str(a.get('por_que','')))})[/detail]")
+                return
+            res = _ol.aplicar()
+        except Exception as exc:
+            _aviso_degradado("clases.olvido", f"{type(exc).__name__}: {exc}")
+            return
+        _print_line(f"[ok]{res.get('acciones',0)} acciones, "
+                    f"{int(res.get('bytes_liberados',0))//1024} KB liberados "
+                    f"({res.get('protegido',0)} elementos protegidos)[/ok]")
+        return
+
+    if cmd:
+        _print_line(f"[warn_cl]subcomando desconocido: {_escape(cmd)}. "
+                    f"/grabar-clase ayuda[/warn_cl]")
+        return
+
+    # -- estado (sin subcomando) -------------------------------------------
+    est = _cj.estado()
+    if est.get("grabando"):
+        seg = int(float(est.get("segundos") or 0))
+        _print_line(f"[ok]GRABANDO[/ok] jornada "
+                    f"{_escape(str(est.get('jornada','')))}")
+        filas = [("materia", str(est.get("materia") or "")),
+                 ("lleva", "%d min %02d s" % (seg // 60, seg % 60)),
+                 ("trozos de audio", str(est.get("trozos", 0))),
+                 ("transcritos", str(est.get("transcritos", 0))),
+                 ("en silencio", str(est.get("silencios", 0)))]
+    else:
+        if not est.get("jornada"):
+            _print_line("[info_dim]el cuaderno esta vacio todavia.[/info_dim]")
+            _print_line("[detail]/grabar-clase iniciar  para grabar tu jornada"
+                        "[/detail]")
+            return
+        filas = [("ultima jornada", str(est.get("jornada", ""))),
+                 ("estado", str(est.get("estado", ""))),
+                 ("duracion", "%d min" % (int(float(est.get("segundos") or 0)) // 60)),
+                 ("sesiones", str(est.get("sesiones", 0))),
+                 ("materias", ", ".join(est.get("materias") or []) or "-")]
+    for k, v in filas:
+        _print_line(f"  [mod]{k:<16}[/mod] {_escape(v)}")
+    for a in (est.get("avisos") or []):
+        _print_line(f"[warn_cl]{_escape(str(a))}[/warn_cl]")
+    if not est.get("grabando"):
+        _print_line("[detail]/grabar-clase ver  abre el cuaderno[/detail]")
 
 
 def _slash_horizonte(arg: str = "") -> None:
@@ -20638,6 +20923,10 @@ def _repl_sesion():
                 _slash_rutinas(ai, raw[len("/rutinas"):])
             elif raw == "/bots" or raw.startswith("/bots "):
                 _slash_bots(ai, raw[len("/bots"):])
+            elif raw == "/grabar-clase" or raw.startswith("/grabar-clase "):
+                _slash_grabar_clase(
+                    raw[len("/grabar-clase "):]
+                    if raw.startswith("/grabar-clase ") else "", ai)
             elif raw == "/grabar" or raw.startswith("/grabar "):
                 _slash_grabar(raw[len("/grabar"):])
             elif raw == "/receta" or raw.startswith("/receta "):

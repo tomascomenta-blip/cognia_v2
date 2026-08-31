@@ -272,6 +272,7 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         "/narrativa", "/mapa", "/atencion", "/objetivos",
     ),
     "Aprender y repasar": (
+        "/grabar-clase",
         "/aprender", "/aprendiendo", "/aprendiendo-buscar", "/revisar",
         "/repasar", "/camino*", "/quiz", "/quiz-stats", "/escalar",
         "/estilo_info", "/indice_personal", "/indice_add",
