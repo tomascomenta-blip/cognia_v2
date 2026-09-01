@@ -193,8 +193,34 @@ def componer_linea(verbo: str, segundos: int, tokens: int = 0,
     return (f"{verbo}{cola}")[:max(1, ancho)]
 
 
+def sufijo_diagnostico(tokens: int, segundos: float, fase: str | None,
+                       sep: str) -> str:
+    """`· 47 tok/s · razonando` — la mitad diagnostica de la linea viva.
+
+    POR QUE (2026-09-01). La linea decia cuantos tokens llevaba y cuanto tiempo,
+    que no distingue los dos fallos que de verdad se sufren en una tarea larga:
+    el modelo generando despacio y el modelo generando rapido PERO en el canal
+    de razonamiento sin llegar a llamar a nada. Con la velocidad y la fase se
+    ven separados y en el acto.
+
+    Silencio hasta tener con que: por debajo de dos segundos o de unos pocos
+    tokens la division da numeros ridiculos (1200 tok/s en el primer frame) y un
+    numero que salta no informa, distrae.
+    """
+    if tokens < 40 or segundos < 2.0:
+        return ""
+    tps = tokens / max(0.001, segundos)
+    # `sep` ya trae sus espacios (' · '): anadir mas produce '  |  28 tok/s'
+    # cuando el registro lo cambia a ' | '. Lo cazo el test de overrides.
+    out = "%s%d tok/s" % (sep, int(round(tps)))
+    if fase:
+        out += "%s%s" % (sep, str(fase)[:14])
+    return out
+
+
 def linea_estado(base: str | None, t0: float, ahora: float, chars: int,
-                 ancho: int = 100, id: str | None = None) -> str:
+                 ancho: int = 100, id: str | None = None,
+                 fase: str | None = None) -> str:
     """La linea viva completa para el ticker del renderer. `base` es la
     etiqueta de la tool en curso ('Leyendo motor.py…' — mas honesta que un
     verbo generico); None = fase de pensar, verbo gato rotatorio. Con `id`
@@ -206,9 +232,16 @@ def linea_estado(base: str | None, t0: float, ahora: float, chars: int,
     else:
         verbo = verbo_rotante(t0, ahora, verbos)
     asp = aspecto_spinner(id) if id else ASPECTO_DEFECTO
-    return componer_linea(verbo, int(max(0.0, ahora - t0)),
-                          tokens=estimar_tokens(chars), hint=asp.hint,
-                          ancho=ancho, sep=asp.sep, tok=asp.tok)
+    _seg = max(0.0, ahora - t0)
+    _toks = estimar_tokens(chars)
+    _suf = sufijo_diagnostico(_toks, _seg, fase, asp.sep)
+    # El ancho se le resta ANTES a componer_linea: si el sufijo se pegara
+    # despues sin descontarlo, la linea envolveria y el salto de altura ensucia
+    # el scrollback (que es justo lo que el recorte de componer_linea evita).
+    return componer_linea(verbo, int(_seg),
+                          tokens=_toks, hint=asp.hint,
+                          ancho=max(12, ancho - len(_suf)),
+                          sep=asp.sep, tok=asp.tok) + _suf
 
 
 # ---------------------------------------------------------------------------

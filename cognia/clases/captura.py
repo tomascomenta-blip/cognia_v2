@@ -128,6 +128,21 @@ class Grabador:
     Un fallo del dispositivo NO tumba la grabacion: se anota en `avisos`, se
     espera y se reintenta. Que se caiga el driver a mitad de la segunda hora
     no puede costar las cuatro que quedan.
+
+    MUDO. `mudo = True` descarta los trozos SIN parar la captura: el
+    dispositivo sigue abierto y el reloj sigue corriendo. Parar y rearrancar
+    para un silencio de dos minutos cuesta reabrir WASAPI (el momento en que
+    mas veces se ha caido el driver) y, sobre todo, dejaria la jornada sin
+    reloj: `t` es lo que situa cada nota del duenio en el cuaderno.
+
+    LA GRANULARIDAD DEL MUDO ES EL TROZO. `mudo` se mira UNA vez, al cerrar
+    cada trozo de `segundos_trozo` (30 s por defecto), no al ponerlo: quien
+    mutee a mitad de un trozo pierde ese trozo ENTERO -- tambien los segundos
+    de clase anteriores al muteo -- y quien desmutee a mitad se queda el trozo
+    entero, tambien la parte muda. El corte efectivo cae en el limite del
+    trozo, hasta 30 s a cada lado. Cortar por dentro exigiria un reloj de
+    pared aparte, porque `_t` solo avanza al cerrar el trozo y a mitad de
+    grabacion no se sabe cuanto se lleva.
     """
 
     def __init__(self, jornada: str, fuente: str = FUENTE_SISTEMA,
@@ -138,6 +153,8 @@ class Grabador:
         self.segundos_trozo = max(5.0, float(segundos_trozo))
         self.cola: "queue.Queue" = queue.Queue()
         self.avisos: list = []
+        self.mudo = False               # descarta trozos sin parar la captura
+        self.descartados = 0            # cuantos descarto el mudo (se ensenia)
         self._parar = threading.Event()
         self._hilos: list = []
         self._n = 0
@@ -183,8 +200,46 @@ class Grabador:
         return (alm.dir_jornada(self.jornada) / alm.DIR_AUDIO
                 / ("%06d_%s.wav" % (n, fuente)))
 
-    def _bucle(self, fuente: str) -> None:
+    def _trozo_listo(self, fuente: str, muestras, t0: float) -> dict:
+        """Cierra un trozo: avanza el reloj y lo publica -- o lo DESCARTA si
+        el grabador esta mudo. Devuelve el trozo encolado, o {} si se descarto.
+
+        El reloj se avanza ANTES de mirar `mudo` a proposito: mutear no puede
+        congelar el tiempo de la jornada, o las notas que el duenio escriba
+        durante el mute (y todas las de despues) caerian en el mismo segundo.
+
+        Un trozo mudo NO deja WAV. Guardarlo haria que
+        `transcripcion.transcribir_pendientes` lo transcribiera mas tarde y
+        resucitara justo lo que el duenio mando callar.
+
+        SE DESCARTA O SE GUARDA EL TROZO ENTERO: `mudo` se consulta aqui, una
+        sola vez por trozo, con las muestras ya juntas. No hay corte parcial
+        (ver la nota de granularidad en la clase); el estado que manda es el
+        que hubiera al CERRAR el trozo, no al empezarlo.
+
+        Esta separado del bucle porque es la unica parte que se puede probar
+        sin abrir el audio del equipo.
+        """
         import numpy as np
+        dur = muestras.size / float(TASA_DESTINO)
+        # El reloj lo lleva UNA sola fuente para que dos grabadores no avancen
+        # la jornada al doble.
+        if fuente == FUENTE_SISTEMA or len(self._hilos) == 1:
+            self._t = t0 + dur
+        if self.mudo:
+            self.descartados += 1
+            return {}
+        ruta = self._siguiente_ruta(fuente)
+        guardar_wav(ruta, muestras)
+        trozo = {
+            "ruta": str(ruta), "fuente": fuente,
+            "t0": t0, "t1": t0 + dur,
+            "pico": float(np.abs(muestras).max()) if muestras.size else 0.0,
+        }
+        self.cola.put(trozo)
+        return trozo
+
+    def _bucle(self, fuente: str) -> None:
         fallos = 0
         while not self._parar.is_set():
             try:
@@ -201,18 +256,7 @@ class Grabador:
                         if self._parar.is_set() and datos is None:
                             break
                         muestras = _remuestrear(datos, tasa, TASA_DESTINO)
-                        dur = muestras.size / float(TASA_DESTINO)
-                        # El reloj lo lleva UNA sola fuente para que dos
-                        # grabadores no avancen la jornada al doble.
-                        if fuente == FUENTE_SISTEMA or len(self._hilos) == 1:
-                            self._t = t0 + dur
-                        ruta = self._siguiente_ruta(fuente)
-                        guardar_wav(ruta, muestras)
-                        self.cola.put({
-                            "ruta": str(ruta), "fuente": fuente,
-                            "t0": t0, "t1": t0 + dur,
-                            "pico": float(np.abs(muestras).max()) if muestras.size else 0.0,
-                        })
+                        self._trozo_listo(fuente, muestras, t0)
             except Exception as exc:
                 fallos += 1
                 aviso = ("captura '%s' fallo (%d): %s: %s"

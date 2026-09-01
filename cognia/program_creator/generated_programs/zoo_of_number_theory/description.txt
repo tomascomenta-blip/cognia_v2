@@ -1,0 +1,8 @@
+Title         : Zoo of Number Theory
+Category      : number theory explorer that prints interesting patterns
+Created at    : 2026-08-31T16:21:09.902308
+Score         : auto-asignado 9.5/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  An animal-themed number theory explorer that prints nine classic patterns (prime sieve, Collatz orbits, modular tables, Sierpinski fractal, Fibonacci/golden ratio, totients, digital roots, Pythagorean triples, amicable pairs) and verifies each one with real PASS/FAIL checks.

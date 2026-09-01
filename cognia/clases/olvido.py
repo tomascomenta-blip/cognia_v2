@@ -21,9 +21,14 @@ LA ESCALA DE VALOR (esto es el modulo entero; el resto es fontaneria):
   2. INTOCABLE -- `apuntes.json`. Son el PRODUCTO del cuaderno; borrarlos
      seria tirar justamente aquello por lo que se grabo la clase.
   3. COMPACTABLE tras N dias -- la transcripcion literal, y SOLO si esa
-     jornada ya tiene apuntes. Sin apuntes no se toca: comprimir la fuente
-     antes de haber destilado el producto pierde los dos a la vez, y es
-     irreversible.
+     jornada ya tiene apuntes DE TODO LO QUE SE DIJO. Sin apuntes no se toca:
+     comprimir la fuente antes de haber destilado el producto pierde los dos a
+     la vez, y es irreversible. Y "tiene apuntes" no basta: `clases/refinado.py`
+     escribe apuntes MIENTRAS la clase pasa, asi que una jornada puede tener
+     apuntes del primer cuarto de hora y nada del resto. Comprimir eso perdia
+     para siempre la fuente de lo que nadie resumio. Por eso se le pregunta a
+     `refinado.cobertura(jornada)` -- cadena declarada en las dos puntas, ver
+     `_sin_refinar` aqui y la decision 8 del encabezado de refinado.py.
   4. PURGABLE tras M dias -- `audio/`, y SOLO si el STT ya escribio algo de
      esa jornada. Lo que ocupa el 99%. Los clips que el duenio guardo a mano
      NO viven ahi: viven en `adjuntos/` (los copia `almacen.copiar_adjunto`),
@@ -261,10 +266,18 @@ def plan(ahora=None) -> list:
                     "vieja (%.1f dias) pero SIN apuntes: comprimir la fuente "
                     "antes de destilar el producto pierde los dos" % edad))
             else:
-                filas.append(_fila(
-                    nombre, ACCION_COMPACTAR, alm.TRANSCRIPCION, bytes_t,
-                    "transcripcion literal de %.1f dias (umbral %s) con "
-                    "apuntes ya generados" % (edad, pol["dias_transcripcion"])))
+                a_medias = _sin_refinar(nombre)
+                if a_medias:
+                    filas.append(_fila(nombre, ACCION_NADA, alm.TRANSCRIPCION,
+                                       bytes_t,
+                                       "vieja (%.1f dias) pero %s"
+                                       % (edad, a_medias)))
+                else:
+                    filas.append(_fila(
+                        nombre, ACCION_COMPACTAR, alm.TRANSCRIPCION, bytes_t,
+                        "transcripcion literal de %.1f dias (umbral %s) con "
+                        "apuntes ya generados"
+                        % (edad, pol["dias_transcripcion"])))
     return filas
 
 
@@ -290,11 +303,65 @@ def _hay_apuntes(nombre: str) -> bool:
     """Si la jornada tiene apuntes generados. Un `apuntes.json` que existe
     pero esta vacio NO cuenta: es el estado de "se intento y no salio", y
     tratarlo como producto destilado es exactamente el error que hace perder
-    la fuente y el resumen a la vez."""
+    la fuente y el resumen a la vez.
+
+    OJO: esto dice si hay ALGO, no si hay apuntes DE TODO. Lo segundo lo dice
+    `_sin_refinar`, y las dos preguntas hay que hacerlas: unos apuntes del
+    primer cuarto de hora tambien son "algo".
+    """
     datos = alm.leer_json(alm.dir_jornada(nombre) / alm.APUNTES, {}) or {}
     if not isinstance(datos, dict):
         return bool(datos)
     return any(bool(v) for v in datos.values())
+
+
+def _sin_refinar(nombre: str) -> str:
+    """El motivo por el que esta transcripcion NO se puede comprimir todavia,
+    o '' si si se puede.
+
+    PERDIDA DE DATOS QUE ESTO EVITA (medida en el codigo, no supuesta):
+    `clases/refinado.py` escribe apuntes cada pocos minutos MIENTRAS la clase
+    pasa, con una marca de agua (`chars_entrada`) de hasta donde ha leido. Si
+    el modelo local se cae -- o el disyuntor apaga el refinado -- esa marca se
+    queda a mitad de la clase, pero la entrada ya existe y `_hay_apuntes`
+    devuelve True. Compactar entonces sustituye la transcripcion literal por
+    un 30% muestreado, o sea que la fuente del tramo que NADIE resumio
+    desaparece para siempre. La compresion es irreversible; esperar no cuesta
+    nada.
+
+    POR QUE PROTEGER LA JORNADA ENTERA Y NO SOLO EL TRAMO: `_compactar_
+    transcripcion` colapsa el JSONL en UN registro, y trocearlo por sesiones
+    (que se cortan por materia, no por linea de transcripcion) seria inventar
+    una correspondencia que hoy no existe en ningun sitio. Proteger de mas es
+    reversible; comprimir de mas, no.
+
+    Los dos fallos posibles se resuelven distinto A PROPOSITO: si `refinado`
+    no esta (una instalacion sin esa pieza) nadie pudo escribir apuntes a
+    medias y se compacta como siempre; si esta pero la consulta revienta, NO
+    se compacta -- lo que no se puede verificar no se destruye.
+    """
+    try:
+        from cognia.clases import refinado as ref
+    except ImportError as exc:
+        _log.warning("olvido: clases/refinado.py no esta (%s); no hay quien "
+                     "haya escrito apuntes a medias y se compacta como "
+                     "siempre", exc)
+        return ""
+    try:
+        info = ref.cobertura(nombre)
+    except Exception as exc:
+        _log.warning("olvido: no se pudo comprobar la cobertura de los "
+                     "apuntes de %s (%s: %s)", nombre, type(exc).__name__, exc)
+        return ("no se pudo comprobar si quedan tramos sin resumir (%s: %s): "
+                "la transcripcion literal no se toca hasta saberlo"
+                % (type(exc).__name__, exc))
+    if not info.get("toco_el_refinado") or info.get("completo"):
+        return ""
+    return ("el refinado en caliente dejo %d de %d chars SIN resumir: "
+            "comprimir ahora perderia la fuente de lo que nadie destilo. "
+            "Termina el refinado ('%s ahora') o regenera los apuntes de la "
+            "jornada" % (info.get("pendiente", 0), info.get("chars_dichos", 0),
+                         getattr(ref, "SUBCOMANDO_CLI", "/grabar-clase refinado")))
 
 
 def _ya_compactada(ruta: Path) -> bool:

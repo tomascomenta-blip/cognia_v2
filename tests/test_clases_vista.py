@@ -450,6 +450,46 @@ def test_export_escribe_el_fichero_sin_abrir_navegador(tmp_path, monkeypatch):
     assert "data:image/png;base64," in doc
 
 
+def _tiff_que_no_se_embebe(jornada="2026-08-30", t=1100.0):
+    """Un adjunto que NO se sabe embeber, para que la pagina lleve tambien la
+    otra clase de URL: la file:// del enlace. Sin el, todos los 'enlace' del
+    JSON salen vacios y las comprobaciones de URL solo miran los data:, que es
+    medio test -- un CDN colado por la rama del enlace pasaria sin chillar."""
+    d = alm.dir_jornada(jornada)
+    (d / alm.DIR_ADJUNTOS / "esquema_0001.tiff").write_bytes(b"II*\x00nada")
+    alm.apendar(d / alm.ENTRADAS,
+                {"t": t, "tipo": cua.TIPO_IMAGEN, "fuente": "usuario",
+                 "adjunto": "esquema_0001.tiff", "texto": "el esquema en TIFF"})
+
+
+def _seis_reglas(doc: str) -> None:
+    """Las SEIS reglas que hacen que un cuaderno sea un fichero suelto y no
+    una carpeta: sin red, sin CDN, sin atributos estaticos y con las dos
+    clases de URL (la embebida y la enlazada) representadas.
+
+    Estan en una funcion aparte porque ahora hay VARIOS HTML que cumplirlas:
+    el cuaderno entero y uno por asignatura. Copiarlas en cada test acabaria
+    con seis reglas en un sitio y cuatro en el otro.
+    """
+    assert "http://" not in doc and "https://" not in doc          # 1
+    assert "<link " not in doc and "<script src" not in doc        # 2
+    assert "url(" not in doc                                       # 3
+    # 4. La ausencia de atributos estaticos es el invariante que hacia vacuo
+    # el bucle de URLs: se afirma a proposito, para que si alguien mete un
+    # src="..." en una plantilla lo cace en vez de quedarse mudo.
+    assert re.findall(r'(?:src|href)="([^"]*)"', doc) == []
+    urls = []
+    for m in _datos_de(doc)["materias"]:
+        for s in m["sesiones"]:
+            for e in s["linea"]:
+                urls += [e["src"], e["enlace"]]
+    # 5. Las dos ramas tienen que estar representadas o el bucle no prueba nada.
+    assert any(u.startswith("data:") for u in urls), "ningun adjunto embebido"
+    assert any(u.startswith("file:") for u in urls), "ningun adjunto enlazado"
+    for u in urls:                                                 # 6
+        assert u == "" or u.startswith(("data:", "file:", "#")), u
+
+
 def test_export_no_pide_red_ni_ficheros_de_al_lado(tmp_path, monkeypatch):
     """Autocontenido de verdad: cero URLs externas y cero CDN.
 
@@ -461,35 +501,408 @@ def test_export_no_pide_red_ni_ficheros_de_al_lado(tmp_path, monkeypatch):
     las URLs donde de verdad viven: las del JSON.
     """
     _fabricar()
-    # Un adjunto que NO se sabe embeber, para que la pagina lleve tambien la
-    # otra clase de URL: la file:// del enlace. Sin el, todos los 'enlace' del
-    # JSON salen vacios y el bucle de abajo solo mira los data:, que es medio
-    # test -- un CDN colado por la rama del enlace pasaria sin que chille.
-    d = alm.dir_jornada("2026-08-30")
-    (d / alm.DIR_ADJUNTOS / "esquema_0001.tiff").write_bytes(b"II*\x00nada")
-    alm.apendar(d / alm.ENTRADAS,
-                {"t": 1100.0, "tipo": cua.TIPO_IMAGEN, "fuente": "usuario",
-                 "adjunto": "esquema_0001.tiff", "texto": "el esquema en TIFF"})
+    _tiff_que_no_se_embebe()
 
     import webbrowser
     monkeypatch.setattr(webbrowser, "open", lambda *a, **k: None)
     doc = vista.export(path=tmp_path / "c.html", open_browser=False).read_text(encoding="utf-8")
+    _seis_reglas(doc)
 
-    assert "http://" not in doc and "https://" not in doc
-    assert "<link " not in doc and "<script src" not in doc
-    assert "url(" not in doc              # ninguna fuente ni imagen de CSS
-    # La ausencia de atributos estaticos es el invariante que hacia vacuo al
-    # bucle: se afirma a proposito, para que si alguien mete un src="..." en
-    # una plantilla este test lo cace en vez de quedarse mudo.
-    assert re.findall(r'(?:src|href)="([^"]*)"', doc) == []
 
-    urls = []
-    for m in _datos_de(doc)["materias"]:
-        for s in m["sesiones"]:
-            for e in s["linea"]:
-                urls += [e["src"], e["enlace"]]
-    # Las dos ramas tienen que estar representadas o el bucle no prueba nada.
-    assert any(u.startswith("data:") for u in urls), "ningun adjunto embebido"
-    assert any(u.startswith("file:") for u in urls), "ningun adjunto enlazado"
-    for u in urls:
-        assert u == "" or u.startswith(("data:", "file:", "#")), u
+# ── un cuaderno por asignatura ───────────────────────────────────────────────
+#
+# Lo que el duenio pidio: "que cada materia se guarde en un cuaderno distinto,
+# para que no se mezclen todas las materias". Lo que estos tests vigilan no es
+# que el fichero exista, sino que NO lleve dentro nada de otra asignatura y que
+# cada uno diga lo que pesa: un cuaderno de Fisica con una clase de Historia
+# dentro se ve perfecto y esta mal.
+
+def _png_alto(alto=300, ancho=600) -> bytes:
+    """Un PNG grande de verdad. El TAMANIO importa: con el 1x1 de arriba, un
+    cuaderno de ocho fotos sigue cabiendo en una pantalla, y entonces el
+    navegador carga hasta las <img loading="lazy"> -- o sea que el test del PDF
+    pasaria igual con o sin el arreglo del 'eager' (comprobado revirtiendo).
+    Una pizarra de verdad ocupa pantalla y empuja a las de abajo fuera."""
+    def trozo(tipo, datos):
+        cuerpo = tipo + datos
+        return (struct.pack(">I", len(datos)) + cuerpo +
+                struct.pack(">I", zlib.crc32(cuerpo) & 0xFFFFFFFF))
+    ihdr = struct.pack(">IIBBBBB", ancho, alto, 8, 2, 0, 0, 0)
+    fila = b"\x00" + b"\xc8\x30\x30" * ancho          # filtro 0 + pixeles
+    return (b"\x89PNG\r\n\x1a\n" + trozo(b"IHDR", ihdr) +
+            trozo(b"IDAT", zlib.compress(fila * alto)) + trozo(b"IEND", b""))
+
+
+def _foto_en(t, nombre, jornada="2026-08-30", texto="otra pizarra", crudo=None):
+    """Una foto de pizarra REAL en un instante concreto de la jornada. El
+    instante decide en que materia cae (los cortes estan en 0 s y 2700 s)."""
+    d = alm.dir_jornada(jornada)
+    (d / alm.DIR_ADJUNTOS / nombre).write_bytes(crudo or _png_rojo())
+    alm.apendar(d / alm.ENTRADAS,
+                {"t": t, "tipo": cua.TIPO_IMAGEN, "fuente": "usuario",
+                 "adjunto": nombre, "texto": texto})
+
+
+def test_cada_asignatura_tiene_su_fichero_y_no_lleva_nada_de_otra(tmp_path):
+    _fabricar()
+    res = vista.export_materias(directorio=tmp_path, open_browser=False, ahora=INICIO)
+
+    assert set(res["ficheros"]) == {"Fisica", "Matematicas"}
+    for materia, ruta in res["ficheros"].items():
+        assert ruta.is_file() and ruta.parent == tmp_path
+        datos = _datos_de(ruta.read_text(encoding="utf-8"))
+        assert [m["nombre"] for m in datos["materias"]] == [materia]
+    # Y no es solo el indice del JSON: el TEXTO de la otra asignatura no esta
+    # en el fichero. Un filtro que se aplicara solo al agrupar dejaria las
+    # sesiones ajenas dentro del heno del buscador y nadie lo notaria.
+    fisica = res["ficheros"]["Fisica"].read_text(encoding="utf-8")
+    mates = res["ficheros"]["Matematicas"].read_text(encoding="utf-8")
+    assert "Doppler" in fisica
+    assert "regla de la cadena" not in fisica.lower()
+    assert "Regla de la cadena" in mates and "Doppler" not in mates
+
+
+def test_el_indice_enlaza_a_todos_los_cuadernos(tmp_path):
+    _fabricar()
+    res = vista.export_materias(directorio=tmp_path, open_browser=False, ahora=INICIO)
+
+    assert res["indice"].name == vista.FICHERO_INDICE and res["indice"].is_file()
+    datos = _datos_de(res["indice"].read_text(encoding="utf-8"))
+    assert datos["indice"] is True
+    ficheros = {c["fichero"] for c in datos["cuadernos"]}
+    assert ficheros == {r.name for r in res["ficheros"].values()}
+    # El indice enlaza a ficheros que EXISTEN: un enlace roto en la portada
+    # del cuaderno es exactamente el vacio silencioso de siempre.
+    for f in ficheros:
+        assert (tmp_path / f).is_file()
+    # Y cada cuaderno enlaza de vuelta al indice y a sus hermanos.
+    for ruta in res["ficheros"].values():
+        enlaces = _datos_de(ruta.read_text(encoding="utf-8"))["enlaces"]
+        destinos = [e["fichero"] for e in enlaces]
+        assert vista.FICHERO_INDICE in destinos
+        assert ficheros <= set(destinos)
+        assert sum(1 for e in enlaces if e.get("actual")) == 1
+
+
+def test_dos_materias_que_sanean_igual_no_se_pisan(tmp_path):
+    """Dos nombres distintos pueden dar el MISMO fichero al sanear ('Fisica/II'
+    y 'Fisica-II'). Sin desempate, la segunda pisa a la primera y desaparece un
+    cuaderno entero -- justo la mezcla que esto existe para evitar."""
+    _fabricar()
+    res = vista.export_materias(directorio=tmp_path, open_browser=False,
+                                materias=["Fisica/II", "Fisica-II"], ahora=INICIO)
+    assert len(set(res["ficheros"].values())) == 2
+    assert len({r.name for r in res["ficheros"].values()}) == 2
+
+
+def test_el_html_por_materia_cumple_las_seis_reglas(tmp_path):
+    """Partir el cuaderno no puede aflojar ninguna de las seis reglas que
+    hacen que un cuaderno viaje solo (sin red, sin CDN, sin ficheros de al
+    lado). Se comprueban sobre el HTML de UNA asignatura, que es el fichero
+    que el duenio va a mandar por correo ahora."""
+    _fabricar()
+    _tiff_que_no_se_embebe(t=1100.0)          # cae en Fisica (corte a 2700 s)
+    res = vista.export_materias(directorio=tmp_path, open_browser=False, ahora=INICIO)
+    _seis_reglas(res["ficheros"]["Fisica"].read_text(encoding="utf-8"))
+
+
+def test_cada_cuaderno_anuncia_su_peso_real(tmp_path):
+    """El pie promete lo que ESE fichero pesa. Con el cuaderno partido hay un
+    peso por asignatura, y el indice los repite: si el numero fuera el del
+    cuaderno entero, el duenio mandaria por correo un fichero que no es el que
+    creyo pesar."""
+    _fabricar()
+    res = vista.export_materias(directorio=tmp_path, open_browser=False, ahora=INICIO)
+    tarjetas = {c["nombre"]: c for c in
+                _datos_de(res["indice"].read_text(encoding="utf-8"))["cuadernos"]}
+    for materia, ruta in res["ficheros"].items():
+        doc = ruta.read_text(encoding="utf-8")
+        datos = _datos_de(doc)
+        en_la_pagina = sum(len(u) for u in
+                           re.findall(r"data:[a-z/]+;base64,[A-Za-z0-9+/=]+", doc))
+        assert datos["bytes_embebidos"] == en_la_pagina
+        # El peso del fichero que anuncia el indice es el del fichero de
+        # verdad, redondeado a KB como se ensenia.
+        kb = ruta.stat().st_size / 1024.0
+        assert tarjetas[materia]["peso"].startswith("%.0f KB" % kb)
+    # Fisica lleva foto y clip de verdad; el numero no puede salir de cero.
+    assert _datos_de(res["ficheros"]["Fisica"]
+                     .read_text(encoding="utf-8"))["bytes_embebidos"] > 0
+
+
+def test_el_presupuesto_de_pagina_se_reparte_por_asignatura(tmp_path, monkeypatch):
+    """EL MOTIVO DE FONDO PARA PARTIR EL CUADERNO, no solo la comodidad.
+
+    El presupuesto (TOPE_TOTAL) se gasta POR ORDEN: en un solo HTML, las fotos
+    de la primera materia dejan sin imagen a las que se pintan despues, que
+    caen a enlace file://. Con un fichero por asignatura cada una arranca con
+    el presupuesto entero.
+    """
+    _fabricar()
+    _foto_en(3100.0, "pizarra_0002.png", texto="la pizarra de mates")
+    # Justo para UNA foto embebida: la segunda ya no cabe en la misma pagina.
+    una = vista._peso_en_pagina("image/png", len(_png_rojo()))
+    monkeypatch.setattr(vista, "TOPE_TOTAL", una + 10)
+
+    juntas = vista.construir(ahora=INICIO)
+    por_materia = {m["nombre"]: m for m in juntas["materias"]}
+
+    def _fotos(m):
+        return [e for e in por_materia[m]["sesiones"][0]["linea"]
+                if e["tipo"] == cua.TIPO_IMAGEN
+                and str(e.get("adjunto", "")).endswith(".png")
+                and "no_existe" not in str(e.get("adjunto", ""))]
+
+    assert _fotos("Fisica")[0]["src"].startswith("data:")
+    perdida = _fotos("Matematicas")[0]
+    assert perdida["src"] == "", "en un solo HTML la segunda materia se queda sin foto"
+    assert "la pagina ya pesa" in perdida["aviso"]
+
+    # Partido: cada asignatura estrena presupuesto y las DOS llevan su foto.
+    res = vista.export_materias(directorio=tmp_path, open_browser=False, ahora=INICIO)
+    for materia in ("Fisica", "Matematicas"):
+        doc = res["ficheros"][materia].read_text(encoding="utf-8")
+        assert "data:image/png;base64," in doc, materia
+        assert _datos_de(doc)["bytes_embebidos"] > 0
+
+
+def test_lo_que_no_cabe_se_explica_en_su_sitio_y_en_el_indice(tmp_path, monkeypatch):
+    """Un adjunto que no viaja dentro no puede desaparecer sin mas: el aviso
+    va en SU entrada, en la cabecera de su cuaderno y en la tarjeta del indice
+    -- que es donde el duenio mira antes de mandar nada."""
+    _fabricar()
+    monkeypatch.setattr(vista, "TOPE_TOTAL", 1)
+    res = vista.export_materias(directorio=tmp_path, open_browser=False, ahora=INICIO)
+    doc = res["ficheros"]["Fisica"].read_text(encoding="utf-8")
+    datos = _datos_de(doc)
+    assert datos["bytes_embebidos"] == 0
+    assert any("tope" in a for a in datos["avisos"])
+    entrada = [e for e in datos["materias"][0]["sesiones"][0]["linea"]
+               if e["tipo"] == cua.TIPO_IMAGEN and e["enlace"]][0]
+    assert "tope" in entrada["aviso"] and entrada["enlace"].startswith("file://")
+    tarjeta = [c for c in _datos_de(res["indice"].read_text(encoding="utf-8"))["cuadernos"]
+               if c["nombre"] == "Fisica"][0]
+    assert any("tope" in a for a in tarjeta["avisos"])
+
+
+def test_el_cuaderno_partido_no_relee_el_curso_una_vez_por_materia(tmp_path, monkeypatch):
+    """El coste, que es el problema de verdad: con 180 dias de curso, una
+    lectura completa por asignatura no aguanta un cuaderno que se refresca.
+    `export_materias` lee el curso UNA vez y reparte."""
+    _fabricar()
+    veces = {"n": 0}
+    real = cua.cuaderno
+
+    def _contando(materias=None):
+        veces["n"] += 1
+        return real(materias)
+    monkeypatch.setattr(cua, "cuaderno", _contando)
+
+    res = vista.export_materias(directorio=tmp_path, open_browser=False, ahora=INICIO)
+    assert len(res["ficheros"]) == 2
+    assert veces["n"] == 1, "el curso se releyo una vez por materia"
+
+
+# ── el indice incremental de materias ────────────────────────────────────────
+
+def test_el_indice_de_materias_no_se_desincroniza_al_aniadir_una_sesion():
+    """El indice se mantiene por HUELLA de fichero, no por notificacion: nadie
+    tiene que acordarse de avisarlo. Si se desincronizara, exportar por
+    materia daria un cuaderno al que le falta la ultima clase -- y eso no se
+    ve, porque el HTML sale perfecto."""
+    _fabricar()
+    assert sorted(cua.materias_vistas()) == ["Fisica", "Matematicas"]
+    assert [j for j, _, _ in cua.tramos_de_materia("Fisica")] == ["2026-08-30"]
+
+    # 1) una materia NUEVA en una jornada que el indice ya tenia indexada
+    d = alm.dir_jornada("2026-08-30")
+    alm.apendar(d / alm.CORTES, {"t": 4000.0, "materia": "Historia",
+                                 "confianza": 0.7, "por": "manual"})
+    alm.apendar(d / alm.ENTRADAS, {"t": 4100.0, "tipo": cua.TIPO_NOTA,
+                                   "fuente": "usuario",
+                                   "texto": "la Revolucion Francesa"})
+    assert "Historia" in cua.materias_vistas()
+    assert "Historia" in cua.cuaderno(["Historia"])
+    assert [j for j, _, _ in cua.tramos_de_materia("Historia")] == ["2026-08-30"]
+
+    # 2) una jornada nueva entera
+    _fabricar(jornada="2026-08-31", inicio_epoch=INICIO + 86400)
+    assert [j for j, _, _ in cua.tramos_de_materia("Fisica")] == \
+        ["2026-08-31", "2026-08-30"]
+    assert len(cua.cuaderno(["Fisica"])["Fisica"]) == 2
+
+    # 3) y una jornada que se va (el olvido, o un borrado a mano) sale
+    import shutil
+    shutil.rmtree(alm.dir_jornada("2026-08-31"))
+    assert [j for j, _, _ in cua.tramos_de_materia("Fisica")] == ["2026-08-30"]
+
+
+def test_el_indice_apagado_da_el_MISMO_cuaderno(monkeypatch):
+    """El interruptor existe para poder comparar los dos caminos sin parchear
+    codigo (asi se midio la mejora). Lo que no puede es cambiar el resultado:
+    un indice que filtrara de mas daria un cuaderno mas corto y mas rapido, y
+    solo se notaria el 'mas rapido'."""
+    _fabricar()
+    _fabricar(jornada="2026-08-31", inicio_epoch=INICIO + 86400)
+    monkeypatch.setenv("COGNIA_CLASES_INDICE", "0")
+    lento = {m: [(s.jornada, s.t0, s.materia) for s in v]
+             for m, v in cua.cuaderno(["Fisica"]).items()}
+    monkeypatch.setenv("COGNIA_CLASES_INDICE", "1")
+    rapido = {m: [(s.jornada, s.t0, s.materia) for s in v]
+              for m, v in cua.cuaderno(["Fisica"]).items()}
+    assert lento == rapido and lento["Fisica"]
+
+
+def test_el_estado_del_indice_es_una_puerta_de_diagnostico():
+    _fabricar()
+    cua.cuaderno(["Fisica"])            # lo fuerza a existir
+    est = cua.estado_indice()
+    assert est["activo"] is True and est["existe"] is True
+    assert est["jornadas"] == est["jornadas_en_disco"] == 1
+    assert "Fisica" in est["materias"]
+    assert est["ultimo_fallo"] == {}
+
+
+# ── el papel: @media print, PDF y procesador de textos ───────────────────────
+
+def test_la_pagina_viene_preparada_para_el_papel():
+    """El camino UNIVERSAL a PDF es Imprimir -> Guardar como PDF, y solo
+    funciona si la pagina se prepara sola: transcripciones abiertas, imagenes
+    en eager y nada que se corte a mitad de hoja."""
+    _fabricar()
+    doc = vista.render_html(vista.construir(ahora=INICIO))
+    assert "window.__prepararImpresion" in doc
+    assert 'window.addEventListener("beforeprint"' in doc
+    assert 'setAttribute("loading", "eager")' in doc
+    # Las novedades que llegan como IMAGEN (formulas y graficas) no pueden
+    # partirse entre dos hojas: es lo mismo que perderlas.
+    impresion = doc.split("@media print{", 1)[1].split("</style>", 1)[0]
+    plano = impresion.replace("\n", "").replace(" ", "")
+    for regla in (".sesion{break-inside:avoid", ".ent,.ficha,.ttp{break-inside:avoid",
+                  "img.adj{break-inside:avoid"):
+        assert regla in plano, regla
+    assert "max-height:21cm" in plano
+    # Y en pantalla la nota del papel no molesta.
+    assert ".notapapel{display:none}" in doc
+
+
+def test_sin_playwright_el_error_dice_los_DOS_pasos(tmp_path, monkeypatch):
+    """playwright NO esta en el venv del producto (~/.cognia/venv): este
+    camino corre en el repo y falla en una instalacion limpia. El error tiene
+    que decir los dos pasos EXACTOS (la libreria y el navegador son
+    instalaciones distintas) y el camino que si funciona sin instalar nada."""
+    import sys
+    monkeypatch.setitem(sys.modules, "playwright.sync_api", None)
+    _fabricar()
+    with pytest.raises(vista.ErrorExportacion) as exc:
+        vista.export_pdf(path=tmp_path / "x.pdf")
+    msg = str(exc.value)
+    assert "pip install playwright" in msg
+    assert "playwright install chromium" in msg
+    assert "~/.cognia/venv" in msg
+    assert "Imprimir" in msg, "hay que decir el camino que funciona sin instalar nada"
+    assert not (tmp_path / "x.pdf").exists()
+
+
+def test_sin_python_docx_el_error_lo_dice(tmp_path, monkeypatch):
+    import sys
+    monkeypatch.setitem(sys.modules, "docx", None)
+    with pytest.raises(vista.ErrorExportacion) as exc:
+        vista.export_docx("Fisica", path=tmp_path / "x.docx")
+    assert "pip install python-docx" in str(exc.value)
+    assert "export_dom" in str(exc.value)
+
+
+def _hay_navegador():
+    """playwright instalado Y con chromium bajado. Son dos cosas distintas: la
+    libreria sola no imprime nada, y ese es justo el segundo paso que el error
+    de arriba tiene que nombrar."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        return False
+    pw = sync_playwright().start()
+    try:
+        nav = pw.chromium.launch()
+        nav.close()
+        return True
+    except Exception:
+        return False
+    finally:
+        pw.stop()
+
+
+sin_navegador = pytest.mark.skipif(
+    not _hay_navegador(),
+    reason="playwright+chromium no estan (es un EXTRA: el camino universal es "
+           "Imprimir -> Guardar como PDF)")
+
+
+@sin_navegador
+def test_el_pdf_lleva_todas_las_fotos_y_cuenta_los_clips(tmp_path):
+    """El PDF de verdad, generado por un Chromium de verdad: que las ocho
+    fotos de pizarra que estan MUY por debajo de la primera pantalla lleguen
+    al papel, y que los clips de audio que no pueden llegar se cuenten.
+
+    HONESTIDAD SOBRE EL ALCANCE: este test NO falla si se quita el
+    loading="eager" de `__prepararImpresion`, y se comprobo revirtiendolo.
+    Medido: con las imagenes embebidas como data: URI, Chromium las carga
+    todas aunque pongan loading="lazy" (26 de 26 en un scroller de 20.272 px),
+    porque el aplazamiento existe para ahorrar RED y aqui no hay red. Lo que
+    este test si vigila es el resultado: que el PDF salga con las fotos
+    dentro, que es lo que se rompe si alguien toca el @media print o la
+    preparacion de la pagina.
+    """
+    _fabricar()
+    grande = _png_alto()
+    for i in range(8):
+        _foto_en(200.0 + i * 250, "grande_%d.png" % i, texto="pizarra %d" % i,
+                 crudo=grande)
+    res = vista.export_pdf(path=tmp_path / "c.pdf", materias=["Fisica"], ahora=INICIO)
+    assert res["pdf"].is_file() and res["pdf"].stat().st_size > 5000
+    assert res["imagenes"] == 9          # las 8 nuevas + la del fixture
+    assert res["clips"] == 1             # el clip de audio NO viaja al papel
+    crudo = res["pdf"].read_bytes()
+    assert crudo[:5] == b"%PDF-"
+    assert crudo.count(b"/Image") >= 6, "las fotos de mas abajo salieron en blanco"
+
+
+@sin_navegador
+def test_el_dom_renderizado_es_lo_unico_que_un_procesador_de_textos_entiende(tmp_path):
+    """MEDIDO: el HTML crudo subido a Google Docs da un documento vacio de 272
+    caracteres, porque el contenido lo pinta el JS. Se compara el texto que
+    queda al quitar script/style/template -- que es lo que ve un importador --
+    en el fichero crudo y en el DOM ya renderizado."""
+    _fabricar()
+    crudo = vista.export(path=tmp_path / "c.html", open_browser=False,
+                         materias=["Fisica"])
+    dom = vista.export_dom(path=tmp_path / "doc.html", origen=crudo)
+
+    def _importable(html):
+        sin = re.sub(r"(?is)<script.*?</script>|<style.*?</style>"
+                     r"|<template.*?</template>", " ", html)
+        return " ".join(re.sub(r"(?s)<[^>]+>", " ", sin).split())
+
+    texto_crudo = _importable(crudo.read_text(encoding="utf-8"))
+    texto_dom = _importable(dom.read_text(encoding="utf-8"))
+    assert len(texto_crudo) < 400, "el HTML crudo no lleva texto que importar"
+    assert "Doppler" not in texto_crudo
+    assert len(texto_dom) > 3 * len(texto_crudo)
+    # Y lleva lo que el duenio quiere en su documento: los apuntes y su nota.
+    assert "Efecto Doppler" in texto_dom
+    assert "ESTO ENTRA EN EL EXAMEN" in texto_dom
+    # La transcripcion tambien: se despliega antes de volcar el DOM.
+    assert "efecto Doppler" in texto_dom
+
+
+@sin_navegador
+def test_el_pie_del_papel_declara_los_clips_que_se_quedan_fuera(tmp_path):
+    """En un PDF no suena nada. Los clips de audio del cuaderno no se pierden
+    en silencio: la pagina escribe cuantos son al pie de la hoja."""
+    _fabricar()
+    dom = vista.export_dom(path=tmp_path / "doc.html", materias=["Fisica"],
+                           ahora=INICIO)
+    texto = dom.read_text(encoding="utf-8")
+    assert 'id="papel"' in texto
+    assert "1 clip de audio se queda fuera" in texto
+    assert "imagen impresa" in texto or "imagenes impresas" in texto

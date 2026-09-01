@@ -350,5 +350,20 @@
     "verificado_en": "",
     "deleted_at": "2026-08-17T23:52:35.025683",
     "reason": "replaced by 'Di Hola in 3 Words' (score 7.1 > 5.5)"
+  },
+  {
+    "id": "number_theory_explorer",
+    "title": "**Number Theory Explorer**",
+    "category": "number theory explorer that prints interesting patterns",
+    "description": "Generates two sequences and verifies if they align after a cycle, revealing hidden patterns in integer growth.",
+    "total_score": 7.3,
+    "created_at": "2026-08-02T00:28:30.258033",
+    "directory": "number_theory_explorer",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": "",
+    "deleted_at": "2026-08-31T16:21:09.900798",
+    "reason": "replaced by 'Zoo of Number Theory' (score 9.5 > 7.3)"
   }
 ]

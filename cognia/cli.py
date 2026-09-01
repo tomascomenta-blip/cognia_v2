@@ -3330,7 +3330,7 @@ _CMD_DESCRIPTIONS = {
     "/exportar":        "Exportar historial (json|md|csv)   <formato> [archivo]",
     "/exportar-stats":  "Ver estadisticas del historial",
     "/modo rapido":     "Toggle: saltar confirmaciones",
-    "/debug":           "Toggle: mostrar logs INFO",
+    "/debug":           "Toggle: mostrar logs INFO. `/debug telemetria [on|off|ultimo]` abre el diario del turno (tokens por paso, tool calls con su exit, cortes, motivo de cierre)",
     "/costo":           "Tokens y tiempo de sesión",
     "/vram":            "Que cabe en tu GPU: roles vivos, VRAM medida por rol y la escalera de contexto",
     "/capacidades":     "Que sabe hacer el agente: familias de herramientas, cuales estan encendidas y que las enciende  [familia]",
@@ -14725,6 +14725,28 @@ def _slash_compactar(arg: str = "") -> None:
         avisos=avisos)))
 
 
+def _aplicar_config_telemetria() -> None:
+    """Enciende el diario del turno si la config lo dice.
+
+    Sin esto `/telemetria on` mentiria: la clave quedaba guardada y el proceso
+    siguiente arrancaba sin la variable, o sea con la telemetria apagada y el
+    estado diciendo ON. COGNIA_TELEMETRIA puesta a mano SIEMPRE gana (es la que
+    usan los bancos para mandar cada tarea a su propio fichero).
+    """
+    try:
+        from cognia.harness import telemetria as _tel
+        if os.environ.get(_tel.ENV):
+            return
+        if str(_load_config().get("telemetria", "off")).strip().lower() not in (
+                "on", "1", "si", "true"):
+            return
+        base = Path.home() / ".cognia" / "telemetria"
+        base.mkdir(parents=True, exist_ok=True)
+        os.environ[_tel.ENV] = str(base / (time.strftime("%Y%m%d") + ".jsonl"))
+    except Exception as exc:
+        _aviso_degradado("telemetria", f"no pude aplicar la config: {exc}")
+
+
 def _aplicar_config_horizonte() -> None:
     """Propaga la config del modo HORIZONTE (rondas de worker fresco con
     contrato ralph) al entorno SIN pisar lo del usuario, marcando la siembra
@@ -18222,6 +18244,92 @@ def _slash_notificar(arg: str = "") -> None:
     _print_line("\n".join(_estado_subsistema(
         "notificaciones de escritorio", str(est["modo"]), filas,
         fuente=str(est.get("fuente") or ""), avisos=avisos)))
+
+
+def _slash_telemetria(arg: str = "") -> None:
+    """`/telemetria [estado | on | off | ultimo | ruta]`: el diario objetivo del turno.
+
+    QUE ES. Con la telemetria encendida, cada tarea deja un JSONL con lo que el
+    bucle YA sabe y hasta hoy tiraba: tokens de entrada y de salida por paso,
+    finish_reason, cada tool call con su exit y su duracion, compactaciones,
+    cortes y el motivo de cierre. Es lo que hace falta para responder "por que
+    fallo esta tarea" sin leer prosa coloreada de stderr.
+
+    on|off persisten en la config ('telemetria'); COGNIA_TELEMETRIA con una ruta
+    gana a la config y manda el diario a ese fichero (es lo que usan los bancos).
+    """
+    try:
+        from cognia.harness import telemetria as _tel
+    except Exception as exc:
+        _aviso_degradado("telemetria", f"modulo no importable: {exc}")
+        _print_line(f"[warn_cl]telemetria no disponible: {exc}[/warn_cl]")
+        return
+
+    arg = (arg or "").strip().lower()
+    cfg = _load_config()
+
+    def _ruta_sesion():
+        base = Path.home() / ".cognia" / "telemetria"
+        base.mkdir(parents=True, exist_ok=True)
+        return base / (time.strftime("%Y%m%d") + ".jsonl")
+
+    if arg in ("on", "1", "si"):
+        cfg["telemetria"] = "on"
+        _save_config(cfg)
+        os.environ[_tel.ENV] = str(_ruta_sesion())
+        _print_line(f"[ok_cl]telemetria ON -> {os.environ[_tel.ENV]}[/ok_cl]")
+        return
+    if arg in ("off", "0", "no"):
+        cfg["telemetria"] = "off"
+        _save_config(cfg)
+        os.environ.pop(_tel.ENV, None)
+        _print_line("[ok_cl]telemetria OFF[/ok_cl]")
+        return
+    if arg == "ruta":
+        _print_line(_tel.ruta() or "(apagada)")
+        return
+    if arg in ("", "estado"):
+        activa = _tel.activa()
+        _print_line(f"telemetria: {'ON' if activa else 'OFF'}"
+               f"   config={cfg.get('telemetria', 'off')}")
+        _print_line(f"  diario: {_tel.ruta() or '(sin fichero)'}")
+        _print_line("  /debug telemetria on       enciende y fija el diario del dia")
+        _print_line("  /debug telemetria ultimo   resumen del diario actual")
+        return
+    if arg == "ultimo":
+        ruta = _tel.ruta()
+        if not ruta or not Path(ruta).exists():
+            _print_line("[warn_cl]no hay diario: enciendelo con /telemetria on[/warn_cl]")
+            return
+        try:
+            r = _tel.resumir(ruta)
+        except Exception as exc:
+            _aviso_degradado("telemetria", f"resumir fallo: {exc}")
+            _print_line(f"[warn_cl]no pude resumir el diario: {exc}[/warn_cl]")
+            return
+        _print_line(f"[bold]diario:[/bold] {ruta}")
+        _print_line(f"  turnos {r.get('turnos')}   tool calls {r.get('tool_calls')}"
+               f" ({r.get('tool_calls_fallidas')} fallidas)")
+        _print_line(f"  tokens  entrada {r.get('tokens_entrada')}"
+               f"  salida {r.get('tokens_salida')}"
+               f"  ({r.get('tok_s_salida')} tok/s de salida)")
+        _print_line(f"  prompt maximo {r.get('prompt_tokens_max')} tokens"
+               f"   duracion {r.get('duracion_s')}s")
+        _print_line(f"  cortados por el tope: {r.get('turnos_cortados_por_tope')}"
+               f"   compactaciones: {r.get('n_compactaciones')}")
+        if r.get("cierre_razon"):
+            _print_line(f"  cierre: {r.get('cierre_razon')} (ok={r.get('cierre_ok')},"
+                   f" pasos={r.get('cierre_pasos')})")
+        por_nombre = r.get("tool_calls_por_nombre") or {}
+        if por_nombre:
+            top = sorted(por_nombre.items(), key=lambda kv: -kv[1])[:6]
+            _print_line("  tools: " + ", ".join(f"{k}x{v}" for k, v in top))
+        for inc in (r.get("incidencias") or [])[:5]:
+            _print_line(f"  [warn_cl]{inc.get('tipo')}[/warn_cl] t={inc.get('t')}s"
+                   f" {str(inc.get('detalle'))[:90]}")
+        return
+    _print_line("[warn_cl]uso: /debug telemetria [estado | on | off | ultimo | ruta]"
+                "[/warn_cl]")
 
 
 def _slash_spinner(arg: str = "") -> None:
@@ -22671,6 +22779,7 @@ def _repl_sesion():
     # COGNIA_HORIZONTE del env, y horizonte.py el tope del traspaso; se
     # siembran desde la config y se validan (config invalida = grito).
     _aplicar_config_horizonte()
+    _aplicar_config_telemetria()
     # ENRUTADO (/enrutador on|off): `enrutador.activo()` lee COGNIA_ENRUTADOR
     # del env, asi que sin sembrarlo el interruptor no sobreviviria al cierre
     # del proceso. Sin pisar lo que el usuario ya puso en el entorno.
@@ -23437,6 +23546,8 @@ def _repl_sesion():
                 _slash_logros(_lg_args)
             elif raw == "/patrones":
                 _slash_patrones("")
+            elif raw.startswith("/debug telemetria"):
+                _slash_telemetria(raw[len("/debug telemetria"):].strip())
             elif raw == "/debug":
                 _slash_debug()
             elif raw == "/modo rapido":
@@ -23463,6 +23574,9 @@ def _repl_sesion():
                 _slash_pegado(raw[len("/pegado "):] if raw.startswith("/pegado ") else "")
             elif raw == "/enlaces" or raw.startswith("/enlaces "):
                 _slash_enlaces(raw[len("/enlaces "):] if raw.startswith("/enlaces ") else "")
+            elif raw == "/telemetria" or raw.startswith("/telemetria "):
+                _slash_telemetria(raw[len("/telemetria "):]
+                                  if raw.startswith("/telemetria ") else "")
             elif raw == "/spinner" or raw.startswith("/spinner "):
                 _slash_spinner(raw[len("/spinner "):] if raw.startswith("/spinner ") else "")
             elif raw == "/offload" or raw.startswith("/offload "):

@@ -297,7 +297,18 @@ def test_aspecto_spinner_defaults_son_los_literales_de_hoy():
     con = spinner_vivo.linea_estado("Leyendo motor.py…", 0.0, 12.0, 1360, ancho=94,
                                     id="spinner.tool")
     sin = spinner_vivo.linea_estado("Leyendo motor.py…", 0.0, 12.0, 1360, ancho=94)
-    assert con == sin == "Leyendo motor.py… (12s · ~340 tok · ctrl+c corta)"
+    # El sufijo de diagnostico (velocidad y fase) se anade desde 2026-09-01:
+    # es la vista viva de tokens que pidio el dueno. Sin `fase` sale solo la
+    # velocidad; la parte de la izquierda sigue siendo byte-identica.
+    assert con == sin == ("Leyendo motor.py… (12s · ~340 tok · ctrl+c corta)"
+                          " · 28 tok/s")
+    assert spinner_vivo.linea_estado("Leyendo motor.py…", 0.0, 12.0, 1360,
+                                     ancho=94, fase="razonando") == (
+        "Leyendo motor.py… (12s · ~340 tok · ctrl+c corta) · 28 tok/s · razonando")
+    # Y calla mientras no hay senal: en el primer segundo la division miente.
+    assert spinner_vivo.linea_estado("Leyendo motor.py…", 0.0, 1.0, 40,
+                                     ancho=94, fase="razonando") == (
+        "Leyendo motor.py… (1s · ~10 tok · ctrl+c corta)")
 
 
 def test_aspecto_spinner_lee_los_overrides_del_registro():
@@ -310,7 +321,8 @@ def test_aspecto_spinner_lee_los_overrides_del_registro():
     assert (asp.hint, asp.tok, asp.sep, asp.spinner_rich) == ("esc corta", "tokens", " | ", "line")
     linea = spinner_vivo.linea_estado("Leyendo motor.py…", 0.0, 12.0, 1360, ancho=94,
                                       id="spinner.tool")
-    assert linea == "Leyendo motor.py… (12s | ~340 tokens | esc corta)"
+    # el sufijo de diagnostico usa el MISMO separador del registro
+    assert linea == "Leyendo motor.py… (12s | ~340 tokens | esc corta) | 28 tok/s"
     assert spinner_vivo.aspecto_spinner("spinner.pensar").pensando == "cavilando…"
     # el override NO se filtra al otro elemento
     assert spinner_vivo.aspecto_spinner("spinner.pensar").hint == spinner_vivo.HINT_CORTE

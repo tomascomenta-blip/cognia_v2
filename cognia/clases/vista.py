@@ -54,6 +54,42 @@ es el mismo: la pagina entera muda. No es rebuscado -- U+2028 aparece solo al
 pegar texto de un PDF, que es de donde salen la mitad de los apuntes. Se
 escapan los tres en _escapar_para_script().
 
+UN CUADERNO POR ASIGNATURA. El duenio lo pidio asi: "que cada materia se
+guarde en un cuaderno distinto, para que no se mezclen todas las materias".
+`export_materias()` escribe un HTML por materia mas un `indice.html` que
+enlaza a todos. No es solo comodidad de lectura: el PRESUPUESTO de pagina
+(TOPE_TOTAL) se gasta POR FICHERO, asi que separar por materia hace que las
+20 fotos de pizarra de Fisica ya no dejen sin imagen a las clases de Historia
+que se pintaban despues (ver `_embeber`: el presupuesto se gasta por orden, y
+lo que no cabe cae a enlace file://). Cada fichero dice en su pie lo que ESE
+cuaderno pesa, y el indice repite el peso de cada uno.
+
+COMO SALE DE AQUI A PAPEL Y A UN PROCESADOR DE TEXTOS. Tres caminos, y el
+primero es el bueno:
+
+  1. PDF por el navegador (UNIVERSAL, sin instalar nada): boton "Imprimir" ->
+     "Guardar como PDF". La hoja de estilo tiene un bloque @media print que
+     quita cabecera, nav y pie, y evita que una sesion, una ficha, una foto o
+     una formula se parta entre dos hojas. Antes de imprimir, la pagina llama
+     a `__prepararImpresion()` desde el evento `beforeprint`: abre las
+     transcripciones plegadas (un <details> cerrado imprime SOLO su titulo),
+     pone las imagenes en loading="eager" (un seguro cuyo alcance real esta
+     medido en `_preparar_papel`: hoy no cambia nada) y aniade al final la
+     nota de cuantos clips de audio se quedan fuera del papel -- en un PDF no
+     suena ninguno, y eso hay que decirlo, no dejarlo notar.
+  2. `export_pdf()` con playwright: el MISMO camino automatizado, para generar
+     el PDF sin abrir el navegador. Es un EXTRA OPCIONAL y hay que decir por
+     que: playwright NO esta en el venv del producto (~/.cognia/venv), asi que
+     este camino corre en el repo y falla en una instalacion limpia. Cuando
+     falta, el error dice los DOS pasos (pip install playwright Y playwright
+     install chromium) en vez de fingir que es uno.
+  3. `export_dom()` para subir a un procesador de textos. MEDIDO: subir el
+     HTML crudo a Google Docs da un documento VACIO de 272 caracteres, porque
+     el contenido lo pinta el JS al abrir y el importador no ejecuta JS. Lo
+     que se sube es el DOM YA RENDERIZADO (page.content() despues del JS), que
+     si se convierte. Y si hay python-docx, `export_docx()` escribe un .docx
+     directo desde los bloques del documento de la materia.
+
 Sin modelo. Esta vista no llama al LLM: pinta lo que ya hay en el cuaderno.
 Los apuntes (titulo, resumen, claves) los produce quien los escribio en
 apuntes.json; aqui si no estan, la sesion se ve igual con su linea de tiempo.
@@ -67,6 +103,7 @@ import json
 import logging
 import re
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 from cognia.clases import almacen as alm
@@ -74,8 +111,19 @@ from cognia.clases import cuaderno as cua
 
 log = logging.getLogger(__name__)
 
-__all__ = ["render_html", "construir", "export",
+__all__ = ["render_html", "construir", "export", "export_materias",
+           "export_pdf", "export_dom", "export_docx", "nombre_de_fichero",
+           "FICHERO_INDICE", "ErrorExportacion",
            "TOPE_ADJUNTO", "TOPE_TOTAL"]
+
+
+class ErrorExportacion(RuntimeError):
+    """Una exportacion que NO se pudo hacer, con el motivo y que hacer.
+
+    Lleva siempre los pasos exactos en el mensaje: el llamante tipico es el
+    CLI, y "no pude generar el PDF" sin decir que falta obliga al duenio a
+    adivinar entre 'no esta instalado', 'esta a medias' y 'se rompio'.
+    """
 
 # Topes de embebido. DEFAULTS CONSERVADORES, NO MEDIDOS: nadie ha cronometrado
 # todavia en esta maquina a partir de que peso un navegador se atraganta con un
@@ -362,12 +410,22 @@ def _sello(ahora=None) -> str:
     return time.strftime("%d/%m/%Y %H:%M", time.localtime(epoch))
 
 
-def construir(materias=None, ahora=None) -> dict:
+def construir(materias=None, ahora=None, agrupado=None) -> dict:
     """El dict que se embebe en la pagina: el cuaderno entero, por materia.
 
     `materias` es una lista de nombres para filtrar (se la pasa tal cual a
     cuaderno.cuaderno). None = todo. `ahora` fija el sello de generacion
     (None = reloj de pared).
+
+    `agrupado` es el {materia: [Sesion]} YA LEIDO, para no volver a leerlo.
+    Existe por el cuaderno por asignatura: exportar 10 materias son 10
+    llamadas, y sin esto cada una vuelve a abrir las jornadas de esa materia.
+    MEDIDO en un curso sintetico de 180 jornadas y 10 asignaturas (ver el
+    bloque de medidas de `export_materias`): el bucle de 10 materias baja de
+    1098 ms a 389 ms. Lo que NO comparte es el presupuesto de adjuntos:
+    `gasto` se crea en cada llamada, asi que cada fichero tiene su TOPE_TOTAL
+    entero -- que es justamente el motivo por el que partir el cuaderno mejora
+    el reparto de fotos.
     """
     # monotonic y no time(): 'ms' es una DURACION, y con time() un ajuste de
     # NTP o el cambio de hora en mitad de una exportacion larga la deja en
@@ -377,7 +435,14 @@ def construir(materias=None, ahora=None) -> dict:
     avisos: list = []
     gasto = {"usado": 0}
     try:
-        agrupado = cua.cuaderno(materias)
+        if agrupado is None:
+            agrupado = cua.cuaderno(materias)
+        elif materias:
+            # El filtro se vuelve a aplicar aunque venga masticado: quien pasa
+            # `agrupado` no tiene por que haberlo filtrado, y un cuaderno de
+            # Fisica con una sesion de Historia dentro es exactamente lo que
+            # el duenio pidio que no pasara.
+            agrupado = {m: s for m, s in agrupado.items() if m in materias}
     except Exception as exc:
         # La vista tiene que ABRIR aunque el cuaderno este roto: es justo la
         # herramienta a la que el duenio va cuando algo no cuadra. Se abre
@@ -473,6 +538,9 @@ nav h2{margin:0 0 8px 8px;font-size:11px;font-weight:600;letter-spacing:.06em;
   font:inherit;cursor:pointer}
 .mat:hover{background:var(--papel)}
 .mat[aria-pressed="true"]{background:var(--papel);border-color:var(--acento);color:var(--acento)}
+a.mat{text-decoration:none}
+a.mat[aria-current="page"]{border-color:var(--acento);color:var(--acento)}
+nav h2.otros{margin-top:14px}
 .mat .mn{display:block;font-weight:600;font-size:14px}
 .mat .mc{display:block;font-size:12px;color:var(--texto2)}
 #hojas{flex:1;overflow-y:auto;padding:18px 24px 60px}
@@ -519,16 +587,32 @@ footer{padding:7px 20px;background:var(--panel);border-top:1px solid var(--borde
     display:flex;flex-wrap:wrap;gap:4px}
   nav h2{display:none} .mat{width:auto}
 }
-/* Imprimir: el cuaderno en papel es un caso de uso real (llevarlo a un examen).
-   Se va todo lo que no es contenido, se quitan las sombras y ninguna sesion se
-   parte por la mitad entre dos hojas. */
+/* La nota del papel: solo existe cuando se imprime. La escribe
+   __prepararImpresion() y dice lo que el papel NO puede llevar (los clips de
+   audio no suenan en un PDF). En pantalla estorbaria; en papel es la
+   diferencia entre "faltan cosas" y "faltan estas cosas y por que". */
+.notapapel{display:none}
 @media print{
   header,nav,footer,#avisos{display:none!important}
   body,#hojas{display:block;overflow:visible}
   #hojas{padding:0}
   .sesion{break-inside:avoid;page-break-inside:avoid;box-shadow:none;
     border-color:#bbb;max-width:none;margin-bottom:10px}
+  /* Lo de dentro tambien se protege del corte. Una sesion larga NO cabe en
+     una hoja y el navegador la parte igual (break-inside:avoid solo se
+     respeta si el bloque cabe): sin estas reglas el corte cae donde quiera y
+     una formula o una grafica -- que aqui son IMAGENES, no texto que se
+     recompone -- se imprime a medias en dos paginas. */
+  .ent,.ficha,.tt p{break-inside:avoid;page-break-inside:avoid}
+  img.adj{break-inside:avoid;page-break-inside:avoid;
+    /* Una foto de pizarra a pantalla completa no cabe en una hoja A4 con sus
+       margenes: sin el tope, la imagen sola provoca el salto que se queria
+       evitar. 21 cm es la altura util de un A4 vertical menos margenes. */
+    max-height:21cm;width:auto}
+  audio.adj{display:none}         /* en papel no suena: lo dice .notapapel */
   .tt{max-height:none;overflow:visible}
+  .notapapel{display:block;margin:14px auto 0;max-width:none;font-size:11px;
+    color:#555;border-top:1px solid #bbb;padding-top:6px}
   a[href^="file:"]::after{content:" (" attr(href) ")";font-size:10px;color:#666}
 }
 </style></head><body>
@@ -595,6 +679,17 @@ $("#btntema").onclick = () => {
    que un dato del cuaderno llega a un atributo en vez de a un textContent. */
 function urlSegura(u){ return /^(data:|file:)/i.test(u || "") ? u : ""; }
 
+/* Un enlace a OTRO cuaderno solo puede ser un nombre de fichero .html del
+   MISMO directorio: ni ruta, ni "..", ni esquema. Es el mismo criterio que
+   urlSegura y por el mismo motivo -- estos nombres salen de la materia, o sea
+   de algo que el duenio escribio. Se filtra por lo PROHIBIDO y no por una
+   lista blanca de caracteres ASCII: "Fisica" se escribe con tilde y una lista
+   blanca dejaria sin enlace justo a las asignaturas con acento. */
+function ficheroSeguro(f){
+  f = f || "";
+  return (/\.html$/i.test(f) && !/[\\\/:]/.test(f) && f.indexOf("..") < 0) ? f : "";
+}
+
 let materiaActiva = null;
 
 function pintarMaterias(){
@@ -614,6 +709,74 @@ function pintarMaterias(){
     b.onclick = () => { materiaActiva = m.nombre; pintarMaterias(); pintar(); };
     nav.appendChild(b);
   });
+}
+
+/* Los OTROS cuadernos, cuando el cuaderno esta partido por asignatura. Van en
+   el mismo nav que las materias: el duenio que abre "Fisica" tiene que poder
+   saltar a "Historia" sin volver a la carpeta. */
+function pintarEnlaces(){
+  const enlaces = D.enlaces || [];
+  if(!enlaces.length) return;
+  const nav = $("#materias");
+  const h = document.createElement("h2");
+  h.className = "otros";
+  h.textContent = "Otros cuadernos";
+  nav.appendChild(h);
+  enlaces.forEach(e => {
+    const f = ficheroSeguro(e.fichero);
+    if(!f) return;
+    const a = document.createElement("a");
+    a.className = "mat";
+    a.setAttribute("href", f);
+    if(e.actual) a.setAttribute("aria-current", "page");
+    const n = document.createElement("span"); n.className = "mn";
+    n.textContent = e.nombre; a.appendChild(n);
+    const c = document.createElement("span"); c.className = "mc";
+    c.textContent = e.detalle || ""; a.appendChild(c);
+    nav.appendChild(a);
+  });
+}
+
+/* La portada del cuaderno partido: una tarjeta por asignatura con lo que pesa
+   su fichero. El peso va aqui porque es la pregunta de antes de mandar nada
+   por correo, y en el indice se ven los de todas a la vez. */
+function pintarIndice(){
+  const cont = $("#hojas");
+  cont.textContent = "";
+  (D.cuadernos || []).forEach(c => {
+    const art = document.createElement("article");
+    art.className = "sesion";
+    const h = document.createElement("h3");
+    const f = ficheroSeguro(c.fichero);
+    if(f){
+      const a = document.createElement("a");
+      a.setAttribute("href", f); a.textContent = c.nombre;
+      h.appendChild(a);
+    } else h.textContent = c.nombre;
+    art.appendChild(h);
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    [c.detalle || "", c.peso || "", c.fichero || ""].forEach(x => {
+      if(!x) return;
+      const s = document.createElement("span"); s.textContent = x; meta.appendChild(s);
+    });
+    art.appendChild(meta);
+    (c.avisos || []).forEach(a => {
+      const p = document.createElement("p");
+      p.className = "aviso"; p.textContent = a; art.appendChild(p);
+    });
+    cont.appendChild(art);
+  });
+  if(!(D.cuadernos || []).length){
+    const v = document.createElement("div");
+    v.className = "vacio";
+    v.textContent = "El cuaderno esta vacio todavia: graba una clase y vuelve.";
+    cont.appendChild(v);
+  }
+  $("#sub").textContent = (D.cuadernos || []).length + " asignaturas · " +
+    D.total_sesiones + " sesiones";
+  $("#pie").textContent = "indice de " + (D.cuadernos || []).length +
+    " cuadernos · " + (D.peso_total || "") + " en total · generado el " + D.generado;
 }
 
 function pintarFichas(cont, ap){
@@ -743,14 +906,42 @@ $("#btnabrir").onclick = () => {
   $("#btnabrir").textContent = abrir ? "Cerrar transcripciones" : "Abrir transcripciones";
 };
 $("#btnimp").onclick = () => window.print();
-/* Imprimir un <details> cerrado imprime solo el titulo: el navegador no
-   renderiza el contenido plegado. Se abren antes de imprimir y se deja como
-   estaba despues, que es la unica forma de que el papel lleve la clase entera. */
+/* DEJAR LA PAGINA LISTA PARA EL PAPEL. Tres cosas que el navegador no hace
+   solo, y las tres se notan como contenido que falta:
+     1. Un <details> cerrado imprime SOLO su titulo -- el navegador no
+        renderiza lo plegado. Se abren y se deja como estaba despues.
+     2. Una <img loading="lazy"> que nunca entro en pantalla no se ha
+        descargado, y al imprimir sale EN BLANCO. Pasar a "eager" la carga.
+     3. En papel no suena nada: los clips de audio se quedan fuera y hay que
+        DECIRLO en el pie, con su numero.
+   Va en una funcion global y no dentro del listener a proposito: `page.pdf()`
+   de un navegador headless NO dispara `beforeprint`, asi que export_pdf tiene
+   que poder llamar exactamente a lo mismo que llama el boton Imprimir. Un
+   segundo camino, aunque fuera de dos lineas, se desincronizaria del primero
+   y el PDF automatico saldria distinto del que hace el duenio a mano. */
 let plegadosAntes = [];
-window.addEventListener("beforeprint", () => {
+window.__prepararImpresion = function(){
   plegadosAntes = Array.from(document.querySelectorAll("details.trans:not([open])"));
   plegadosAntes.forEach(d => { d.open = true; });
-});
+  const imgs = Array.from(document.querySelectorAll("img.adj"));
+  imgs.forEach(i => { i.setAttribute("loading", "eager"); });
+  const clips = document.querySelectorAll("audio.adj").length;
+  const enlazados = document.querySelectorAll(".aviso a").length;
+  let nota = document.getElementById("papel");
+  if(!nota){
+    nota = document.createElement("p");
+    nota.id = "papel"; nota.className = "notapapel";
+    $("#hojas").appendChild(nota);
+  }
+  nota.textContent = "En papel: " + clips +
+    (clips === 1 ? " clip de audio se queda fuera" : " clips de audio se quedan fuera") +
+    " (no suenan en un PDF; se escuchan en el cuaderno HTML)" +
+    (enlazados ? " · " + enlazados + " adjunto(s) no viajan dentro del fichero y solo van como enlace a este ordenador" : "") +
+    " · " + imgs.length + (imgs.length === 1 ? " imagen impresa" : " imagenes impresas") + ".";
+  return {clips: clips, imagenes: imgs.length, enlazados: enlazados,
+          plegados: plegadosAntes.length};
+};
+window.addEventListener("beforeprint", () => { window.__prepararImpresion(); });
 window.addEventListener("afterprint", () => { plegadosAntes.forEach(d => { d.open = false; }); });
 document.addEventListener("keydown", e => {
   if(e.key === "/" && document.activeElement !== $("#buscar")){ e.preventDefault(); $("#buscar").focus(); }
@@ -765,9 +956,20 @@ document.addEventListener("keydown", e => {
 const emb = D.bytes_embebidos < 1048576
   ? (D.bytes_embebidos / 1024).toFixed(0) + " KB"
   : (D.bytes_embebidos / 1048576).toFixed(1) + " MB";
-$("#pie").textContent = D.materias.length + " materias · " + D.total_sesiones +
-  " sesiones · " + emb + " de fotos y audio dentro del fichero · generado el " + D.generado;
-pintarMaterias(); pintar();
+if(D.indice){
+  /* La portada del cuaderno partido por asignatura: no tiene sesiones
+     propias, asi que ni buscador ni lista de materias tienen nada que hacer.
+     Pintar la pagina normal aqui diria "El cuaderno esta vacio todavia"
+     encima de un indice con doce asignaturas dentro. */
+  $("#buscar").disabled = true;
+  $("#buscar").placeholder = "Abre un cuaderno para buscar dentro";
+  $("#btnabrir").remove();
+  pintarIndice();
+} else {
+  $("#pie").textContent = D.materias.length + " materias · " + D.total_sesiones +
+    " sesiones · " + emb + " de fotos y audio dentro del fichero · generado el " + D.generado;
+  pintarMaterias(); pintarEnlaces(); pintar();
+}
 </script></body></html>"""
 
 
@@ -841,7 +1043,524 @@ def export(path=None, open_browser: bool = True, materias=None) -> Path:
     return destino
 
 
+# ── un cuaderno por asignatura ───────────────────────────────────────────────
+
+FICHERO_INDICE = "indice.html"
+_PREFIJO_FICHERO = "cuaderno-"
+
+
+def nombre_de_fichero(materia: str, usados=None) -> str:
+    """El nombre de fichero de una materia: 'cuaderno-fisica.html'.
+
+    Pasa por `almacen._seguro` -- la MISMA sanitizacion que usan las jornadas
+    y los adjuntos -- porque el nombre de la materia lo escribe el duenio y
+    puede traer una barra dentro ("Fisica/Quimica" es un nombre normal de
+    asignatura); dos reglas distintas de nombre seguro en el mismo cuaderno
+    acabarian con dos ficheros para la misma materia.
+
+    `usados` es el conjunto de nombres ya repartidos: dos materias distintas
+    pueden sanear al MISMO fichero ("Fisica II" y "Fisica  II"), y sin
+    desempate la segunda pisaria a la primera -- que es exactamente la mezcla
+    que este cuaderno partido existe para evitar. El desempate es un sufijo
+    numerico, no un hash: el duenio tiene que reconocer el fichero.
+    """
+    base = alm._seguro(materia).strip().lower().replace(" ", "-")
+    base = base.strip("-") or "sin-materia"
+    nombre = "%s%s.html" % (_PREFIJO_FICHERO, base)
+    if usados is None:
+        return nombre
+    n = 2
+    while nombre in usados:
+        nombre = "%s%s-%d.html" % (_PREFIJO_FICHERO, base, n)
+        n += 1
+    usados.add(nombre)
+    return nombre
+
+
+def _peso(n: int) -> str:
+    """Bytes en la unidad en la que el duenio decide si eso cabe en un correo."""
+    return "%.0f KB" % (n / 1024.0) if n < 1048576 else "%.1f MB" % (n / 1048576.0)
+
+
+def export_materias(directorio=None, materias=None, open_browser: bool = False,
+                    ahora=None) -> dict:
+    """UN HTML POR ASIGNATURA mas un indice que enlaza a todos.
+
+    Lo que el duenio pidio: "que cada materia se guarde en un cuaderno
+    distinto, para que no se mezclen todas las materias". Devuelve
+    {'directorio', 'indice', 'ficheros': {materia: Path}, 'avisos', 'ms'}.
+
+    EL CURSO SE LEE UNA SOLA VEZ. `cuaderno.cuaderno()` se llama con el filtro
+    entero (todas las materias que se van a exportar) y el resultado se
+    reparte aqui; la alternativa evidente -- una llamada por materia -- vuelve
+    a abrir las jornadas de esa materia en cada vuelta.
+
+    MEDIDO en un curso sintetico de 180 jornadas, 10 asignaturas con horario
+    semanal (4 clases al dia), 48 lineas de transcripcion por jornada, 1,2 MB
+    de JSONL:
+
+        exportar las 10, una llamada por materia y SIN indice   2258 ms
+        exportar las 10, una llamada por materia CON indice     1098 ms  2,1x
+        exportar las 10, indice + UNA lectura del curso          389 ms  5,8x
+        export_materias() entera (10 HTML + indice, escritos)    428 ms
+
+    Y para una sola asignatura, `cuaderno(['Fisica'])`: 218 ms releyendo el
+    curso entero contra 101 ms con el indice (2,2x), porque solo se abren las
+    72 jornadas de las 180 en las que hay Fisica. El indice se mantiene por
+    HUELLA de fichero: aniadir una jornada cuesta 24 ms UNA vez (114 ms la
+    primera lectura, 90 ms las siguientes) y la sesion nueva aparece en el
+    tramo sin que nadie avise al indice.
+
+    EL PRESUPUESTO SI ES POR FICHERO, a proposito. Cada `construir()` arranca
+    con TOPE_TOTAL entero, asi que las fotos de Fisica ya no dejan sin imagen
+    a Historia (antes el presupuesto se gastaba por orden alfabetico sobre una
+    sola pagina). El pie de cada cuaderno dice lo que ESE fichero pesa y el
+    indice repite el peso de todos.
+    """
+    t0 = time.monotonic()
+    destino = Path(directorio).expanduser() if directorio else (
+        Path.home() / ".cognia" / "cuadernos")
+    destino.mkdir(parents=True, exist_ok=True)
+    generado = _sello(ahora)
+    avisos: list = []
+
+    if materias:
+        nombres = [str(m) for m in materias]
+    else:
+        try:
+            nombres = cua.materias_vistas()
+        except Exception as exc:
+            log.warning("clases.vista: no pude listar materias: %s", exc)
+            avisos.append("no pude listar las materias (%s: %s): se exporta lo "
+                          "que se pueda leer del cuaderno entero"
+                          % (type(exc).__name__, exc))
+            nombres = []
+    try:
+        agrupado = cua.cuaderno(nombres or None)
+    except Exception as exc:
+        log.warning("clases.vista: cuaderno ilegible: %s", exc)
+        avisos.append("no pude leer el cuaderno: %s: %s" % (type(exc).__name__, exc))
+        agrupado = {}
+    # Lo que el indice NO conocia (una materia recien detectada, o el indice
+    # apagado) sale igual: manda lo que hay en el cuaderno leido.
+    for m in agrupado:
+        if m not in nombres:
+            nombres.append(m)
+
+    usados: set = set()
+    plan = [(m, nombre_de_fichero(m, usados)) for m in nombres]
+    ficheros: dict = {}
+    tarjetas: list = []
+    total_sesiones = 0
+    peso_total = 0
+    for materia, fichero in plan:
+        enlaces = [{"nombre": "Indice", "fichero": FICHERO_INDICE,
+                    "detalle": "todas las asignaturas"}]
+        enlaces += [{"nombre": otra, "fichero": f, "actual": otra == materia}
+                    for otra, f in plan]
+        # Se le pasa el cuaderno ENTERO y el filtro: quien separa las materias
+        # es `construir`, en un solo sitio. Repartir aqui el dict a mano
+        # dejaria ese filtro sin nadie que lo ejercite, y el dia que se cayera
+        # el cuaderno de Fisica saldria con las clases de Historia dentro sin
+        # que ningun test chillara.
+        datos = construir([materia], ahora=ahora, agrupado=agrupado)
+        datos["enlaces"] = enlaces
+        doc = render_html(datos, "Cuaderno de clase · %s" % materia)
+        ruta = destino / fichero
+        try:
+            ruta.write_text(doc, encoding="utf-8")
+        except OSError as exc:
+            # Un fichero que no se puede escribir NO se lista en el indice (no
+            # se aniade su tarjeta) y el motivo sale en los avisos. Lo que si
+            # puede quedar es un enlace muerto en el nav de los cuadernos ya
+            # escritos, porque esos ya estan en disco: por eso el aviso va al
+            # indice, que es la portada y se escribe al final.
+            log.warning("clases.vista: no pude escribir %s: %s", ruta, exc)
+            avisos.append("no pude escribir %s (%s: %s)"
+                          % (ruta.name, type(exc).__name__, exc))
+            continue
+        ficheros[materia] = ruta
+        n = datos["total_sesiones"]
+        total_sesiones += n
+        # El peso se lee del DISCO, no de len(doc.encode()): en Windows
+        # write_text traduce cada "\n" a "\r\n" y el fichero acaba pesando ~119
+        # bytes mas que la cadena -- suficiente para que el indice anunciara
+        # "29 KB" de un fichero de 30 KB. El pie existe para que ese numero se
+        # pueda creer.
+        try:
+            bytes_html = ruta.stat().st_size
+        except OSError as exc:
+            log.warning("clases.vista: no pude medir %s: %s", ruta, exc)
+            avisos.append("no pude medir %s (%s): el peso que anuncia el indice "
+                          "es el de la pagina en memoria" % (ruta.name, exc))
+            bytes_html = len(doc.encode("utf-8"))
+        peso_total += bytes_html
+        avisos += ["%s · %s" % (materia, a) for a in datos["avisos"]]
+        tarjetas.append({
+            "nombre": materia, "fichero": fichero, "n": n,
+            "detalle": "%d %s · %s" % (n, "sesion" if n == 1 else "sesiones",
+                                       (datos["materias"][0]["horas"]
+                                        if datos["materias"] else "0 s")),
+            # El peso REAL del fichero, no el de los adjuntos: es el numero
+            # que decide si el correo rebota, y el HTML pesa mas que lo que
+            # lleva embebido.
+            "peso": "%s en disco (%s de fotos y audio dentro)"
+                    % (_peso(bytes_html), _peso(datos["bytes_embebidos"])),
+            "avisos": datos["avisos"],
+        })
+
+    indice_datos = {
+        "indice": True, "cuadernos": tarjetas, "materias": [],
+        "total_sesiones": total_sesiones, "bytes_embebidos": 0,
+        "peso_total": _peso(peso_total), "avisos": avisos, "generado": generado,
+    }
+    ruta_indice = destino / FICHERO_INDICE
+    ruta_indice.write_text(render_html(indice_datos, "Cuadernos por asignatura"),
+                           encoding="utf-8")
+    if open_browser:
+        import webbrowser
+        try:
+            webbrowser.open(ruta_indice.as_uri())
+        except Exception as exc:
+            log.warning("clases.vista: no pude abrir el navegador: %s", exc)
+    return {"directorio": destino, "indice": ruta_indice, "ficheros": ficheros,
+            "avisos": avisos, "ms": int((time.monotonic() - t0) * 1000)}
+
+
+# ── PDF y procesador de textos ───────────────────────────────────────────────
+
+# El mensaje cuando falta playwright. Dice los DOS pasos porque son DOS: el
+# pip install trae la libreria pero NO el navegador, y el fallo del segundo
+# paso (Executable doesn't exist) es el que mas tiempo hace perder. Y dice
+# donde NO esta instalado: playwright no vive en el venv del producto
+# (~/.cognia/venv), asi que este camino corre en el repo y falla en una
+# instalacion limpia -- fingir lo contrario seria mentir en el unico sitio
+# donde el duenio va a mirar.
+_FALTA_PLAYWRIGHT = (
+    "el PDF automatico necesita playwright, que NO viene con Cognia. Son DOS "
+    "pasos, no uno:\n"
+    "  1) pip install playwright\n"
+    "  2) playwright install chromium\n"
+    "(el paso 1 instala la libreria; el 2 baja el navegador. Sin el 2 el error "
+    "es \"Executable doesn't exist\".)\n"
+    "OJO: playwright no esta en el venv del producto (~/.cognia/venv), asi que "
+    "esto funciona desde el repo y falla en una instalacion limpia.\n"
+    "EL CAMINO QUE SIEMPRE FUNCIONA, sin instalar nada: abre el cuaderno "
+    "(/grabar-clase ver), boton Imprimir -> Guardar como PDF. La pagina ya "
+    "viene preparada para el papel.")
+
+
+@contextmanager
+def _pagina(html_ruta: Path, ancho: int = 1240):
+    """Un HTML ya escrito, abierto en un Chromium headless.
+
+    El import es PEREZOSO: playwright es un extra, y un import arriba haria
+    que TODO el modulo -- incluido el cuaderno HTML, que no lo necesita --
+    dejara de importarse donde no esta.
+
+    Es un context manager y no una funcion que devuelve tres cosas porque son
+    DOS recursos que hay que cerrar en orden inverso (el navegador y el
+    proceso de playwright) y cualquier fallo por el medio -- que aqui es lo
+    normal: falta chromium, el HTML no abre -- dejaria un chromium colgado.
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as exc:
+        raise ErrorExportacion("%s\n(detalle: %s: %s)"
+                               % (_FALTA_PLAYWRIGHT, type(exc).__name__, exc))
+    pw = sync_playwright().start()
+    nav = None
+    try:
+        try:
+            nav = pw.chromium.launch()
+        except Exception as exc:
+            raise ErrorExportacion("%s\n(detalle al arrancar chromium: %s: %s)"
+                                   % (_FALTA_PLAYWRIGHT, type(exc).__name__, exc))
+        pag = nav.new_page(viewport={"width": ancho, "height": 1600})
+        pag.goto(html_ruta.as_uri(), wait_until="load")
+        yield pag
+    finally:
+        if nav is not None:
+            try:
+                nav.close()
+            except Exception as exc:
+                log.warning("clases.vista: no pude cerrar chromium: %s", exc)
+        try:
+            pw.stop()
+        except Exception as exc:
+            log.warning("clases.vista: no pude parar playwright: %s", exc)
+
+
+def _preparar_papel(pag) -> dict:
+    """Deja la pagina como la deja el boton Imprimir, y espera a las imagenes.
+
+    Se llama a la MISMA funcion de la pagina (`__prepararImpresion`) que el
+    evento beforeprint: `page.pdf()` no dispara beforeprint, y reimplementar
+    aqui lo que hace el boton daria dos PDF distintos segun quien lo pida.
+
+    Lo del loading="eager" es un SEGURO, y hay que decir hasta donde llega
+    porque se midio: en un cuaderno de 26 fotos de pizarra con el scroller a
+    20.272 px de alto, Chromium carga las 26 ANTES de tocar nada, aunque
+    todas lleven loading="lazy". El motivo es que aqui las imagenes son data:
+    URI y no hay nada que aplazar -- el aplazamiento existe para ahorrar red.
+    O sea que con el cuaderno tal y como esta HOY, quitar el eager no cambia
+    el PDF: no hay test que falle sin el, y esta dicho a proposito en vez de
+    vender un arreglo que no arregla nada medible.
+
+    Se deja igual porque el dia que un adjunto se sirva por file:// o por
+    http (una foto que no cabe embebida, otro navegador con otra politica) la
+    imagen que nunca entro en pantalla sale EN BLANCO en el papel, y en un PDF
+    eso no se nota hasta que lo abre el que lo recibio. Cuesta una linea y la
+    espera de abajo lo cierra: si el eager dispara una carga, aqui se espera a
+    que termine.
+    """
+    info = pag.evaluate("() => window.__prepararImpresion()") or {}
+    pag.evaluate("""() => Promise.all(
+        Array.from(document.querySelectorAll('img.adj')).map(
+            i => i.complete ? null : new Promise(r => {
+                i.addEventListener('load', r); i.addEventListener('error', r);
+            })))""")
+    return dict(info)
+
+
+@contextmanager
+def _html_de_origen(materias=None, origen=None, ahora=None):
+    """El HTML que se va a convertir, ya en disco.
+
+    Si dan `origen` se usa ese fichero tal cual (y NO se borra: es del
+    duenio). Si no, se genera uno en un temporal que se borra al salir --
+    dejarlo suelto en ~/.cognia crearia un cuaderno.html que nadie pidio y que
+    ademas pisaria al de `export()`.
+    """
+    if origen:
+        ruta = Path(origen).expanduser()
+        if not ruta.is_file():
+            raise ErrorExportacion("no existe el HTML de origen: %s" % ruta)
+        yield ruta, ruta
+        return
+    import shutil
+    import tempfile
+    tmp = tempfile.mkdtemp(prefix="cognia_export_")
+    try:
+        ruta = Path(tmp) / "cuaderno.html"
+        sufijo = (" · " + ", ".join(materias)) if materias else ""
+        ruta.write_text(render_html(construir(materias, ahora=ahora),
+                                    "Cuaderno de clase" + sufijo),
+                        encoding="utf-8")
+        yield ruta, None
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def export_pdf(path=None, materias=None, origen=None, ahora=None) -> dict:
+    """El cuaderno en PDF con playwright. EXTRA OPCIONAL (ver _FALTA_PLAYWRIGHT).
+
+    Devuelve {'pdf', 'html', 'clips', 'imagenes', 'enlazados'}. 'html' es el
+    fichero de origen SOLO si lo dio el llamante (el generado aqui es
+    temporal y ya no existe al volver). Los clips de audio y los adjuntos que
+    solo van como enlace se CUENTAN y se declaran en el pie del papel, porque
+    son exactamente lo que un PDF no puede llevar.
+
+    `origen` permite pasar un HTML ya escrito (p.ej. uno de los cuadernos por
+    asignatura) en vez de generar otro.
+    """
+    destino = Path(path).expanduser() if path else (
+        Path.home() / ".cognia" / "cuaderno.pdf")
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    with _html_de_origen(materias, origen, ahora) as (ruta_html, suyo):
+        with _pagina(ruta_html) as pag:
+            info = _preparar_papel(pag)
+            pag.pdf(path=str(destino), format="A4", print_background=True,
+                    margin={"top": "12mm", "bottom": "12mm",
+                            "left": "12mm", "right": "12mm"})
+    return {"pdf": destino, "html": suyo,
+            "clips": int(info.get("clips") or 0),
+            "imagenes": int(info.get("imagenes") or 0),
+            "enlazados": int(info.get("enlazados") or 0)}
+
+
+def export_dom(path=None, materias=None, origen=None, ahora=None) -> Path:
+    """El DOM YA RENDERIZADO, para subir a un procesador de textos.
+
+    POR QUE NO VALE EL HTML CRUDO. MEDIDO: subir el cuaderno tal cual a Google
+    Docs da un documento VACIO de 272 caracteres. No es un bug de Google: esta
+    pagina pinta TODO su contenido con JavaScript desde el JSON embebido (ver
+    la cabecera: es lo que la hace segura), y un importador de documentos no
+    ejecuta JS -- solo ve el esqueleto. Lo que si se convierte es el DOM
+    despues de que el JS corra, que es lo que escribe esta funcion.
+
+    REPRODUCIDO aqui contando el texto que queda al quitar <script>, <style> y
+    <template> -- que es lo que ve un importador que no ejecuta JS -- sobre un
+    cuaderno de dos clases de Fisica: el HTML crudo son 32.895 caracteres de
+    fichero pero solo 265 de texto importable (del orden de los 272 del
+    documento vacio que salio en Google Docs), y el DOM ya renderizado, 1.546.
+    El fichero nunca estuvo vacio: lo estaba lo que el importador sabe leer.
+
+    Necesita playwright por el mismo motivo que el PDF: hace falta un
+    navegador de verdad para que el JS corra.
+    """
+    destino = Path(path).expanduser() if path else (
+        Path.home() / ".cognia" / "cuaderno_para_documento.html")
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    with _html_de_origen(materias, origen, ahora) as (ruta_html, _suyo):
+        with _pagina(ruta_html) as pag:
+            # Las transcripciones plegadas: un <details> cerrado SI esta en el
+            # DOM (a diferencia de la impresion), pero el importador lo aplana
+            # raro. Se abren para que el documento lleve el texto suelto.
+            _preparar_papel(pag)
+            destino.write_text(pag.content(), encoding="utf-8")
+    return destino
+
+
+_FALTA_DOCX = ("el .docx directo necesita python-docx, que no viene con "
+               "Cognia:\n  pip install python-docx\n"
+               "(no esta en el venv del producto, ~/.cognia/venv). Sin el, el "
+               "camino para llevar el cuaderno a Word o a Google Docs es "
+               "export_dom(): sube ESE fichero, no el HTML crudo.")
+
+# Como se pinta cada tipo de bloque del documento en el .docx. Es el PUNTO DE
+# EXTENSION: aniadir un tipo es aniadir una fila, no tocar el bucle. El valor
+# es (estilo de parrafo, prefijo).
+#
+# Las claves son los `documento.TIPO_*` escritos como literal y no importados,
+# porque `clases.documento` se importa PEREZOSAMENTE (arriba obligaria a tener
+# el paquete entero solo para pintar un HTML). Un tipo nuevo que no este aqui
+# no se pierde: cae en ("Normal", "") y se escribe igual.
+_ESTILO_BLOQUE = {
+    "titulo": ("Heading 1", ""),
+    "subtitulo": ("Heading 2", ""),
+    "parrafo": ("Normal", ""),
+    "lista": ("List Bullet", ""),
+    "cita": ("Intense Quote", ""),
+    "deber": ("List Bullet", "Deberes: "),
+    "duda": ("List Bullet", "Duda: "),
+    "examen": ("List Bullet", "Entra en el examen: "),
+    "tabla": ("Normal", ""),
+}
+
+
+def _ruta_de_adjunto(nombre: str, jornada: str = "") -> Path:
+    """Donde esta un adjunto del documento. Se busca en la jornada que dice su
+    meta y, si no, por todas: un PNG de formula lo escribio la jornada en la
+    que se genero, y el documento de la materia lo referencia por nombre."""
+    for j in ([jornada] if jornada else []) + list(alm.jornadas()):
+        if not j:
+            continue
+        try:
+            ruta = alm.ruta_adjunto(j, nombre)
+        except OSError as exc:
+            log.warning("clases.vista: %s/%s ilegible: %s", j, nombre, exc)
+            continue
+        if ruta.is_file():
+            return ruta
+    return Path("")
+
+
+def export_docx(materia: str, path=None):
+    """El documento de UNA materia como .docx, desde sus BLOQUES.
+
+    No pasa por el HTML: los bloques (`clases/documento.py`) ya son la
+    estructura del documento -- titulo, parrafo, lista, formula, grafica --,
+    asi que convertirlos a Word es directo y sale un fichero editable de
+    verdad, con estilos, en vez de un volcado de pagina web. Las formulas y
+    las graficas van como IMAGEN (es lo que son: un PNG que genero
+    `clases/mates.py`) y lo que falte se escribe DICIENDO que falta, nunca en
+    blanco.
+    """
+    try:
+        import docx as _docx
+        # Explicito: `import docx` no garantiza que docx.shared este cargado,
+        # y descubrirlo en el add_picture seria un AttributeError a mitad de
+        # documento en vez de un error con instrucciones aqui.
+        from docx.shared import Cm as _Cm
+    except Exception as exc:
+        raise ErrorExportacion("%s\n(detalle: %s: %s)"
+                               % (_FALTA_DOCX, type(exc).__name__, exc))
+    try:
+        from cognia.clases import documento as doc
+    except Exception as exc:
+        raise ErrorExportacion("no pude importar cognia.clases.documento "
+                               "(%s: %s)" % (type(exc).__name__, exc))
+    d = doc.abrir(materia, crear=False)
+    destino = Path(path).expanduser() if path else (
+        Path.home() / ".cognia" / ("%s.docx" % alm._seguro(materia)))
+    destino.parent.mkdir(parents=True, exist_ok=True)
+
+    docu = _docx.Document()
+    docu.add_heading(materia, 0)
+    if not d.bloques:
+        docu.add_paragraph("Este documento todavia no tiene bloques: se llena "
+                           "al generar los apuntes de una clase de esta "
+                           "materia (/grabar-clase parar).")
+    for b in d.bloques:
+        if b.tipo in ("formula", "grafica", "imagen"):
+            fichero = str(b.meta.get("adjunto") or b.meta.get("png") or "")
+            ruta = _ruta_de_adjunto(fichero, str(b.meta.get("jornada") or ""))
+            if fichero and ruta.is_file():
+                try:
+                    docu.add_picture(str(ruta), width=_Cm(14))
+                except Exception as exc:
+                    log.warning("clases.vista: no pude meter %s: %s", ruta, exc)
+                    docu.add_paragraph("[no pude insertar la imagen '%s': %s]"
+                                       % (fichero, exc))
+            else:
+                docu.add_paragraph("[falta la imagen '%s' de este %s]"
+                                   % (fichero or "sin nombre", b.tipo))
+            pie = (b.texto or "").strip() or str(b.meta.get("latex") or
+                                                 b.meta.get("expresion") or "")
+            if pie:
+                # El pie va en un RUN y no en el parrafo: `Paragraph` no tiene
+                # .italic (aceptaria el atributo y no haria nada, que es la
+                # peor de las tres opciones posibles).
+                docu.add_paragraph().add_run(pie).italic = True
+            continue
+        estilo, prefijo = _ESTILO_BLOQUE.get(b.tipo, ("Normal", ""))
+        texto = prefijo + (b.texto or "").strip()
+        if not texto.strip():
+            continue
+        try:
+            docu.add_paragraph(texto, style=estilo)
+        except KeyError:
+            # Una plantilla de Word sin ese estilo no puede tragarse el
+            # bloque: se escribe sin estilo antes que perderlo.
+            log.warning("clases.vista: el .docx no tiene el estilo %r", estilo)
+            docu.add_paragraph(texto)
+    docu.save(str(destino))
+    return destino
+
+
 if __name__ == "__main__":
+    # La puerta de linea de comandos del modulo. Cada camino de exportacion
+    # tiene la suya para poder probarlo sin el REPL:
+    #   python -m cognia.clases.vista                 un solo HTML
+    #   python -m cognia.clases.vista --por-materia   un HTML por asignatura
+    #   python -m cognia.clases.vista --pdf           PDF (necesita playwright)
+    #   python -m cognia.clases.vista --dom           DOM post-JS para Docs/Word
+    #   python -m cognia.clases.vista --docx <mat>    .docx (necesita python-docx)
     import sys
-    ruta = export(open_browser="--no-open" not in sys.argv)
-    print("cuaderno -> %s" % ruta)
+    abrir = "--no-open" not in sys.argv
+    try:
+        if "--por-materia" in sys.argv:
+            res = export_materias(open_browser=abrir)
+            print("indice -> %s" % res["indice"])
+            for m, r in res["ficheros"].items():
+                print("  %-24s %s" % (m, r.name))
+            for a in res["avisos"]:
+                print("  aviso: %s" % a)
+        elif "--pdf" in sys.argv:
+            res = export_pdf()
+            print("pdf -> %s  (%d imagenes, %d clips de audio fuera del papel)"
+                  % (res["pdf"], res["imagenes"], res["clips"]))
+        elif "--dom" in sys.argv:
+            print("dom -> %s" % export_dom())
+        elif "--docx" in sys.argv:
+            i = sys.argv.index("--docx")
+            materia = sys.argv[i + 1] if len(sys.argv) > i + 1 else ""
+            if not materia:
+                raise SystemExit("uso: --docx <materia>")
+            print("docx -> %s" % export_docx(materia))
+        else:
+            print("cuaderno -> %s" % export(open_browser=abrir))
+    except ErrorExportacion as exc:
+        # Un extra que falta no es un traceback: es un mensaje con los pasos.
+        raise SystemExit(str(exc))

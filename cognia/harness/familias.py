@@ -111,6 +111,17 @@ FAMILIAS = {
         "flag": "COGNIA_VLM_TOOLS", "prefijo": "vlm_",
         "cargar": _carga_modulo("cognia.agent.vlm_tools"), "peligrosa": False,
     },
+    "documento": {
+        # El "Word para la IA": escribir y corregir los apuntes de una materia
+        # por bloques (cognia/clases/documento.py). OPT-IN por lo de siempre
+        # -- el techo del catálogo -- y además porque sólo tiene sentido con
+        # un cuaderno abierto: sin materia, las siete tools no pueden ni
+        # decidir dónde escriben.
+        "que": "escribir y corregir el documento (los apuntes) de una materia",
+        "flag": "COGNIA_DOC_TOOLS", "prefijo": "doc_",
+        "cargar": _carga_modulo("cognia.agent.documento_tools"),
+        "peligrosa": False,
+    },
     "escena": {
         "que": "construir escenas 3D estructuradas (LCD)",
         "flag": "COGNIA_LCD", "prefijo": "escena_",
@@ -171,6 +182,7 @@ def _instalable(nombre: str) -> bool:
         "voz": "cognia.agent.voz_tools",
         "3d": "cognia.agent.tresd_tools",
         "vlm": "cognia.agent.vlm_tools",
+        "documento": "cognia.agent.documento_tools",
         "escena": "cognia.lcd.tools_lcd",
         "repo": "cognia.agent.repo_reverse_tool",
     }

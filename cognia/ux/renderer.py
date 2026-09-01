@@ -179,6 +179,7 @@ class Renderer:
         # (TokenTexto y fragmentos de RazonamientoTick), la etiqueta base del
         # status vigente (None = fase pensar, verbo gato rotatorio) y su t0.
         self._chars_stream = 0
+        self._fase_stream = ""
         self._ticker = None              # threading.Thread del refresco, o None
         self._ticker_stop = None         # threading.Event que lo corta
         self._status_base: str | None = None
@@ -445,7 +446,7 @@ class Renderer:
             texto = spinner_vivo.linea_estado(
                 self._status_base, self._status_t0, time.time(),
                 self._chars_stream, ancho=max(12, ancho - 6),
-                id=self._status_id)
+                id=self._status_id, fase=self._fase_stream)
             if self._linea_viva is not None:
                 # P8: el texto cambia una vez por segundo; el barrido lo pinta
                 # la Live del status por cuadro del reloj (LineaViva refresca
@@ -577,6 +578,7 @@ class Renderer:
         self._avisos_vistos.clear()
         self._t0 = ev.ts
         self._chars_stream = 0           # el ~tok de la linea viva arranca en 0
+        self._fase_stream = ""
         # Nada que imprimir: el usuario acaba de teclear la tarea; repetirsela
         # es eco. El modelo que respondera se ve en el footer si hace falta.
         # F5 (harness/notificaciones): anillo 9;4 INDETERMINADO en la pestana
@@ -972,6 +974,11 @@ class Renderer:
             self._chars_stream += max(0, int(ev.chars or 0))
         except (TypeError, ValueError):
             return
+        # La FASE del pulso (razonando / escribiendo / respondiendo) va a la
+        # linea viva: sin ella, un turno que se va entero en el canal de
+        # razonamiento se ve igual que uno que esta escribiendo el fichero.
+        if getattr(ev, "fase", ""):
+            self._fase_stream = str(ev.fase)
         if self._status is not None and self._ticker is None:
             # Sin ticker el status no se repinta solo: se refresca aqui para
             # que el contador se mueva mientras el modelo genera. Con ticker

@@ -1182,19 +1182,6 @@
     "verificado_en": ""
   },
   {
-    "id": "number_theory_explorer",
-    "title": "**Number Theory Explorer**",
-    "category": "number theory explorer that prints interesting patterns",
-    "description": "Generates two sequences and verifies if they align after a cycle, revealing hidden patterns in integer growth.",
-    "total_score": 7.3,
-    "created_at": "2026-08-02T00:28:30.258033",
-    "directory": "number_theory_explorer",
-    "self_proposed": false,
-    "verificado": null,
-    "puntaje_real": null,
-    "verificado_en": ""
-  },
-  {
     "id": "cosmic_census_self_aware_starfield_simulation",
     "title": "Cosmic Census — Self-Aware Starfield Simulation",
     "category": "1. Identify the core constraints:",
@@ -1414,5 +1401,18 @@
     "verificado": null,
     "puntaje_real": null,
     "verificado_en": ""
+  },
+  {
+    "id": "zoo_of_number_theory",
+    "title": "Zoo of Number Theory",
+    "category": "number theory explorer that prints interesting patterns",
+    "description": "An animal-themed number theory explorer that prints nine classic patterns (prime sieve, Collatz orbits, modular tables, Sierpinski fractal, Fibonacci/golden ratio, totients, digital roots, Pythagorean triples, amicable pairs) and verifies each one with real PASS/FAIL checks.",
+    "total_score": 9.5,
+    "created_at": "2026-08-31T16:21:09.902308",
+    "directory": "zoo_of_number_theory",
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 10.0,
+    "verificado_en": "2026-08-31T16:21:10"
   }
 ]

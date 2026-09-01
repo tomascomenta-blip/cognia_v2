@@ -16,6 +16,8 @@ variable puesta en el entorno del duenio, los mismos apuntes darian resumenes
 de largos distintos segun quien corriera la suite.
 """
 
+import math
+
 import pytest
 
 from cognia.clases import almacen as alm
@@ -294,7 +296,9 @@ def test_generar_jornada_persiste_y_cuaderno_lo_relee():
     salida = ap.generar_jornada(nombre, orch=None,
                                 progreso=lambda i, n, m: pasos.append((i, n, m)))
 
-    assert set(salida) == {"0", "1"}
+    # Las claves son las ESTABLES: '<jornada>@<t0>'. Que sean las mismas que
+    # usa el cuaderno se comprueba tres lineas mas abajo releyendo el disco.
+    assert set(salida) == {"%s@0" % nombre, "%s@600" % nombre}
     assert pasos == [(1, 2, "Fisica"), (2, 2, "Historia")]
     assert (alm.dir_jornada(nombre) / alm.APUNTES).exists()
 
@@ -319,8 +323,8 @@ def test_generar_jornada_guarda_sesion_a_sesion():
         vistos.append(alm.leer_json(alm.dir_jornada(nombre) / alm.APUNTES, {}) or {})
 
     ap.generar_jornada(nombre, orch=None, progreso=_mirar)
-    assert list(vistos[0]) == ["0"]
-    assert list(vistos[1]) == ["0", "1"]
+    assert list(vistos[0]) == ["%s@0" % nombre]
+    assert list(vistos[1]) == ["%s@0" % nombre, "%s@600" % nombre]
 
 
 def test_un_callback_de_progreso_roto_no_tira_la_jornada():
@@ -330,7 +334,7 @@ def test_un_callback_de_progreso_roto_no_tira_la_jornada():
         raise RuntimeError("la barra de progreso se cayo")
 
     salida = ap.generar_jornada(nombre, orch=None, progreso=_roto)
-    assert set(salida) == {"0", "1"}
+    assert set(salida) == {"%s@0" % nombre, "%s@600" % nombre}
 
 
 def test_generar_jornada_sin_jornada_no_revienta():
@@ -454,7 +458,9 @@ def test_regenerar_no_borra_nada_de_lo_que_ya_habia_en_apuntes_json():
 
     ap.generar_jornada(nombre, orch=None)
 
-    en_disco = alm.leer_json(ruta, {})["0"]
+    # La clave '0' se reclavo a la estable de la primera sesion; lo que habia
+    # dentro tiene que haber viajado ENTERO con ella.
+    en_disco = alm.leer_json(ruta, {})["%s@0" % nombre]
     assert en_disco["mis_notas"] == ["esto lo escribi yo a mano"]
     assert en_disco["puntos_clave"] == ["la fuente que se acerca sube la frecuencia"]
     assert en_disco["tareas"] == ["ejercicios 4 y 5"]
@@ -525,3 +531,297 @@ def test_con_modelo_lo_lexico_se_suma_y_el_resumen_dice_de_donde_sale():
     assert "el resumen es extractivo" in salida["aviso"]
     # Y el presupuesto de esa llamada no puede estar en la banda muda medida.
     assert all(t >= 700 for t in orch.llamadas), orch.llamadas
+
+
+# ── La clave de apuntes.json (el fallo silencioso del 2026-08-31) ────────────
+
+def test_la_clave_de_una_sesion_trunca_el_t0_al_segundo():
+    """El redondeo esta ELEGIDO, no es un detalle: truncar es el unico para el
+    que las dos formas obvias de escribirlo (int(t0) y math.floor(t0))
+    coinciden con los t0 del cuaderno, que son >= 0 por construccion. Con dos
+    redondeos distintos, dos sitios del repo fabricarian DOS claves para la
+    misma sesion y volveria el mismo vacio silencioso."""
+    s = cua.Sesion(materia="Fisica", t0=1799.999, t1=2000.0)
+    assert ap.clave_de_sesion("2026-08-31", s) == "2026-08-31@1799"
+    assert ap.clave_de_sesion("2026-08-31", s) == "2026-08-31@%d" % math.floor(1799.999)
+    # Un corte que se mueve 40 ms es el MISMO corte: misma clave. Por eso la
+    # clave va al segundo entero y no a los milisegundos del corte.
+    otro = cua.Sesion(materia="Fisica", t0=1799.959, t1=2000.0)
+    assert ap.clave_de_sesion("2026-08-31", otro) == ap.clave_de_sesion("2026-08-31", s)
+
+
+def test_un_corte_nuevo_no_mueve_los_apuntes_de_las_sesiones_que_no_se_movieron():
+    """EL BUG QUE MOTIVO LA PIEZA. Con la clave posicional, aniadir un corte
+    corria todos los indices de detras y el duenio leia los apuntes de Fisica
+    bajo Historia. Y la deteccion de materias reescribe los cortes cada 90 s
+    mientras la jornada esta viva, o sea que pasaba solo con dejarla grabando.
+    """
+    nombre = _sembrar_jornada()
+    ap.generar_jornada(nombre, orch=None)
+    antes = {s.materia: s.apuntes for s in cua.sesiones_de(nombre)}
+    assert antes["Historia"]["titulo"].startswith("Historia")
+
+    # La deteccion parte Fisica en dos: un corte nuevo A MITAD de la jornada.
+    alm.apendar(alm.dir_jornada(nombre) / alm.CORTES,
+                {"t": 300.0, "materia": "Matematicas", "confianza": 0.7,
+                 "por": "deriva"})
+
+    despues = {s.materia: s for s in cua.sesiones_de(nombre)}
+    assert list(despues) == ["Fisica", "Matematicas", "Historia"]
+    # Historia paso del indice 1 al 2 y Fisica sigue en el 0: ninguna de las
+    # dos puede haber cambiado de apuntes.
+    assert despues["Historia"].apuntes == antes["Historia"]
+    assert despues["Fisica"].apuntes == antes["Fisica"]
+    # Y la sesion NUEVA no hereda los de nadie: aun no tiene apuntes.
+    assert despues["Matematicas"].apuntes == {}
+
+
+def test_la_migracion_del_formato_viejo_conserva_todas_las_claves():
+    """Migrar es RECLAVAR, nunca borrar. Lo que se puede reclavar por posicion
+    (que es lo que hacia el lector viejo) se reclava; lo que no, se conserva
+    con su prefijo y se dice. Un apuntes.json del duenio es dato suyo entero,
+    tambien las claves que este modulo no escribe."""
+    nombre = _sembrar_jornada()
+    ruta = alm.dir_jornada(nombre) / alm.APUNTES
+    viejo = {
+        "0": {"titulo": "Doppler", "mis_notas": ["esto lo escribi yo a mano"]},
+        "1": {"titulo": "Historia", "tareas": ["leer las paginas 30 a 34"]},
+        # sobra: la jornada de hoy solo tiene dos sesiones
+        "7": {"titulo": "de cuando la jornada tenia mas sesiones"},
+        # la otra ortografia vieja, la que ya aceptaba cuaderno.sesiones_de
+        "%s|0" % nombre: {"titulo": "la ortografia con barra"},
+        # una clave que no es de ningun formato conocido: se deja TAL CUAL
+        "mis_cosas": {"titulo": "esto lo puso el duenio a mano"},
+    }
+    alm.guardar_json(ruta, viejo)
+
+    sesiones = cua.sesiones_de(nombre)          # leer YA migra y reescribe
+    nuevo = alm.leer_json(ruta, {})
+
+    assert nuevo["%s@0" % nombre] == viejo["0"]
+    assert nuevo["%s@600" % nombre] == viejo["1"]
+    assert sesiones[0].apuntes == viejo["0"]
+    assert ap.leer_apuntes(nombre, sesiones[1]) == viejo["1"]
+    # Nada se perdio: los dos que no se pudieron reclavar siguen enteros.
+    assert nuevo[ap._PREFIJO_HUERFANO + "7"] == viejo["7"]
+    assert nuevo[ap._PREFIJO_HUERFANO + "%s|0" % nombre] == viejo["%s|0" % nombre]
+    assert nuevo["mis_cosas"] == viejo["mis_cosas"]
+    assert len(nuevo) == len(viejo) + 1          # +1: la clave de avisos
+    # Y se dice POR QUE, en el fichero y por la puerta de diagnostico.
+    avisos = ap.avisos_migracion(nombre)
+    assert len(avisos) == 2 and avisos == nuevo[ap._CLAVE_AVISOS]
+    assert all("no se pudo reclavar" in a for a in avisos)
+    # Ninguna clave posicional sobrevive: si sobreviviera, la siguiente
+    # generacion volveria a escribir por indice y el bug estaria de vuelta.
+    assert not any(k.isdigit() for k in nuevo)
+
+
+def test_migrar_sin_sesiones_no_toca_el_fichero():
+    """Una jornada sin sesiones es tambien lo que se ve cuando el disco no se
+    pudo leer. Reclavarlo todo a huerfano por un fallo transitorio seria
+    destrozar el fichero, asi que en ese caso no se migra nada."""
+    viejo = {"0": {"titulo": "Doppler"}, "1": {"titulo": "Historia"}}
+    mapa, avisos = ap.migrar_mapa("2026-08-31", [], viejo)
+    assert mapa == viejo and avisos == []
+
+
+def test_regenerar_dos_veces_deja_el_fichero_igual():
+    """Idempotencia. Sin ella, cada lectura volveria a prefijar al huerfano
+    ('sin-sesion:sin-sesion:7') y a repetir su aviso: el fichero creceria solo
+    y no habria forma de comparar dos generaciones."""
+    nombre = _sembrar_jornada()
+    ruta = alm.dir_jornada(nombre) / alm.APUNTES
+    alm.guardar_json(ruta, {"0": {"titulo": "viejo", "mis_notas": ["a mano"]},
+                            "7": {"titulo": "huerfano"}})
+
+    ap.generar_jornada(nombre, orch=None)
+    una = alm.leer_json(ruta, {})
+    ap.generar_jornada(nombre, orch=None)
+    dos = alm.leer_json(ruta, {})
+    assert una == dos
+
+    cua.sesiones_de(nombre)                     # y releer tampoco lo mueve
+    assert alm.leer_json(ruta, {}) == dos
+    assert ap._PREFIJO_HUERFANO + ap._PREFIJO_HUERFANO not in " ".join(dos)
+
+
+# ── Segunda revision adversarial del 2026-08-31: la reclavada ────────────────
+
+def _sembrar_jornada_con_empate(nombre="2026-09-01"):
+    """Una jornada con DOS cortes dentro del mismo segundo, que es lo que la
+    deteccion de materias puede producir (escribe los cortes con round(t, 3))
+    cuando el duenio marca uno a mano justo encima de uno automatico."""
+    d = alm.dir_jornada(nombre)
+    alm.apendar(d / alm.TRANSCRIPCION,
+                {"t": 0.0, "t_fin": 0.2, "tipo": cua.TIPO_TRANSCRIPCION,
+                 "texto": "La velocidad se define como el espacio partido por "
+                          "el tiempo. Para mañana los ejercicios 4 y 5.",
+                 "fuente": "sistema"})
+    alm.apendar(d / alm.TRANSCRIPCION,
+                {"t": 1.0, "t_fin": 60.0, "tipo": cua.TIPO_TRANSCRIPCION,
+                 "texto": "La Revolución Industrial se define como el proceso "
+                          "de transformación económica que arranca en "
+                          "Inglaterra. Esto entra en el examen.",
+                 "fuente": "sistema"})
+    alm.apendar(d / alm.CORTES, {"t": 0.0, "materia": "Fisica",
+                                 "confianza": 0.9, "por": "manual"})
+    alm.apendar(d / alm.CORTES, {"t": 0.4, "materia": "Historia",
+                                 "confianza": 0.8, "por": "deriva"})
+    j = cua.cargar_jornada(nombre)
+    j.segundos = 60.0
+    j.estado = "cerrada"
+    cua.guardar_jornada(j)
+    return nombre
+
+
+def test_dos_sesiones_del_mismo_segundo_no_comparten_clave():
+    """LA RECLAVADA TENIA EL MISMO AGUJERO QUE ARREGLABA. La clave trunca t0
+    al segundo, asi que dos cortes con decimas de diferencia daban la MISMA
+    clave: la segunda sesion pisaba a la primera en apuntes.json y las dos
+    releian los apuntes de la ultima -- los de Historia bajo Fisica, que es
+    literalmente el fallo que esta pieza existe para matar."""
+    nombre = _sembrar_jornada_con_empate()
+    sesiones = cua.sesiones_de(nombre)
+    assert [s.materia for s in sesiones] == ["Fisica", "Historia"]
+    # Las dos truncan al segundo 0: la clave limpia es la misma para ambas.
+    assert (ap.clave_de_sesion(nombre, sesiones[0])
+            == ap.clave_de_sesion(nombre, sesiones[1]) == "%s@0" % nombre)
+
+    salida = ap.generar_jornada(nombre, orch=None)
+    assert set(salida) == {"%s@0" % nombre,
+                           "%s@0%s2" % (nombre, ap._SEP_COLISION)}
+
+    # Y cada sesion relee LOS SUYOS, no los de la vecina.
+    releidas = cua.sesiones_de(nombre)
+    assert releidas[0].apuntes["titulo"].startswith("Fisica")
+    assert releidas[1].apuntes["titulo"].startswith("Historia")
+    assert releidas[0].apuntes != releidas[1].apuntes
+
+
+def test_la_colision_de_claves_queda_avisada_en_el_fichero():
+    """Un desempate silencioso seria otra vez el vacio de siempre: el sufijo
+    '#2' depende de la POSICION dentro del grupo empatado, o sea que el duenio
+    tiene que poder enterarse de que dos de sus clases empiezan en el mismo
+    segundo."""
+    nombre = _sembrar_jornada_con_empate()
+    ap.generar_jornada(nombre, orch=None)
+    avisos = ap.avisos_migracion(nombre)
+    assert len(avisos) == 1, avisos
+    assert "mismo segundo" in avisos[0]
+    assert "%s@0%s2" % (nombre, ap._SEP_COLISION) in avisos[0]
+
+
+def test_los_avisos_salen_por_la_puerta_de_lectura_sin_volver_al_disco():
+    """La puerta de diagnostico no puede ser codigo muerto: los avisos se
+    persisten en el propio apuntes.json y viajan DENTRO del mapa que devuelve
+    `cargar_mapa`, para que quien ya leyo la jornada no tenga que releer el
+    fichero para verlos."""
+    nombre = _sembrar_jornada()
+    ruta = alm.dir_jornada(nombre) / alm.APUNTES
+    alm.guardar_json(ruta, {"0": {"titulo": "Doppler"},
+                            "7": {"titulo": "de cuando habia mas sesiones"}})
+
+    mapa = ap.cargar_mapa(nombre, cua.sesiones_de(nombre))
+    assert mapa[ap._CLAVE_AVISOS], mapa
+    assert ap.avisos_migracion(nombre, mapa) == mapa[ap._CLAVE_AVISOS]
+    assert ap.avisos_migracion(nombre) == mapa[ap._CLAVE_AVISOS]
+
+
+def test_los_avisos_no_convierten_un_apuntes_vacio_en_un_producto():
+    """`olvido._hay_apuntes` cuenta `any(bool(v) for v in mapa.values())`: un
+    '_avisos' solitario haria pasar un apuntes.json vacio por unos apuntes
+    generados y el olvido comprimiria la transcripcion, que es la fuente."""
+    nombre = _sembrar_jornada_con_empate()
+    mapa, avisos = ap.migrar_mapa(nombre, cua.sesiones_de(nombre), {})
+    assert avisos and ap._CLAVE_AVISOS not in mapa
+
+
+def test_una_clave_con_digitos_no_ascii_no_revienta_la_migracion():
+    """`str.isdigit()` dice True para los superindices unicode ('²') y para
+    otros digitos que `int()` rechaza: la migracion entera moria con
+    ValueError justo donde el docstring promete dejar tal cual lo que no sea
+    de un formato conocido."""
+    nombre = _sembrar_jornada()
+    sesiones = cua.sesiones_de(nombre)
+    viejo = {"0": {"titulo": "Doppler"},
+             "²": {"titulo": "esto lo escribio el duenio"},
+             "¹²": {"titulo": "y esto tambien"}}
+    mapa, _avisos = ap.migrar_mapa(nombre, sesiones, viejo)
+    assert mapa["²"] == viejo["²"]
+    assert mapa["¹²"] == viejo["¹²"]
+    assert mapa["%s@0" % nombre] == viejo["0"]
+
+
+def test_la_clave_sanea_el_nombre_de_jornada():
+    """La justificacion de '@' como separador dice que un nombre de jornada no
+    puede traerlo porque `almacen._seguro` lo filtra -- pero la clave usaba el
+    nombre CRUDO, que nunca pasaba por ahi (`jornada.arrancar(nombre=...)`
+    acepta el que teclee el duenio). Y hay una razon mas dura que la
+    ambiguedad: el fichero vive bajo el nombre SANEADO, asi que dos nombres
+    crudos que sanean igual comparten apuntes.json."""
+    s = cua.Sesion(materia="Fisica", t0=0.0, t1=10.0)
+    k = ap.clave_de_sesion("Fisica@casa", s)
+    assert k.count(ap._SEP_CLAVE) == 1, k
+    assert k == "%s@0" % alm._seguro("Fisica@casa")
+    # Misma carpeta -> mismo fichero -> tiene que ser la misma clave.
+    assert ap.clave_de_sesion("Fisica/casa", s) == k
+    assert alm.dir_jornada("Fisica@casa") == alm.dir_jornada("Fisica/casa")
+
+
+def test_la_migracion_sigue_al_escritor_viejo_y_no_al_lector_viejo():
+    """El lector viejo enumeraba SIN filtrar las sesiones vacias y el escritor
+    viejo (`generar_jornada`) SI las filtraba: se contradecian en cuanto la
+    deteccion dejaba una sesion de ruido. Se reclava siguiendo al ESCRITOR,
+    que es quien produjo los numeros que hay en el disco."""
+    nombre = "2026-09-02"
+    d = alm.dir_jornada(nombre)
+    alm.apendar(d / alm.TRANSCRIPCION,
+                {"t": 0.0, "t_fin": 60.0, "tipo": cua.TIPO_TRANSCRIPCION,
+                 "texto": "La velocidad es el espacio partido por el tiempo.",
+                 "fuente": "sistema"})
+    alm.apendar(d / alm.TRANSCRIPCION,
+                {"t": 150.0, "t_fin": 200.0, "tipo": cua.TIPO_TRANSCRIPCION,
+                 "texto": "La Revolución Industrial arranca en Inglaterra.",
+                 "fuente": "sistema"})
+    for t, materia in ((0.0, "Fisica"), (100.6, "Ruido"), (101.0, "Historia")):
+        alm.apendar(d / alm.CORTES, {"t": t, "materia": materia,
+                                     "confianza": 0.5, "por": "deriva"})
+    j = cua.cargar_jornada(nombre)
+    j.segundos = 200.0
+    j.estado = "cerrada"
+    cua.guardar_jornada(j)
+
+    # 'Ruido' no tiene entradas y dura 0,4 s: `sesiones_de` la tira.
+    sesiones = cua.sesiones_de(nombre)
+    assert [s.materia for s in sesiones] == ["Fisica", "Historia"]
+
+    viejo = {"0": {"titulo": "Fisica: la velocidad"},
+             "1": {"titulo": "Historia: la Revolución"}}
+    mapa, avisos = ap.migrar_mapa(nombre, sesiones, viejo)
+    assert mapa["%s@0" % nombre] == viejo["0"]
+    assert mapa["%s@101" % nombre] == viejo["1"]     # NO '@100', la de ruido
+    assert avisos == [] and len(mapa) == 2
+
+
+def test_generar_jornada_no_pisa_lo_que_otro_escribio_mientras_generaba(
+        monkeypatch):
+    """`cargar_mapa` ESCRIBE al leer y el hilo vigia de la jornada viva relee
+    cada 90 s: sostener en memoria el mapa leido al empezar y reescribirlo
+    entero tras cada sesion borraba lo que hubiera entrado entretanto. Aqui el
+    vecino escribe entre sesion y sesion; lo suyo tiene que seguir ahi."""
+    nombre = _sembrar_jornada()
+    ruta = alm.dir_jornada(nombre) / alm.APUNTES
+    real = ap.generar
+
+    def _generar_con_vecino(sesion, orch=None, forzar=False):
+        crudo = alm.leer_json(ruta, {}) or {}
+        crudo["mis_cosas"] = {"titulo": "lo escribio otro mientras tanto"}
+        alm.guardar_json(ruta, crudo)
+        return real(sesion, orch=orch, forzar=forzar)
+
+    monkeypatch.setattr(ap, "generar", _generar_con_vecino)
+    salida = ap.generar_jornada(nombre, orch=None)
+
+    final = alm.leer_json(ruta, {}) or {}
+    assert final.get("mis_cosas") == {"titulo": "lo escribio otro mientras tanto"}
+    assert set(salida) <= set(final)

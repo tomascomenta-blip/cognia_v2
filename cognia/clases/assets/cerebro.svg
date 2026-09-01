@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Cognia: cuaderno de clase">
+  <title>Cognia -- cuaderno de clase</title>
+  <!--
+    EL ICONO DEL CUADERNO. Esfera negra de fondo + cerebro verde encima.
+
+    POR QUE ESTE FICHERO ES LA FUENTE Y NO EL ICONO. Tk no sabe pintar SVG y en
+    esta maquina no hay cairosvg ni tksvg (medido 2026-08-31). El widget dibuja
+    su PNG equivalente con Pillow (widget_icono.py); este SVG es la referencia
+    de diseno y ademas se pinta INLINE en la pagina del cuaderno, que si lo sabe
+    renderizar. Un SVG inline dentro de text/html no necesita el xmlns, asi que
+    ahi no introduce ninguna cadena http:// en la pagina (la regla de cero-CDN
+    que vigilan tests/test_clases_vista.py y otros cuatro tests).
+
+    LOS COLORES SON TOKENS. Cualquier cambio de paleta se hace aqui y se copia
+    a widget_icono.py: dos definiciones distintas darian dos cerebritos.
+  -->
+  <defs>
+    <radialGradient id="esfera" cx="38%" cy="30%" r="78%">
+      <stop offset="0%" stop-color="#3a3f47"/>
+      <stop offset="55%" stop-color="#16181c"/>
+      <stop offset="100%" stop-color="#050506"/>
+    </radialGradient>
+    <linearGradient id="verde" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#6ef7a8"/>
+      <stop offset="55%" stop-color="#35d67f"/>
+      <stop offset="100%" stop-color="#18a35c"/>
+    </linearGradient>
+    <radialGradient id="brillo" cx="34%" cy="24%" r="34%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- la esfera -->
+  <circle cx="64" cy="64" r="60" fill="url(#esfera)"/>
+  <circle cx="64" cy="64" r="60" fill="url(#brillo)"/>
+  <circle cx="64" cy="64" r="59" fill="none" stroke="#35d67f" stroke-opacity="0.28" stroke-width="2"/>
+
+  <!-- el cerebro: dos lobulos simetricos -->
+  <g fill="url(#verde)">
+    <path d="M64 27c-6.4 0-11.4 3.1-13.6 7.8-6.6-1.2-12.6 2.2-14.6 7.9-5.6 1.1-9.6 5.7-9.6 11.2 0 2.6 .9 5 2.4 6.9-2.2 2.2-3.5 5.2-3.5 8.4 0 4.9 2.9 9.1 7.1 11-.2 .9-.3 1.9-.3 2.9 0 6.7 5.6 12.1 12.6 12.1 2.3 0 4.5-.6 6.3-1.6 2.2 3.6 6.3 6 11 6 2.1 0 4.1-.5 5.8-1.3V27.6c-1.1-.4-2.3-.6-3.6-.6z"/>
+    <path d="M64 27c6.4 0 11.4 3.1 13.6 7.8 6.6-1.2 12.6 2.2 14.6 7.9 5.6 1.1 9.6 5.7 9.6 11.2 0 2.6-.9 5-2.4 6.9 2.2 2.2 3.5 5.2 3.5 8.4 0 4.9-2.9 9.1-7.1 11 .2 .9 .3 1.9 .3 2.9 0 6.7-5.6 12.1-12.6 12.1-2.3 0-4.5-.6-6.3-1.6-2.2 3.6-6.3 6-11 6-2.1 0-4.1-.5-5.8-1.3V27.6c1.1-.4 2.3-.6 3.6-.6z" opacity="0.88"/>
+  </g>
+
+  <!-- surcos: la linea media y las circunvoluciones -->
+  <g fill="none" stroke="#0b3f26" stroke-opacity="0.55" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 28v72"/>
+    <path d="M50 36c-5 2.5-6 7-3.5 10.5M44 52c-5.5 1-8 5-6.5 9.5M46 70c-5 1.5-7 5.5-5 9.5M56 44c-4 3-4.5 7.5-1 10.5M58 64c-4.5 2.5-5.5 7-2 10.5M55 88c-3.5-2.5-4-6.5-1-9"/>
+    <path d="M78 36c5 2.5 6 7 3.5 10.5M84 52c5.5 1 8 5 6.5 9.5M82 70c5 1.5 7 5.5 5 9.5M72 44c4 3 4.5 7.5 1 10.5M70 64c4.5 2.5 5.5 7 2 10.5M73 88c3.5-2.5 4-6.5 1-9"/>
+  </g>
+
+  <!-- el tallo -->
+  <path d="M60 99c0 5 1.5 8 4 10 2.5-2 4-5 4-10z" fill="#18a35c"/>
+</svg>

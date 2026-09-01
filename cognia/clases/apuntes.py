@@ -10,7 +10,7 @@ transcrita, mas lo que el duenio aniadio a mano) y sale un dict con las
 secciones de una hoja de cuaderno: titulo, resumen, ideas clave,
 definiciones, formulas, deberes, dudas y "esto entra en el examen".
 
-CUATRO DECISIONES QUE MANDAN SOBRE EL RESTO
+CINCO DECISIONES QUE MANDAN SOBRE EL RESTO
 
 1. LO DEL DUENIO NO SE TOCA. `Sesion.del_usuario()` (notas, marcas, fotos de
    la pizarra, clips) es el unico contenido del cuaderno del que CONSTA que a
@@ -45,6 +45,24 @@ CUATRO DECISIONES QUE MANDAN SOBRE EL RESTO
    y sin copia. Ahora se FUNDE sobre lo que habia: se sobreescribe lo que se
    regenera y no se quita nada mas.
 
+5. CADA BLOQUE DE APUNTES VA PEGADO A SU SESION POR UNA CLAVE ESTABLE. Hasta
+   el 2026-08-31 la clave de apuntes.json era str(indice posicional) de la
+   lista que devuelve `cuaderno.sesiones_de`. En cuanto la deteccion de
+   materias aniadia UN corte nuevo, todos los indices de detras se corrian y
+   los apuntes quedaban pegados a la sesion equivocada: sin error y sin aviso,
+   el duenio leia los apuntes de Historia bajo Fisica. Y mientras la jornada
+   esta viva la deteccion corre cada 90 s, o sea que no era un caso raro sino
+   el caso normal en cuanto el cuaderno se actualizaba en caliente. Ahora la
+   clave es '<jornada>@<t0 en segundos enteros>' (ver `clave_de_sesion`), que
+   no depende de cuantas sesiones haya por delante. Un fichero con claves
+   viejas se RECLAVA al leerlo, por posicion -- que es justo lo que enumeraba
+   el ESCRITOR viejo --, y lo que no se pueda reclavar NO se borra: se
+   conserva con el prefijo 'sin-sesion:' y se dice en la clave '_avisos' del
+   fichero. Dos sesiones cuyos t0 caen en el MISMO segundo darian la misma
+   clave y volveria el mismo fallo por la puerta de atras: la colision se
+   detecta al construir la lista de claves (`claves_de_jornada`), se rompe
+   con un sufijo '#2' determinista y se avisa.
+
 QUE SE REUSA Y QUE NO
   - `compactacion.cap_chars()` (el knob COGNIA_COMPACT_CAP que ya gobierna
     cuanto texto de resumen tolera el harness) fija el presupuesto del
@@ -58,8 +76,13 @@ QUE SE REUSA Y QUE NO
 
 API publica:
     generar(sesion, orch=None, forzar=False) -> dict con claves fijas
-    generar_jornada(nombre, orch=None, progreso=None) -> {'0': apuntes, ...}
+    generar_jornada(nombre, orch=None, progreso=None) -> {clave: apuntes, ...}
         y los GUARDA en apuntes.json (via almacen), sesion a sesion
+    clave_de_sesion(jornada, sesion) -> str   la clave estable de una sesion
+    claves_de_jornada(jornada, sesiones) -> (claves, avisos)   sin colisiones
+    leer_apuntes(jornada, sesion, mapa=None, clave="") -> dict  puerta de LECTURA
+    cargar_mapa(jornada, sesiones) -> dict   el fichero entero, ya reclavado
+    avisos_migracion(jornada, mapa=None) -> list   lo que la migracion conservo
     compactar(texto, tope_chars) -> str   reduccion por relevancia
 """
 
@@ -68,6 +91,7 @@ from __future__ import annotations
 import logging
 import math
 import re
+import threading
 
 from cognia.clases import almacen as alm
 from cognia.clases import cuaderno as cua
@@ -971,6 +995,406 @@ def _cap_resumen() -> int:
         return 700
 
 
+# ── apuntes.json: la clave de cada sesion ────────────────────────────────────
+
+# Separador de la clave estable. Se elige '@' porque `almacen._seguro` deja
+# fuera del nombre de una jornada todo lo que no sea alfanumerico o " -_.":
+# un nombre de jornada saneado NO puede traer una '@', asi que la clave nunca
+# es ambigua ni hace falta escapar nada.
+#
+# ESA GARANTIA HAY QUE PAGARLA, y hasta el 2026-08-31 estaba escrita pero no
+# se cumplia: `clave_de_sesion` usaba el nombre CRUDO que le pasaran, que
+# nunca habia pasado por `_seguro` (`jornada.arrancar(nombre=...)` acepta el
+# que teclee el duenio). Con un nombre como 'Fisica@casa' la clave llevaba dos
+# '@' y el comentario mentia. Ahora se sanea aqui, y ademas por una razon mas
+# fuerte que la ambiguedad: el fichero vive en `alm.dir_jornada(nombre)`, o
+# sea BAJO EL NOMBRE SANEADO. Dos nombres crudos distintos que sanean igual
+# comparten apuntes.json; si la clave se formara con el crudo, cada uno
+# escribiria claves distintas dentro del MISMO fichero y ninguno encontraria
+# los apuntes del otro -- el vacio silencioso otra vez.
+_SEP_CLAVE = "@"
+# Separador del desempate cuando dos sesiones caen en el mismo segundo (ver
+# `claves_de_jornada`). '#' no puede aparecer en un nombre de jornada saneado
+# ni en el numero de segundos, asi que una clave con desempate no se puede
+# confundir con la clave limpia de ninguna otra sesion.
+_SEP_COLISION = "#"
+# Prefijo de una clave vieja que no se pudo reclavar. Se conserva y no se
+# borra: la linea dura del repo es que no se tiran datos del duenio, y unos
+# apuntes huerfanos siguen siendo suyos aunque ya no cuelguen de una sesion.
+_PREFIJO_HUERFANO = "sin-sesion:"
+# Donde la migracion deja por escrito lo que tuvo que hacer, en el propio
+# fichero. Empieza por '_' y no lleva '@': no puede chocar con la clave de
+# ninguna sesion.
+_CLAVE_AVISOS = "_avisos"
+
+# Serializa el read-modify-write de apuntes.json. NO es paranoia de manual:
+# `cargar_mapa` ESCRIBE al leer (migra el fichero) y el hilo vigia de la
+# jornada viva relee el cuaderno cada 90 s, o sea que puede estar migrando
+# justo mientras el hilo principal guarda los apuntes recien generados. Sin
+# esto, el vigia reescribia el mapa que leyo ANTES de esa escritura y la
+# sesion recien generada desaparecia: `almacen.guardar_json` es atomico, pero
+# la secuencia leer-modificar-escribir no lo es. Es un RLock porque
+# `generar_jornada` lo toma y dentro llama a `cargar_mapa`, que lo vuelve a
+# tomar. Solo cubre este fichero: no se sostiene mientras corre el modelo (son
+# minutos por sesion), asi que el guardado ademas RELEE dentro del lock.
+_LOCK_MAPA = threading.RLock()
+
+# Avisos de migracion ya dichos por el log EN ESTE PROCESO. La migracion corre
+# en CADA lectura y el vigia de la jornada viva lee cada 90 s: sin esto, una
+# colision de claves (que no desaparece al migrar, a diferencia de un huerfano)
+# escribia el mismo warning doscientas veces en una manana y enterraba el fallo
+# de al lado. El canal duradero de estos avisos es la clave '_avisos' del
+# propio apuntes.json, que no depende de que nadie estuviera mirando el log.
+_avisos_dichos: set = set()
+
+
+def _nombre_jornada(jornada: str) -> str:
+    """El nombre de jornada tal y como acaba en el disco. Ver _SEP_CLAVE: la
+    clave tiene que hablar del MISMO sitio donde vive el fichero."""
+    return alm._seguro(str(jornada or ""))
+
+
+def clave_de_sesion(jornada: str, sesion) -> str:
+    """La clave de una sesion en apuntes.json: '<jornada>@<t0 truncado>'.
+
+    POR QUE t0 Y NO EL INDICE: la decision 5 del encabezado. t0 es el unico
+    dato de una sesion que no cambia porque aparezca otra sesion por delante.
+
+    EL REDONDEO ES TRUNCAR (floor) Y LA ELECCION IMPORTA. t0 llega como float
+    de `cortes.jsonl` (materias.py lo escribe con round(t, 3)), y dos
+    redondeos distintos en dos sitios del repo darian DOS claves para la misma
+    sesion, que es otra vez el mismo fallo silencioso. Se trunca porque es el
+    unico redondeo en el que las dos formas obvias de escribirlo en Python --
+    int(t0) y math.floor(t0) -- coinciden para los t0 que produce el cuaderno
+    (son segundos desde el inicio de la jornada, o sea >= 0 por construccion):
+    un segundo implementador que escriba lo obvio obtiene la MISMA clave.
+    round() no valdria: es redondeo bancario (round(0.5) == 0 pero
+    round(1.5) == 2), y ademas depende del binario del float.
+
+    Al segundo entero y no a mas precision porque un corte que se mueve menos
+    de un segundo es el MISMO corte: con milisegundos en la clave, una
+    re-deteccion que ajustara el limite 40 ms dejaria los apuntes huerfanos.
+
+    ESTA CLAVE NO ES UNICA POR SI SOLA. Truncar al segundo hace que dos
+    sesiones que empiezan en el mismo segundo compartan clave; quien construye
+    el mapa de una jornada entera tiene que usar `claves_de_jornada`, que
+    detecta ese empate y lo rompe. Esta funcion se queda con la clave LIMPIA
+    porque es la que sirve para leer el caso normal (una sola sesion por
+    segundo), que es el 99,9% de las lecturas.
+    """
+    t0 = float(getattr(sesion, "t0", 0.0) or 0.0)
+    nombre = _nombre_jornada(jornada or getattr(sesion, "jornada", "") or "")
+    return "%s%s%d" % (nombre, _SEP_CLAVE, int(t0 // 1))
+
+
+def claves_de_jornada(jornada: str, sesiones: list) -> tuple:
+    """(una clave por sesion, en el orden de la lista; avisos de colision).
+
+    POR QUE NO BASTA `clave_de_sesion`. La clave trunca t0 al segundo entero,
+    asi que DOS sesiones cuyos t0 caen en el mismo segundo dan la MISMA clave.
+    No es un caso de laboratorio: la deteccion de materias emite los cortes
+    con `round(t, 3)` y puede sacar dos con decimas de diferencia (un corte
+    manual del duenio justo encima de uno automatico, por ejemplo). Hasta el
+    2026-08-31 nadie lo comprobaba: la segunda sesion pisaba a la primera en
+    apuntes.json y las dos releian los mismos apuntes -- que es EXACTAMENTE el
+    fallo que la clave estable existe para matar (los apuntes de una materia
+    bajo otra), colandose por la puerta de atras y otra vez en silencio.
+
+    COMO SE ROMPE EL EMPATE Y POR QUE ASI. La primera sesion del grupo se
+    queda la clave limpia y las siguientes llevan '#2', '#3'... en el orden de
+    la lista (que es el de t0 creciente). Determinista, y deja la clave limpia
+    DONDE YA ESTABA: unos apuntes ya guardados no se vuelven huerfanos porque
+    manana aparezca un corte gemelo. A cambio el sufijo si depende de la
+    posicion DENTRO del grupo empatado -- la misma fragilidad de la clave
+    posicional vieja, pero acotada a las sesiones que arrancan en el mismo
+    segundo. Por eso se AVISA en vez de callarse: el duenio tiene que poder
+    ver que dos de sus clases empiezan en el mismo segundo.
+    """
+    base_de = [clave_de_sesion(jornada, s) for s in sesiones]
+    limpias = set(base_de)
+    claves, usadas, avisos = [], set(), []
+    for i, base in enumerate(base_de):
+        if base not in usadas:
+            usadas.add(base)
+            claves.append(base)
+            continue
+        n, k = 2, "%s%s2" % (base, _SEP_COLISION)
+        # Contra `limpias` tambien: un '#2' no puede acabar siendo la clave
+        # limpia de otra sesion (imposible hoy, pero es una linea).
+        while k in usadas or k in limpias:
+            n += 1
+            k = "%s%s%d" % (base, _SEP_COLISION, n)
+        usadas.add(k)
+        claves.append(k)
+        avisos.append(
+            "la sesion %d de %s empieza en el mismo segundo que otra (t0 %s) "
+            "y las dos daban la clave '%s': esta se guarda como '%s'"
+            % (i + 1, _nombre_jornada(jornada),
+               base.rsplit(_SEP_CLAVE, 1)[-1], base, k))
+    return claves, avisos
+
+
+def _indice_viejo(k: str, jornada: str):
+    """El indice posicional de una clave del formato viejo, o None si no lo es.
+
+    Dos ortografias, las dos vivas en el disco del duenio: el str(indice) que
+    escribia `generar_jornada` y el '<jornada>|<indice>' que
+    `cuaderno.sesiones_de` ya aceptaba al releer.
+
+    SE EXIGEN DIGITOS ASCII, no `str.isdigit()`. isdigit() dice True para los
+    superindices unicode ('²') y para otros digitos que int() NO acepta:
+    una clave asi reventaba la migracion entera con ValueError, y eso es lo
+    contrario de lo que promete la linea de arriba (lo que no sea de un
+    formato conocido se deja tal cual). El escritor viejo solo emitia str(i),
+    o sea digitos ASCII: cualquier otra cosa es de formato desconocido.
+    """
+    if _solo_digitos_ascii(k):
+        return int(k)
+    prefijo = "%s|" % _nombre_jornada(jornada)
+    resto = k[len(prefijo):] if k.startswith(prefijo) else ""
+    return int(resto) if _solo_digitos_ascii(resto) else None
+
+
+def _solo_digitos_ascii(s: str) -> bool:
+    """True si `s` es uno o mas digitos '0'-'9'. Ver `_indice_viejo`."""
+    return bool(s) and s.isascii() and s.isdigit()
+
+
+def migrar_mapa(jornada: str, sesiones: list, mapa: dict) -> tuple:
+    """(mapa reclavado, avisos) a partir de un apuntes.json cualquiera. PURA:
+    no toca el disco, para poder probarla sin jornada.
+
+    RECLAVA POR POSICION EN LA LISTA QUE RECIBE, que es exactamente la que
+    enumeraba el ESCRITOR viejo (`generar_jornada` hacia `fuera[str(i)]` sobre
+    `cua.sesiones_de(nombre)`, o sea sobre la lista YA FILTRADA de sesiones
+    vacias). La migracion no adivina nada nuevo: congela la interpretacion con
+    la que se escribieron esas claves y a partir de ahi la clave deja de
+    moverse.
+
+    OJO, NO ES LA DEL LECTOR VIEJO, y la diferencia importa. El lector viejo
+    enumeraba SIN filtrar (asignaba `apuntes.get(str(i))` sobre todas las
+    sesiones y filtraba las vacias DESPUES), asi que escritor y lector viejos
+    ya se contradecian en cuanto la deteccion dejaba una sesion vacia: el
+    lector corria los apuntes una posicion. Se sigue al ESCRITOR porque es
+    quien produjo los numeros que hay en el disco. Por eso el filtro de
+    sesiones vacias esta ahora en `cuaderno.sesiones_de` ANTES de colgar los
+    apuntes: la lista que llega aqui tiene que ser la misma que se enumero al
+    escribir.
+
+    NO BORRA NADA. Una clave vieja que no cuadra con ninguna sesion -- porque
+    sobran entradas, o porque esa sesion ya tenia apuntes con su clave estable
+    -- se conserva con el prefijo _PREFIJO_HUERFANO. Y una clave que no es de
+    ninguno de los dos formatos viejos se deja TAL CUAL: puede ser cosa que el
+    duenio metio a mano, y tocarla seria el mismo error que la decision 4.
+
+    CON LA LISTA DE SESIONES VACIA NO SE MIGRA NADA. Una jornada sin sesiones
+    es tambien lo que se ve cuando el disco no se pudo leer, y reclavar el
+    fichero entero a huerfano por un fallo transitorio seria destrozarlo.
+
+    LOS AVISOS SOLO SALEN PARA HUERFANOS CON CONTENIDO, y no es cosmetica:
+    `olvido._hay_apuntes` decide si comprimir la transcripcion con
+    `any(bool(v) for v in mapa.values())`, asi que un aviso escrito junto a
+    huerfanos VACIOS convertiria un apuntes.json vacio ("se intento y no
+    salio") en un producto y el olvido comprimiria la fuente. Con esta regla
+    esa cuenta vale lo mismo antes y despues de migrar.
+    """
+    mapa = dict(mapa or {})
+    if not sesiones:
+        return mapa, []
+
+    # Las colisiones de clave se detectan AQUI, al construir el mapa, que es
+    # el unico sitio que ve la jornada entera. Sus avisos viajan con los de la
+    # migracion: los dos dicen lo mismo (una clave no cayo donde se esperaba).
+    estables, avisos = claves_de_jornada(jornada, sesiones)
+    fuera: dict = {}
+    viejas = []
+    for k, v in mapa.items():
+        i = _indice_viejo(str(k), jornada)
+        if i is None:
+            fuera[str(k)] = v
+        else:
+            viejas.append((i, str(k), v))
+
+    for i, k, v in sorted(viejas, key=lambda x: (x[0], x[1])):
+        destino = estables[i] if i < len(estables) else ""
+        if destino and destino not in fuera:
+            fuera[destino] = v
+            continue
+        motivo = ("la jornada solo tiene %d sesiones" % len(estables)
+                  if not destino else
+                  "esa sesion ya tenia apuntes con la clave nueva '%s'" % destino)
+        huerfano, n = _PREFIJO_HUERFANO + k, 2
+        while huerfano in fuera:
+            huerfano = "%s%s#%d" % (_PREFIJO_HUERFANO, k, n)
+            n += 1
+        fuera[huerfano] = v
+        if v:
+            avisos.append("la clave '%s' de apuntes.json no se pudo reclavar "
+                          "(%s): se conserva como '%s'" % (k, motivo, huerfano))
+        else:
+            _log.warning("apuntes: la clave vieja '%s' de %s estaba vacia y no "
+                         "cuadra con ninguna sesion (%s); se conserva como "
+                         "'%s'", k, jornada, motivo, huerfano)
+
+    if avisos:
+        _persistir_avisos(jornada, fuera, mapa.get(_CLAVE_AVISOS), avisos)
+    return fuera, avisos
+
+
+def _persistir_avisos(jornada: str, fuera: dict, habia, avisos: list) -> None:
+    """Deja los avisos EN EL FICHERO, bajo _CLAVE_AVISOS, si se puede.
+
+    POR QUE EN EL FICHERO Y NO SOLO EN EL LOG. Es donde el duenio (y la puerta
+    de diagnostico `avisos_migracion`) los va a ver: el log de una corrida de
+    hace tres dias no lo lee nadie, y una clave que se quedo huerfana sigue
+    huerfana manana.
+
+    LAS DOS COSAS QUE NO SE HACEN NUNCA:
+      - No se pisa un _avisos que no sea una lista: ahi hay algo que no
+        escribio este modulo (decision 4 del encabezado).
+      - No se escribe en un mapa que por lo demas esta VACIO. `olvido._hay_
+        apuntes` decide si comprimir la transcripcion con
+        `any(bool(v) for v in mapa.values())`: un _avisos solitario convertiria
+        un apuntes.json vacio ("se intento y no salio") en un producto y el
+        olvido comprimiria la fuente. En ese caso el aviso se queda en el log
+        y se volvera a escribir en cuanto haya apuntes de verdad.
+    """
+    if habia is not None and not isinstance(habia, list):
+        _log.warning("apuntes: %s de %s ya tenia un valor que no es una "
+                     "lista (%s); los avisos de la migracion no se "
+                     "escriben en el fichero: %s", _CLAVE_AVISOS, jornada,
+                     type(habia).__name__, "; ".join(avisos))
+        return
+    if not any(bool(v) for k, v in fuera.items() if k != _CLAVE_AVISOS):
+        _log.warning("apuntes: %s de %s no tiene nada dentro todavia; los "
+                     "avisos no se escriben para no hacerlo pasar por unos "
+                     "apuntes generados: %s", alm.APUNTES, jornada,
+                     "; ".join(avisos))
+        return
+    # Se ACUMULAN sin repetir: la migracion corre en cada lectura y un aviso
+    # duplicado por corrida haria crecer el fichero sin fin, y rompe la
+    # idempotencia que se le exige a regenerar.
+    previos = [a for a in (habia or []) if isinstance(a, str)]
+    for a in avisos:
+        if a not in previos:
+            previos.append(a)
+    fuera[_CLAVE_AVISOS] = previos
+
+
+def cargar_mapa(jornada: str, sesiones: list) -> dict:
+    """El apuntes.json de una jornada, ya reclavado a claves estables.
+
+    `sesiones` tiene que ser la lista COMPLETA de la jornada (la que devuelve
+    `cuaderno.sesiones_de`) y se pide como parametro en vez de recalcularla
+    aqui por dos razones: quien llama ya la tiene, y sobre todo porque migrar
+    contra una lista PARCIAL dejaria huerfano todo lo que no estuviera en ella.
+
+    Migra al LEER y reescribe el fichero solo si algo cambio. Si no se puede
+    escribir se sigue con el mapa migrado EN MEMORIA -- no poder tocar el
+    disco no puede costar el cuaderno de hoy -- pero se dice en el log: un
+    fichero que se queda sin migrar volvera a migrarse en la siguiente lectura.
+
+    LEER ESCRIBE, ASI QUE LEER TOMA EL LOCK. Ese read-modify-write no es
+    atomico aunque `guardar_json` lo sea, y esto corre tambien desde el hilo
+    vigia de la jornada viva (cada 90 s) mientras el hilo principal genera
+    apuntes: sin _LOCK_MAPA, el vigia reescribia lo que leyo ANTES de la
+    ultima escritura y se comia la sesion recien generada.
+
+    LOS AVISOS SALEN EN EL MAPA QUE DEVUELVE, bajo la clave _CLAVE_AVISOS, y
+    se leen con `avisos_migracion(jornada, mapa)` sin volver al disco.
+    """
+    ruta = alm.dir_jornada(jornada) / alm.APUNTES
+    with _LOCK_MAPA:
+        crudo = alm.leer_json(ruta, {}) or {}
+        if not isinstance(crudo, dict):
+            _log.warning("apuntes: %s no es un objeto JSON sino %s; se ignora "
+                         "para no escribir encima de algo que no entiendo",
+                         ruta, type(crudo).__name__)
+            return {}
+        mapa, avisos = migrar_mapa(jornada, sesiones, crudo)
+        if mapa != crudo:
+            try:
+                alm.guardar_json(ruta, mapa)
+            except OSError as exc:
+                _log.warning("apuntes: no pude reescribir %s con las claves "
+                             "estables (%s: %s); esta corrida usa la migracion "
+                             "en memoria", ruta, type(exc).__name__, exc)
+    for a in avisos:
+        if a not in _avisos_dichos:             # ver _avisos_dichos
+            _avisos_dichos.add(a)
+            _log.warning("apuntes: %s", a)
+    return mapa
+
+
+def leer_apuntes(jornada: str, sesion, mapa=None, clave: str = "") -> dict:
+    """Los apuntes de UNA sesion. Es LA PUERTA DE LECTURA de apuntes.json.
+
+    Existe para que quien lee (cuaderno, y a traves suyo la vista y el olvido)
+    no tenga que saber como se forma la clave ni que hubo un formato viejo:
+    ese conocimiento vive aqui, junto al codigo que escribe el fichero.
+
+    `mapa` es el fichero ya cargado, para no releerlo una vez por sesion; sin
+    el se carga (y se migra) la jornada entera, que es la unica forma de
+    reclavar sin equivocarse.
+
+    `clave` es la de ESTA sesion dentro de su jornada, la que salio de
+    `claves_de_jornada` (asi la pasa `cuaderno._pegar_apuntes`). Hace falta
+    porque el desempate de dos sesiones que empiezan en el mismo segundo NO se
+    puede reconstruir mirando una sesion suelta: hay que ver la lista entera.
+    Sin ella se usa la clave limpia -- correcto salvo si hubo colision, y ese
+    caso se DICE en el log en vez de devolver los apuntes de la vecina.
+    """
+    if mapa is None:
+        mapa = cargar_mapa(jornada, cua.sesiones_de(jornada))
+    k = str(clave or "") or clave_de_sesion(jornada, sesion)
+    if not clave and "%s%s2" % (k, _SEP_COLISION) in mapa:
+        _log.warning("apuntes: '%s' de %s tiene desempate por colision en el "
+                     "fichero y se pidieron sus apuntes sin `clave`; se "
+                     "devuelven los de la PRIMERA sesion de ese segundo. "
+                     "Quien lea la jornada entera tiene que pasar la clave de "
+                     "claves_de_jornada()", k, jornada)
+    ap = mapa.get(k)
+    if ap is None:
+        return {}
+    if not isinstance(ap, dict):
+        # No se devuelve: la vista y `generar` esperan un dict. Pero tampoco se
+        # calla, que es como una hoja en blanco y unos apuntes corruptos se ven
+        # igual desde fuera. En el fichero se queda: no se borra nada.
+        _log.warning("apuntes: la entrada '%s' de %s no es un objeto sino %s; "
+                     "esa sesion se ve sin apuntes", k, jornada, type(ap).__name__)
+        return {}
+    return ap
+
+
+def avisos_migracion(jornada: str, mapa=None) -> list:
+    """Lo que la migracion de claves tuvo que conservar aparte (huerfanos) y
+    los empates de segundo que hubo que desempatar, para que se pueda mirar
+    sin abrir el JSON a mano. Vacio = no hubo nada que decir.
+
+    `mapa` es el que devolvio `cargar_mapa`: los avisos VIAJAN DENTRO de el
+    (bajo _CLAVE_AVISOS), asi que pasandolo esto no vuelve al disco. Sin el se
+    relee el fichero, que es lo que quiere una puerta de diagnostico que se
+    invoca a pelo.
+
+    PUERTA PENDIENTE EN EL CLI. Esta es la funcion que tiene que cablear
+    `cognia/cli.py`, en el `/grabar-clase estado` (y en `/cuaderno`), con una
+    linea del tipo:
+
+        for _a in _ap.avisos_migracion(_j): _aviso_degradado("clases.apuntes", _a)
+
+    mas su alta en `_CMD_DESCRIPTIONS`. Hasta entonces lo unico que ve el
+    duenio son los warnings del log y la clave '_avisos' del propio
+    apuntes.json -- que es justo por lo que se persisten ahi y no solo en el
+    log de la corrida.
+    """
+    if mapa is None:
+        mapa = alm.leer_json(alm.dir_jornada(jornada) / alm.APUNTES, {}) or {}
+    if not isinstance(mapa, dict):
+        return []
+    habia = mapa.get(_CLAVE_AVISOS)
+    return [a for a in habia if isinstance(a, str)] if isinstance(habia, list) else []
+
+
 def generar_jornada(nombre: str, orch=None, progreso=None) -> dict:
     """Apuntes de TODAS las sesiones de una jornada, guardados en apuntes.json.
 
@@ -979,9 +1403,9 @@ def generar_jornada(nombre: str, orch=None, progreso=None) -> dict:
     guardar al final tiraria las tres primeras -- que es exactamente el modo de
     fallo por el que `almacen` es incremental.
 
-    Las claves son str(indice), las MISMAS que relee `cuaderno.sesiones_de`;
-    devolverlas como int haria que el llamador que compara con el disco no
-    encontrara nada.
+    Las claves son las de `claves_de_jornada` (decision 5 del encabezado), las
+    MISMAS con las que relee `cuaderno.sesiones_de`; un llamador que compare su
+    salida con el disco tiene que encontrar los mismos nombres.
 
     LO QUE HAY EN EL FICHERO NO SE BORRA. Se escribe lo generado ENCIMA de la
     entrada que hubiera, clave a clave, en vez de sustituirla: reescribirla
@@ -990,17 +1414,31 @@ def generar_jornada(nombre: str, orch=None, progreso=None) -> dict:
     que el duenio hubiera puesto a mano, que la vista ensenia en 'otros'.
     Reproducido el 2026-08-31: una `generar_jornada` de rutina, sin `forzar`,
     dejaba el apuntes.json sin esas claves y sin copia de seguridad.
+
+    Y EL FICHERO SE RELEE EN CADA GUARDADO, dentro de _LOCK_MAPA. Generar una
+    sesion con modelo son minutos: sostener en memoria el mapa que se leyo al
+    empezar y escribirlo entero al terminar cada sesion pisaba TODO lo que
+    hubiera escrito entretanto el hilo vigia (que migra al leer, cada 90 s) o
+    el propio duenio a mano. Releer cuesta un JSON chico por sesion y hace que
+    el ultimo en escribir no borre al anterior.
     """
     sesiones = cua.sesiones_de(nombre)
     ruta = alm.dir_jornada(nombre) / alm.APUNTES
-    mapa = alm.leer_json(ruta, {}) or {}
+    # Las claves de la jornada ENTERA, ya desempatadas: dos sesiones que
+    # empiezan en el mismo segundo tienen que escribir en entradas distintas.
+    # Sus avisos no se recogen aqui porque los persiste `cargar_mapa` (via
+    # `migrar_mapa`, que llama a esta misma funcion) en cada guardado.
+    claves = claves_de_jornada(nombre, sesiones)[0]
     fuera: dict = {}
     for i, s in enumerate(sesiones):
         ap = generar(s, orch=orch)
-        fuera[str(i)] = ap
-        previo = mapa.get(str(i))
-        mapa[str(i)] = dict(previo, **ap) if isinstance(previo, dict) else ap
-        alm.guardar_json(ruta, mapa)
+        k = claves[i]
+        fuera[k] = ap
+        with _LOCK_MAPA:
+            mapa = cargar_mapa(nombre, sesiones)
+            previo = mapa.get(k)
+            mapa[k] = dict(previo, **ap) if isinstance(previo, dict) else ap
+            alm.guardar_json(ruta, mapa)
         if callable(progreso):
             try:
                 progreso(i + 1, len(sesiones), s.materia)
