@@ -15351,3 +15351,66 @@ probando. Y los dos guardias nuevos dispararon en vivo en esa misma corrida:
 - `test_autoprueba::test_el_mismo_juego_escuchando_el_teclado_SI_pasa` es FLAKY
   (arranca un navegador): fallo en una corrida del subconjunto y paso en
   aislado y en la siguiente. No se toco.
+
+---
+
+## 2026-08-31 (tarde) — El tool call cortado APAGA EL PENSAMIENTO, no sube el tope
+
+### El sintoma que trajo el dueno (corrida Vaelmark, 4.20.0)
+
+    lleva 20.000 caracteres pensando en este paso sin llamar a ninguna herramienta
+    escribir_archivo: los argumentos se cortaron a los 697 chars; RESCATADOS 608
+    el server no pudo parsear el tool call (se corto a medias): max_tokens 8192 -> 16384
+    el server no pudo parsear el tool call (se corto a medias): max_tokens 16384 -> 32768
+    el contenido no cabe en un solo tool call ni con max_tokens=32768
+    x 448.8s - 14241 tokens - 3 pasos - backend: tool call cortado sin salida
+
+La SALIDA CONTINUA de esta manana no cubre este caso y hay que decirlo: continua
+TEXTO (chat y respuesta final), no el JSON de un tool call cortado a media
+cadena. Aqui el fallo era otro.
+
+### Causa: dos defectos encadenados
+
+1. **`chat_client`**: la rama `except urllib.error.HTTPError` devolvia SOLO el
+   error. El 500 de llama-server por argumentos cortados cae justo ahi — o sea,
+   un turno que YA habia generado — y se tiraba el `reasoning_content`.
+2. **`loop._puede_apagar_pensamiento`**: exigia `motivo ==
+   CORTE_ANTES_DEL_TOOL_CALL`. El corte DENTRO del tool call no apagaba nada y
+   caia a la rampa de max_tokens.
+
+Sin el 1 el bucle es ciego; sin el 2 no actua aunque vea. La consecuencia era
+darle TRES generaciones enteras de MAS SITIO PARA PENSAR a un turno que se
+habia gastado el presupuesto pensando.
+
+### Medido hoy contra el 27B-Ridge del dueno (mismo prompt, con tools)
+
+| thinking | max_tokens | razonamiento | tool_calls | respuesta |
+|---|---|---|---|---|
+| ON  |   900 |  4.285 chars | 0 | 0 chars |
+| ON  | 2.500 | 10.359 chars | 0 | 0 chars |
+| ON  | 6.000 | 21.960 chars | 0 | 0 chars |
+| ON  | 9.000 | 23.496 chars | 0 | 0 chars |
+| ON  | 6.000 | 25.611 chars | **0** | 0 chars |
+| **OFF** | 6.000 | **0 chars** | **1** | — |
+| **OFF** | 1.115 (sin tools) | 0 chars | — | **4.691 chars, finish=stop** |
+
+Con el pensamiento encendido este modelo **no llega a emitir el tool call ni
+con 9.000 tokens**. La rampa no podia funcionar nunca: subia lo que no faltaba.
+
+### Verificacion
+
+- `tests/test_apagar_pensamiento_tool_call.py`: 8 passed (fija los dos
+  defectos por separado y que el aviso deje de mentir).
+- Dirigidos del area: 1.385 passed.
+- Tarea real equivalente en el REPL (`/hacer` un events.py completo contra el
+  27B): **12.472 chars escritos, 278,3 s, 7 pasos, objetivo verificado 1/1**,
+  sin rampa y sin rescate parcial.
+
+### Limite declarado
+
+La **cara 1** (HTTP 500 con el reasoning conservado) no se ha podido reproducir
+en vivo: este modelo con thinking ON ni siquiera empieza el tool call, asi que
+todo cae en la cara 2. El arreglo de `chat_client` esta verificado por codigo y
+por test de fuente, NO contra un 500 real. Queda pendiente cazarlo cuando
+vuelva a pasar (ahora el log del server en ~/.cognia/logs/llama-server-8080.log
+ayuda).

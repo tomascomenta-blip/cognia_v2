@@ -1063,7 +1063,25 @@ def completar(mensajes: list, tools: list = None, url: str = "",
             detalle = e.read().decode("utf-8", errors="replace")[:300]
         except Exception:
             detalle = ""
+        # LO ACUMULADO TAMBIEN VUELVE (2026-08-31). Esta rama devolvia SOLO el
+        # error, y el caso mas comun que cae aqui es el 500 de llama-server
+        # cuando los argumentos del tool call se cortaron a media cadena — o
+        # sea, justo un turno que YA habia generado. Perder ahi el
+        # reasoning_content dejaba ciego al bucle: `_puede_apagar_pensamiento`
+        # pregunta si el turno se fue en razonar, leia vacio y respondia que
+        # no, y el paso se iba a la rampa 8192 -> 16384 -> 32768 en vez de
+        # apagar el pensamiento (corrida Vaelmark: 20.000 chars pensando, tool
+        # call cortado a los 697, tres vueltas y 448 s para nada).
+        # Nota: el 500 llega DESPUES del stream, asi que `acc` ya tiene lo que
+        # paso por el socket; con el camino no-stream viene vacio y no se
+        # afirma nada.
         return RespuestaChat(error=f"HTTP {e.code} de {url}: {detalle}",
+                             texto="".join(acc["texto"]).strip(),
+                             reasoning_content="".join(acc["razon"]),
+                             usage=_usage_del_stream(acc),
+                             usage_estimado=acc["usage_estimado"],
+                             usage_via=acc["usage_via"],
+                             frames_malformados=acc["malformados"],
                              duracion_s=time.monotonic() - t0)
     except Exception as e:
         # Corte de red a mitad del stream: la conexion ya se cerro al salir

@@ -458,6 +458,19 @@ CORTE_ANTES_DEL_TOOL_CALL = (
     "el turno se corto por max_tokens antes de emitir el tool call")
 
 
+# Razonamiento (en chars) por encima del cual un tool call cortado ya no es
+# "el fichero era grande" sino "el turno se lo comio pensando". Medido
+# 2026-08-31 contra el 27B-Ridge del dueno con el MISMO prompt:
+#   thinking ON,  2.500 tokens -> 10.359 chars de razonamiento y CERO de
+#                 respuesta, finish='length'
+#   thinking OFF, 1.115 tokens ->      0 chars de razonamiento y 4.691 de
+#                 respuesta, finish='stop'
+# En la corrida real que lo cazo (Vaelmark, 2026-08-31) el paso llevaba 20.000
+# chars pensando y el tool call salio cortado a los 697. A nivel de modulo para
+# que se pueda leer y calibrar sin abrir el bucle.
+_RAZON_SE_LO_COMIO = 6000
+
+
 def _corte_en_tool_call(resp, schemas) -> str:
     """Motivo si el turno se corto MIENTRAS emitia un tool call, o ''.
 
@@ -1391,7 +1404,14 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         return isinstance(kw, dict) and "enable_thinking" in kw
 
     def _puede_apagar_pensamiento(resp, motivo: str) -> bool:
-        if _pensamiento["apagado"] or motivo != CORTE_ANTES_DEL_TOOL_CALL:
+        # CUALQUIER corte en el tool call vale, no solo el de ANTES de
+        # empezarlo (2026-08-31). El guard exigia CORTE_ANTES_DEL_TOOL_CALL, y
+        # por eso la cara mas comun — el server devuelve HTTP 500 porque los
+        # argumentos se cortaron a media cadena — se iba derecha a la rampa
+        # 8192 -> 16384 -> 32768: tres generaciones enteras dandole MAS SITIO
+        # PARA PENSAR a un turno que ya se habia gastado 20.000 chars
+        # pensando. Subir el tope no podia curarlo; apagar el pensamiento si.
+        if _pensamiento["apagado"] or not motivo:
             return False
         if not _lleva_thinking():
             return False
@@ -1400,7 +1420,14 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             return False               # el dueno lo pidio encendido: manda el
         # Solo si el turno se fue DE VERDAD en razonar. Sin reasoning el corte
         # es otra cosa y apagar el pensamiento no viene a cuento.
-        return bool((getattr(resp, "reasoning_content", "") or "").strip())
+        if (getattr(resp, "reasoning_content", "") or "").strip():
+            return True
+        # ...y cuando el server contesta 500, `completar` vuelve SIN el
+        # reasoning acumulado (solo con .error): ahi la evidencia es el
+        # contador vivo del stream, que sigue siendo del MISMO paso.
+        if motivo == CORTE_ANTES_DEL_TOOL_CALL:
+            return False               # sin reasoning y sin haber empezado: no
+        return _vivo["chars_razon"] >= _RAZON_SE_LO_COMIO
 
     def _apagar_pensamiento() -> None:
         kw = dict(sampling.get("kwargs_plantilla") or
@@ -1788,11 +1815,18 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 # escribe el fichero con la quinta parte. Por eso la rampa de
                 # max_tokens no podia funcionar nunca en este caso: subia lo
                 # que no faltaba.
+                # Va ANTES de la rama de la VENTANA a proposito: apagar el
+                # pensamiento es una intervencion de efecto medido y coste
+                # cero, y solo se hace UNA vez por tarea. Si el corte era de
+                # verdad de ventana, la vuelta siguiente ya cae en compactar.
                 _apagar_pensamiento()
-                print_fn("[warn_cl]el turno se fue entero en razonar sin "
-                         "llegar a llamar la herramienta: repito el paso con "
-                         "el pensamiento APAGADO (COGNIA_THINKING=on lo "
-                         "impide)[/warn_cl]")
+                _donde = ("sin llegar a llamar la herramienta"
+                          if _motivo_corte == CORTE_ANTES_DEL_TOOL_CALL
+                          else f"y la herramienta salio cortada a medias "
+                               f"({_vivo['chars_razon']} chars pensando)")
+                print_fn(f"[warn_cl]el turno se fue en razonar {_donde}: "
+                         f"repito el paso con el pensamiento APAGADO "
+                         f"(COGNIA_THINKING=on lo impide)[/warn_cl]")
             elif _por_ventana:
                 _liberados = (_compactar_por_resumen(
                     mensajes, perfil.get("n_ctx"), 10 ** 9, _estado, print_fn)
