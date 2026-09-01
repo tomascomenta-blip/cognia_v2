@@ -1,0 +1,283 @@
+{
+  "id": "node-cli-generador",
+  "familia": "node",
+  "dificultad": 3,
+  "presupuesto_s": 240,
+  "pasos": 40,
+  "longitud_esperada_lineas": 700,
+  "prompt": "Construye una HERRAMIENTA DE LINEA DE COMANDOS en Node.js puro que genere proyectos a partir de plantillas, en el directorio de trabajo actual. Prohibido: dependencias externas, `npm install`, package.json con \"dependencies\", red, CDN. Solo modulos incorporados de Node (fs, path, process, os). Nada de codigo que necesite descargar algo.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Descubrimiento de plantillas: lee el directorio plantillas/, valida el manifiesto de cada una y las ofrece; una plantilla rota se reporta, no revienta la herramienta.\n2. Subcomando de listado que muestra nombre y descripcion de cada plantilla y cuantas hay.\n3. Subcomando de creacion que copia el arbol completo de la plantilla al destino, creando los directorios que hagan falta.\n4. Motor de sustitucion de variables: cada aparicion de {{variable}} en el CONTENIDO y tambien en los NOMBRES de fichero y de directorio se reemplaza por su valor.\n5. Resolucion de variables por prioridad: valor dado en la linea de comandos, luego el valor por defecto del manifiesto; si una variable obligatoria se queda sin valor, se aborta con un error claro y SIN escribir nada.\n6. Modo simulacion (dry-run) que imprime exactamente que ficheros se crearian y NO toca el disco.\n7. Proteccion del destino: si ya existe y no se pasa --forzar, se aborta; con --forzar se sobreescribe.\n8. Subcomando de validacion que recorre un proyecto ya generado y comprueba que no queda ninguna marca {{...}} sin sustituir, informando cuantas quedan y en que ficheros.\n9. Al menos TRES plantillas propias incluidas en el repositorio, con varios ficheros y subdirectorios cada una, y su manifiesto con variables, valores por defecto y obligatoriedad.\n10. Codigos de salida distintos y estables por cada clase de error, y mensajes de error de una linea que empiezan por \"error: \" (nunca un stack trace de Node en la cara del usuario).\n11. Una suite de pruebas propia, en Node puro, que crea proyectos en un directorio temporal, comprueba el resultado y limpia detras de si.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo al pie de la letra):\n\nFicheros, con estos nombres exactos:\n    gen.js                          punto de entrada, se ejecuta con `node gen.js <subcomando> ...`\n    pruebas.js                      la suite propia, se ejecuta con `node pruebas.js`\n    plantillas/<nombre>/plantilla.json   manifiesto de cada plantilla\n    README.md                       como se usa\n\nManifiesto plantilla.json:\n    {\"descripcion\": \"...\", \"variables\": [{\"nombre\": \"...\", \"defecto\": \"...\", \"obligatoria\": true|false}]}\nUna de las plantillas se llama EXACTAMENTE cli-node, declara al menos las variables `nombre` (obligatoria, SIN defecto) y `autor` (con defecto), y contiene al menos tres ficheros repartidos en al menos un subdirectorio. Uno de esos ficheros se llama EXACTAMENTE `src/{{nombre}}.js`: la marca va en el NOMBRE, para que se vea que sustituyes tambien los nombres, y su contenido usa {{nombre}} y {{autor}}. No hay ningun escape de las marcas: cualquier {{...}} que sobreviva dentro de un proyecto ya generado es un fallo, tambien si la plantilla lo puso a proposito. Debe haber al menos tres plantillas en total.\n\nSubcomandos y SALIDAS EXACTAS:\n    node gen.js listar\n        una linea por plantilla con  <nombre><TAB><descripcion>\n        y como ultima linea:  total: <numero de plantillas>\n    node gen.js crear <plantilla> --destino <ruta> [--var clave=valor ...] [--forzar] [--simular]\n        al crear de verdad:  creado: <ruta> (<n> ficheros)\n        con --simular:       una linea  simular: <ruta relativa>  por cada fichero que se crearia,\n                             y como ultima linea:  simulacion: <n> ficheros   (y CERO escrituras en disco)\n    node gen.js validar <ruta>\n        sin marcas pendientes:  validacion: OK\n        con marcas pendientes:  validacion: FALLO (<n> marcas)\n    node gen.js ayuda        imprime el uso completo\n    node pruebas.js          corre AL MENOS 10 comprobaciones propias e imprime como ultima linea:\n                             pruebas: <ok>/<total> OK\n\nCodigos de salida, exactos:\n    0 exito\n    1 se invoco sin subcomando (imprime la ayuda)\n    2 subcomando desconocido\n    3 plantilla desconocida\n    4 el destino ya existe y no se paso --forzar\n    5 validacion fallida (quedan marcas sin sustituir)\n    6 falta una variable obligatoria sin valor por defecto\n    7 la ruta indicada a validar no existe\n`node pruebas.js` sale con 0 si todas las comprobaciones pasan y con 1 si alguna falla.\n\nVERIFICACION ANTES DE ENTREGAR (obligatoria): ejecuta tu propia herramienta de verdad. Lista, crea un proyecto en un directorio de prueba, abre los ficheros generados y comprueba con tus ojos que no queda ni una marca {{...}}; repite la creacion con --forzar; prueba el modo simulacion y comprueba que el directorio NO se creo; provoca cada uno de los codigos de salida de la tabla y comprueba con `echo` el codigo real; corre `node pruebas.js` y arregla lo que falle. No entregues un esqueleto: cada punto de la lista debe estar implementado, ejecutado y corregido por ti.",
+  "criterios_exito": [
+    "node gen.js listar enumera tres o mas plantillas propias",
+    "crear copia el arbol y sustituye las variables en contenido y en nombres",
+    "validar confirma que no queda ninguna marca sin sustituir",
+    "el modo simulacion no escribe nada en disco",
+    "cada clase de error devuelve su codigo de salida del contrato",
+    "node pruebas.js corre diez o mas comprobaciones y salen todas en verde"
+  ],
+  "criterios_fallo": [
+    "no hay plantillas propias o hay menos de tres",
+    "el proyecto generado conserva marcas {{variable}} sin sustituir",
+    "el modo simulacion escribe en disco",
+    "todos los errores devuelven el mismo codigo de salida (o siempre 0)",
+    "un error de uso saca un stack trace de Node",
+    "usa dependencias de npm"
+  ],
+  "artefactos": [
+    {
+      "glob": "gen.js",
+      "obligatorio": true,
+      "min_bytes": 4000
+    },
+    {
+      "glob": "pruebas.js",
+      "obligatorio": true,
+      "min_bytes": 1500
+    },
+    {
+      "glob": "plantillas/*/plantilla.json",
+      "obligatorio": true,
+      "min_bytes": 40
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "herramienta-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "gen.js",
+      "min_bytes": 4000,
+      "min_lineas": 180,
+      "contiene": [
+        "listar",
+        "crear",
+        "validar",
+        "simular",
+        "forzar"
+      ],
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "require\\(['\\\"]express['\\\"]\\)",
+        "require\\(['\\\"]ejs['\\\"]\\)"
+      ]
+    },
+    {
+      "nombre": "plantillas-propias-en-disco",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "plantillas/*/plantilla.json",
+      "min_bytes": 40,
+      "contiene": [
+        "variables",
+        "descripcion"
+      ]
+    },
+    {
+      "nombre": "listar-enumera-las-plantillas",
+      "tipo": "nodo",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "entry": "gen.js",
+      "timeout": 60,
+      "args": [
+        "listar"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "total:\\s*([3-9]|\\d\\d+)\\b",
+        "cli-node"
+      ],
+      "no_stdout_re": [
+        "\\n\\s+at .+:\\d+:\\d+"
+      ]
+    },
+    {
+      "nombre": "crear-genera-el-proyecto",
+      "tipo": "nodo",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "entry": "gen.js",
+      "timeout": 90,
+      "args": [
+        "crear",
+        "cli-node",
+        "--destino",
+        "salida/demo",
+        "--var",
+        "nombre=demo",
+        "--var",
+        "autor=ana",
+        "--forzar"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "creado:",
+        "\\(\\s*[1-9]\\d*\\s*ficheros\\s*\\)"
+      ]
+    },
+    {
+      "nombre": "el-proyecto-generado-no-tiene-marcas",
+      "tipo": "nodo",
+      "capa": "integridad",
+      "peso": 1.5,
+      "entry": "gen.js",
+      "timeout": 60,
+      "args": [
+        "validar",
+        "salida/demo"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "validacion:\\s*OK"
+      ]
+    },
+    {
+      "nombre": "el-arbol-generado-no-conserva-marcas",
+      "tipo": "fichero",
+      "capa": "integridad",
+      "peso": 1.5,
+      "glob": "salida/demo/**/*",
+      "min_bytes": 1,
+      "no_contiene": [
+        "\\{\\{\\s*\\w+\\s*\\}\\}"
+      ]
+    },
+    {
+      "nombre": "la-sustitucion-llega-a-los-nombres-de-fichero",
+      "tipo": "fichero",
+      "capa": "integridad",
+      "peso": 1.5,
+      "glob": "salida/demo/**/demo*",
+      "min_bytes": 1,
+      "contiene": [
+        "demo"
+      ]
+    },
+    {
+      "nombre": "sus-propias-pruebas-en-verde",
+      "tipo": "nodo",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entry": "pruebas.js",
+      "timeout": 180,
+      "exit": 0,
+      "stdout_re": [
+        "pruebas:\\s*(\\d+)/\\1\\s*OK",
+        "pruebas:\\s*\\d\\d+/"
+      ]
+    },
+    {
+      "nombre": "simulacion-anuncia-los-ficheros",
+      "tipo": "nodo",
+      "capa": "funcionalidad",
+      "entry": "gen.js",
+      "timeout": 60,
+      "args": [
+        "crear",
+        "cli-node",
+        "--destino",
+        "salida/simulado",
+        "--var",
+        "nombre=fantasma",
+        "--simular"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "simular:",
+        "simulacion:\\s*[1-9]\\d*\\s*ficheros"
+      ]
+    },
+    {
+      "nombre": "la-simulacion-no-escribio-nada",
+      "tipo": "nodo",
+      "capa": "robustez",
+      "peso": 1.5,
+      "entry": "gen.js",
+      "timeout": 60,
+      "args": [
+        "validar",
+        "salida/simulado"
+      ],
+      "exit": 7,
+      "stdout_re": [
+        "error"
+      ],
+      "no_stdout_re": [
+        "\\n\\s+at .+:\\d+:\\d+"
+      ]
+    },
+    {
+      "nombre": "plantilla-desconocida-falla-limpio",
+      "tipo": "nodo",
+      "capa": "robustez",
+      "entry": "gen.js",
+      "timeout": 60,
+      "args": [
+        "crear",
+        "no-existe-esta-plantilla",
+        "--destino",
+        "salida/nada"
+      ],
+      "exit": 3,
+      "stdout_re": [
+        "error"
+      ],
+      "no_stdout_re": [
+        "\\n\\s+at .+:\\d+:\\d+"
+      ]
+    },
+    {
+      "nombre": "variable-obligatoria-que-falta",
+      "tipo": "nodo",
+      "capa": "robustez",
+      "entry": "gen.js",
+      "timeout": 60,
+      "args": [
+        "crear",
+        "cli-node",
+        "--destino",
+        "salida/sin-nombre",
+        "--forzar"
+      ],
+      "exit": 6,
+      "stdout_re": [
+        "error"
+      ],
+      "no_stdout_re": [
+        "\\n\\s+at .+:\\d+:\\d+"
+      ]
+    },
+    {
+      "nombre": "crear-estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "nodo",
+        "entry": "gen.js",
+        "timeout": 90,
+        "args": [
+          "crear",
+          "cli-node",
+          "--destino",
+          "salida/repetido",
+          "--var",
+          "nombre=repetido",
+          "--var",
+          "autor=ana",
+          "--forzar"
+        ],
+        "exit": 0,
+        "stdout_re": [
+          "creado:"
+        ]
+      }
+    }
+  ]
+}

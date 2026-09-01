@@ -1,0 +1,359 @@
+{
+  "id": "web-editor-markdown",
+  "familia": "web",
+  "dificultad": 3,
+  "presupuesto_s": 240,
+  "pasos": 40,
+  "longitud_esperada_lineas": 800,
+  "prompt": "Construye un EDITOR MARKDOWN COMPLETO de una sola pagina en HTML + CSS + JavaScript puro, con vista previa en vivo y un parser de Markdown ESCRITO A MANO POR TI. Entregalo en el directorio de trabajo actual con index.html como punto de entrada y el codigo JavaScript en uno o varios ficheros .js propios (no metas todo el codigo dentro del HTML). PROHIBIDO usar red, CDN, npm install, pip install o cualquier libreria externa (nada de marked, showdown, markdown-it ni DOMPurify): el parser y el saneado son tuyos, con la libreria estandar del navegador.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Editor de dos paneles: un <textarea> a la izquierda y la vista previa a la derecha, que se actualiza EN VIVO mientras se escribe.\n2. Parser propio de encabezados de nivel 1 a 6 con almohadillas.\n3. Parser de estilos en linea: negrita con dos asteriscos, cursiva con un asterisco o guion bajo, y codigo en linea con acentos graves; deben poder combinarse dentro de un mismo parrafo.\n4. Bloques de codigo con vallas de tres acentos graves, que salen como <pre><code> y NO se interpretan por dentro.\n5. Listas no ordenadas (guion o asterisco) y ordenadas (numero y punto), con ANIDAMIENTO por dos espacios de sangria: una lista dentro de otra tiene que producir un <ul> dentro del <li> padre.\n6. Enlaces [texto](url), imagenes ![alt](url), citas con el signo de mayor que, y linea horizontal con tres guiones.\n7. Tablas con barras verticales y fila separadora, que producen <table> con <th> en la cabecera y <td> en el cuerpo.\n8. Barra de herramientas con botones que insertan la sintaxis en la posicion del cursor (negrita, cursiva, titulo, enlace, imagen, lista, cita, codigo y tabla) y devuelven el foco al editor.\n9. Contador en vivo de palabras, caracteres y lineas.\n10. Gestor de documentos en localStorage: guardar con nombre, abrir, listar y borrar; el documento abierto se recupera al recargar la pagina.\n11. Exportacion a HTML: un documento completo y autonomo con el contenido renderizado dentro.\n12. SEGURIDAD: el HTML del documento se ESCAPA siempre (los caracteres & < > y las comillas dobles), de modo que un <script> escrito en el markdown se ve como texto y nunca se ejecuta, y las urls de enlaces e imagenes que empiecen por javascript: se neutralizan.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo exactamente):\n- Punto de entrada: index.html, con el editor y la vista previa listos al cargar.\n- IDs del DOM obligatorios: #editor (el <textarea>; la vista previa y el contador se refrescan cuando el textarea dispara el evento input), #vista (el contenedor de la vista previa), #barra (la barra de herramientas) con los botones #btn-negrita, #btn-cursiva, #btn-titulo, #btn-enlace, #btn-imagen, #btn-lista, #btn-cita, #btn-codigo y #btn-tabla; #contador; #nombre-doc (input con el nombre del documento), #btn-guardar, #btn-abrir, #btn-borrar, #btn-exportar y #lista-docs (la lista de documentos guardados).\n- Expon un objeto global window.EDITOR siempre actualizado con:\n    window.EDITOR.render(texto)      -> devuelve el HTML del markdown como STRING, sin tocar el DOM (funcion pura: la misma entrada da siempre la misma salida)\n    window.EDITOR.escapar(texto)     -> devuelve el texto con &, <, > y \" escapados como entidades\n    window.EDITOR.setTexto(texto)    -> pone el texto en el textarea y refresca vista previa y contador\n    window.EDITOR.getTexto()         -> devuelve el texto actual del editor\n    window.EDITOR.contarPalabras(texto) -> {palabras, caracteres, lineas}, donde palabras son los trozos separados por espacios en blanco (los vacios no cuentan), caracteres es la longitud TOTAL del texto contando los espacios, y lineas es el numero de lineas (un texto con un salto de linea tiene 2); si no se le pasa texto usa el del editor\n    window.EDITOR.insertar(sintaxis) -> inserta la sintaxis pedida ('negrita','cursiva','titulo','enlace','imagen','lista','cita','codigo','tabla') en el editor y devuelve el texto resultante\n    window.EDITOR.guardar(nombre)    -> guarda el documento con ese nombre en localStorage y devuelve true\n    window.EDITOR.abrir(nombre)      -> carga ese documento en el editor; devuelve true, o false si no existe\n    window.EDITOR.listar()           -> array con los nombres guardados\n    window.EDITOR.borrar(nombre)     -> borra ese documento; devuelve true/false\n    window.EDITOR.exportarHTML()     -> devuelve un documento HTML completo (empieza por <!doctype html>, con <html>, <head> y <body>) con el render dentro y sin ninguna referencia externa\n- Reglas que se comprueban: render('<script>alert(1)</script>') devuelve el script ESCAPADO y nunca crea un nodo <script>; una imagen con onerror escrita en el markdown no ejecuta nada; un enlace a javascript: no conserva ese href.\n- No debe haber NINGUN error en la consola del navegador.\n- Escribe tambien un README.md corto explicando que hace, que sintaxis soporta y como se abre.\n\nNo entregues un esqueleto ni una maqueta: cada sistema de la lista tiene que estar implementado. Antes de decir que has terminado, ABRE tu propio resultado, escribe un documento con TODA la sintaxis de la lista (incluidas listas anidadas y tablas), comprueba la vista previa, los botones, el contador, el guardado, la exportacion y el escapado del HTML peligroso, y CORRIGE lo que falle.",
+  "criterios_exito": [
+    "index.html abre sin errores con el textarea, la vista previa y la barra de botones",
+    "la vista previa se actualiza en vivo al teclear en el editor",
+    "el parser propio cubre encabezados, negrita, cursiva, codigo en linea y en bloque, listas anidadas, ordenadas, enlaces, imagenes, citas y tablas",
+    "render escapa el HTML peligroso y ningun script del documento llega a ejecutarse",
+    "los botones de la barra insertan sintaxis y el contador refleja palabras, caracteres y lineas",
+    "guardar, listar, abrir y borrar documentos funciona y sobrevive a una recarga",
+    "exportarHTML devuelve un documento autonomo con el contenido renderizado"
+  ],
+  "criterios_fallo": [
+    "usa una libreria de markdown en vez de un parser propio",
+    "la vista previa no cambia al escribir",
+    "faltan listas anidadas, tablas o bloques de codigo",
+    "el markdown con <script> o con javascript: se ejecuta o conserva el href",
+    "render no es una funcion pura o toca el DOM para devolver el HTML",
+    "los documentos guardados se pierden al recargar",
+    "errores de JavaScript en la consola"
+  ],
+  "artefactos": [
+    {
+      "glob": "index.html",
+      "obligatorio": true,
+      "min_bytes": 800
+    },
+    {
+      "glob": "*.js",
+      "obligatorio": true,
+      "min_bytes": 6500
+    },
+    {
+      "glob": "*.css",
+      "obligatorio": false,
+      "min_bytes": 300
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "pagina-editor-y-barra",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/index.html",
+      "min_bytes": 800,
+      "contiene": [
+        "textarea",
+        "id=\"?'?editor",
+        "vista",
+        "btn-negrita",
+        "contador"
+      ]
+    },
+    {
+      "nombre": "codigo-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "min_bytes": 800,
+      "min_lineas": 300,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "cdn\\.",
+        "unpkg",
+        "jsdelivr",
+        "require\\(['\"]marked",
+        "showdown",
+        "markdown-it"
+      ]
+    },
+    {
+      "nombre": "contrato-en-el-codigo",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "contiene": [
+        "blockquote",
+        "exportarHTML",
+        "contarPalabras",
+        "localStorage",
+        "&lt;|&amp;|&quot;|&#39;|textContent"
+      ]
+    },
+    {
+      "nombre": "arranca-y-previsualiza-en-vivo",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "pagina": "index.html",
+      "espera_ms": 1500,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "escribir",
+          "sel": "#editor",
+          "texto": "# Hola mundo\n\nesto es **negrita** y *cursiva*.\n\n- uno\n- dos\n"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 800
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "#editor",
+          "min": 1
+        },
+        {
+          "tipo": "selector",
+          "sel": "#vista",
+          "min": 1
+        },
+        {
+          "tipo": "selector",
+          "sel": "#barra button",
+          "min": 6
+        },
+        {
+          "tipo": "js",
+          "nombre": "api",
+          "codigo": "() => !!(window.EDITOR && typeof window.EDITOR.render==='function' && typeof window.EDITOR.escapar==='function' && typeof window.EDITOR.setTexto==='function' && typeof window.EDITOR.getTexto==='function' && typeof window.EDITOR.contarPalabras==='function' && typeof window.EDITOR.insertar==='function' && typeof window.EDITOR.guardar==='function' && typeof window.EDITOR.abrir==='function' && typeof window.EDITOR.listar==='function' && typeof window.EDITOR.borrar==='function' && typeof window.EDITOR.exportarHTML==='function')"
+        },
+        {
+          "tipo": "js",
+          "nombre": "la_vista_sigue_al_teclado",
+          "codigo": "() => { const v=document.querySelector('#vista'); return !!v && !!v.querySelector('h1') && !!v.querySelector('strong,b') && !!v.querySelector('em,i') && v.querySelectorAll('ul li').length>=2 && /Hola mundo/.test(v.textContent); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "render_es_puro",
+          "codigo": "() => { const a=window.EDITOR.render('# uno'); const antes=document.querySelector('#vista').innerHTML; const b=window.EDITOR.render('# uno'); return typeof a==='string' && a===b && document.querySelector('#vista').innerHTML===antes && /<h1/i.test(a); }"
+        }
+      ]
+    },
+    {
+      "nombre": "el-parser-cubre-la-sintaxis",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "reglas_soportadas",
+          "codigo": "() => { const md = '# Titulo\\n\\n## Sub\\n\\nUn parrafo con **negrita**, *cursiva* y `codigo`.\\n\\n- uno\\n- dos\\n  - anidado\\n\\n1. primero\\n2. segundo\\n\\n> una cita\\n\\n[enlace](https://ejemplo.com/pagina)\\n\\n![gato](gato.png)\\n\\n```\\nvar x = 1;\\n```\\n\\n| a | b |\\n| --- | --- |\\n| 1 | 2 |\\n'; const h = window.EDITOR.render(md); if (typeof h !== 'string') return 0; const d = new DOMParser().parseFromString(h, 'text/html').body; let n = 0;\n const h1 = d.querySelector('h1'); if (h1 && /Titulo/.test(h1.textContent)) n++;\n const h2 = d.querySelector('h2'); if (h2 && /Sub/.test(h2.textContent)) n++;\n const st = d.querySelector('strong,b'); if (st && /negrita/.test(st.textContent)) n++;\n const em = d.querySelector('em,i'); if (em && /cursiva/.test(em.textContent)) n++;\n const inline = Array.from(d.querySelectorAll('code')).filter(c => !c.closest('pre')); if (inline.some(c => /codigo/.test(c.textContent))) n++;\n const pre = d.querySelector('pre'); if (pre && /var x = 1/.test(pre.textContent)) n++;\n const ul = d.querySelector('ul'); if (ul && ul.querySelectorAll('li').length >= 2) n++;\n if (ul && ul.querySelector('li ul li')) n++;\n const ol = d.querySelector('ol'); if (ol && ol.querySelectorAll('li').length >= 2) n++;\n const a = d.querySelector('a[href]'); if (a && String(a.getAttribute('href')).indexOf('ejemplo.com') >= 0 && /enlace/.test(a.textContent)) n++;\n const img = d.querySelector('img[src]'); if (img && /gato\\.png/.test(String(img.getAttribute('src')))) n++;\n const bq = d.querySelector('blockquote'); if (bq && /una cita/.test(bq.textContent)) n++;\n const t = d.querySelector('table'); if (t && t.querySelectorAll('th').length >= 2 && t.querySelectorAll('td').length >= 2) n++;\n return n; }",
+          "min": 13
+        },
+        {
+          "tipo": "js",
+          "nombre": "encabezados_de_todos_los_niveles",
+          "codigo": "() => { const d = new DOMParser().parseFromString(window.EDITOR.render('# a\\n\\n### c\\n\\n###### f\\n'), 'text/html').body; return !!d.querySelector('h1') && !!d.querySelector('h3') && !!d.querySelector('h6'); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_bloque_de_codigo_no_se_interpreta",
+          "codigo": "() => { const d = new DOMParser().parseFromString(window.EDITOR.render('```\\n# no soy un titulo\\n**ni negrita**\\n```\\n'), 'text/html').body; const pre=d.querySelector('pre'); return !!pre && !d.querySelector('h1') && !d.querySelector('strong') && /no soy un titulo/.test(pre.textContent) && /\\*\\*ni negrita\\*\\*/.test(pre.textContent); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "linea_horizontal_y_parrafos",
+          "codigo": "() => { const d = new DOMParser().parseFromString(window.EDITOR.render('parrafo uno\\n\\n---\\n\\nparrafo dos\\n'), 'text/html').body; return !!d.querySelector('hr') && d.querySelectorAll('p').length>=2; }"
+        }
+      ]
+    },
+    {
+      "nombre": "barra-de-herramientas-y-contador",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { window.EDITOR.setTexto('hola mundo'); }"
+        },
+        {
+          "tipo": "click",
+          "sel": "#btn-negrita"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 300
+        },
+        {
+          "tipo": "click",
+          "sel": "#btn-tabla"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 300
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "los_botones_insertan",
+          "codigo": "() => { const t=window.EDITOR.getTexto(); const ta=document.querySelector('#editor').value; return t===ta && t.indexOf('**')>=0 && t.indexOf('|')>=0 && t.indexOf('hola mundo')>=0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "insertar_por_api",
+          "codigo": "() => { window.EDITOR.setTexto(''); const r=window.EDITOR.insertar('cita'); const t=window.EDITOR.getTexto(); return typeof r==='string' && t.indexOf('>')>=0 && window.EDITOR.insertar('enlace').indexOf('](')>=0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "cuenta_bien",
+          "codigo": "() => { const c=window.EDITOR.contarPalabras('uno dos tres cuatro'); const l=window.EDITOR.contarPalabras('a b\\nc d\\ne'); return c && c.palabras===4 && c.caracteres===19 && l.palabras===5 && l.lineas===3; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_contador_del_dom_se_refresca",
+          "codigo": "() => { window.EDITOR.setTexto('alfa beta gamma delta epsilon'); const t=(document.querySelector('#contador')||{}).textContent||''; return t.replace(/[^0-9]/g,'').indexOf('5')>=0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "escapa-el-html-peligroso",
+      "tipo": "web",
+      "capa": "robustez",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "escribir",
+          "sel": "#editor",
+          "texto": "Peligro <script>window.__xss=1</script>\n\n<img src=x onerror=\"window.__xss2=1\">\n\n[pulsa](javascript:window.__xss3=1)\n"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 900
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "nada_se_ejecuto",
+          "codigo": "() => window.__xss===undefined && window.__xss2===undefined && window.__xss3===undefined"
+        },
+        {
+          "tipo": "js",
+          "nombre": "sin_nodos_peligrosos_en_la_vista",
+          "codigo": "() => { const v=document.querySelector('#vista'); return v.querySelectorAll('script').length===0 && v.querySelectorAll('[onerror]').length===0 && v.querySelectorAll('img[src=x]').length===0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_script_se_ve_como_texto",
+          "codigo": "() => { const v=document.querySelector('#vista'); return /<script>/.test(v.textContent) || /&lt;script&gt;/i.test(v.innerHTML); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "render_escapa",
+          "codigo": "() => { const h=window.EDITOR.render('<b>x</b> & <script>alert(1)</script>'); const e=window.EDITOR.escapar('<a & \"b\">'); return /&lt;script/i.test(h) && !/<script/i.test(h) && /&amp;/.test(e) && /&lt;a/.test(e) && /&gt;/.test(e); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "javascript_url_neutralizada",
+          "codigo": "() => { const d = new DOMParser().parseFromString(window.EDITOR.render('[c](javascript:alert(1))\\n\\n![i](javascript:alert(2))\\n'), 'text/html').body; const a=d.querySelector('a'); const im=d.querySelector('img'); const ha=a?String(a.getAttribute('href')||''):''; const hi=im?String(im.getAttribute('src')||''):''; return !/^javascript:/i.test(ha) && !/^javascript:/i.test(hi); }"
+        }
+      ]
+    },
+    {
+      "nombre": "documentos-guardados-y-exportacion",
+      "tipo": "web",
+      "capa": "integridad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const e=window.EDITOR; e.setTexto('# Documento uno\\n\\ntexto **guardado** del banco\\n'); e.guardar('nota-uno'); e.setTexto('otra cosa distinta'); e.guardar('nota-dos'); }"
+        },
+        {
+          "tipo": "recargar",
+          "ms": 1500
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => { window.__abierto = window.EDITOR.abrir('nota-uno'); }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 500
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_listado_sobrevivio",
+          "codigo": "() => { const l=window.EDITOR.listar()||[]; return l.indexOf('nota-uno')>=0 && l.indexOf('nota-dos')>=0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "abrir_restaura_el_texto",
+          "codigo": "() => { const t=window.EDITOR.getTexto(); return window.__abierto===true && /Documento uno/.test(t) && /guardado/.test(t) && /Documento uno/.test(document.querySelector('#editor').value) && /Documento uno/.test(document.querySelector('#vista').textContent); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "borrar_borra_de_verdad",
+          "codigo": "() => { const e=window.EDITOR; const ok=e.borrar('nota-dos')===true; const l=e.listar()||[]; return ok && l.indexOf('nota-dos')<0 && e.abrir('nota-dos')===false && e.borrar('nota-dos')===false; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "exporta_un_html_autonomo",
+          "codigo": "() => { const e=window.EDITOR; e.setTexto('# Titulo exportado\\n\\ncon **negrita**\\n'); const h=e.exportarHTML(); return typeof h==='string' && h.length>150 && /<!doctype html/i.test(h) && /<html/i.test(h) && /<body/i.test(h) && /<h1[^>]*>/i.test(h) && /Titulo exportado/.test(h) && /<strong>|<b>/i.test(h) && !/<script[^>]*\\ssrc\\s*=/i.test(h) && !/<link[^>]*https?:/i.test(h); }"
+        }
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "web",
+        "pagina": "index.html",
+        "espera_ms": 1500,
+        "max_errores_consola": 0,
+        "afirmaciones": [
+          {
+            "tipo": "js",
+            "nombre": "api_viva",
+            "codigo": "() => !!(window.EDITOR && typeof window.EDITOR.render==='function' && typeof window.EDITOR.escapar==='function' && typeof window.EDITOR.setTexto==='function' && typeof window.EDITOR.getTexto==='function' && typeof window.EDITOR.contarPalabras==='function' && typeof window.EDITOR.insertar==='function' && typeof window.EDITOR.guardar==='function' && typeof window.EDITOR.abrir==='function' && typeof window.EDITOR.listar==='function' && typeof window.EDITOR.borrar==='function' && typeof window.EDITOR.exportarHTML==='function')"
+          },
+          {
+            "tipo": "js",
+            "nombre": "parser_vivo",
+            "codigo": "() => { const md = '# Titulo\\n\\n## Sub\\n\\nUn parrafo con **negrita**, *cursiva* y `codigo`.\\n\\n- uno\\n- dos\\n  - anidado\\n\\n1. primero\\n2. segundo\\n\\n> una cita\\n\\n[enlace](https://ejemplo.com/pagina)\\n\\n![gato](gato.png)\\n\\n```\\nvar x = 1;\\n```\\n\\n| a | b |\\n| --- | --- |\\n| 1 | 2 |\\n'; const h = window.EDITOR.render(md); if (typeof h !== 'string') return 0; const d = new DOMParser().parseFromString(h, 'text/html').body; let n = 0;\n const h1 = d.querySelector('h1'); if (h1 && /Titulo/.test(h1.textContent)) n++;\n const h2 = d.querySelector('h2'); if (h2 && /Sub/.test(h2.textContent)) n++;\n const st = d.querySelector('strong,b'); if (st && /negrita/.test(st.textContent)) n++;\n const em = d.querySelector('em,i'); if (em && /cursiva/.test(em.textContent)) n++;\n const inline = Array.from(d.querySelectorAll('code')).filter(c => !c.closest('pre')); if (inline.some(c => /codigo/.test(c.textContent))) n++;\n const pre = d.querySelector('pre'); if (pre && /var x = 1/.test(pre.textContent)) n++;\n const ul = d.querySelector('ul'); if (ul && ul.querySelectorAll('li').length >= 2) n++;\n if (ul && ul.querySelector('li ul li')) n++;\n const ol = d.querySelector('ol'); if (ol && ol.querySelectorAll('li').length >= 2) n++;\n const a = d.querySelector('a[href]'); if (a && String(a.getAttribute('href')).indexOf('ejemplo.com') >= 0 && /enlace/.test(a.textContent)) n++;\n const img = d.querySelector('img[src]'); if (img && /gato\\.png/.test(String(img.getAttribute('src')))) n++;\n const bq = d.querySelector('blockquote'); if (bq && /una cita/.test(bq.textContent)) n++;\n const t = d.querySelector('table'); if (t && t.querySelectorAll('th').length >= 2 && t.querySelectorAll('td').length >= 2) n++;\n return n; }",
+            "min": 13
+          },
+          {
+            "tipo": "js",
+            "nombre": "escapado_vivo",
+            "codigo": "() => { const h=window.EDITOR.render('<script>alert(1)</script>'); return !/<script/i.test(h); }"
+          }
+        ]
+      }
+    }
+  ]
+}

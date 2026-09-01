@@ -2,6 +2,54 @@
 
 ---
 
+## [4.22.0] - 2026-09-01
+
+### El agente deja de confundir RESPONDER con TERMINAR
+
+Hasta hoy «la tarea terminó» era, literalmente, `if not resp.tool_calls: break`: un turno
+de prosa cerraba con éxito un encargo de diez sistemas del que se habían hecho dos. De
+las nueve salidas del bucle, ocho matan la tarea y solo una podía dar `ok=True`, y esa no
+comparaba nada contra lo pedido.
+
+**Contrato vivo del encargo** (`cognia/harness/contrato_tarea.py`). Deriva los requisitos
+que el enunciado enumera, sigue su rastro en lo que hay en disco y RETIENE el cierre
+devolviendo al modelo la lista literal de lo que falta. Se declara como proxy léxico:
+solo puede retener un cierre, nunca declarar un éxito. Inactivo por debajo de 3
+requisitos, así que una tarea corta se comporta igual que siempre.
+
+**Corte del razonamiento desbocado.** Un turno que lleva 12.000 caracteres pensando sin
+emitir un solo fragmento de respuesta ni de tool call se corta y se repite con el
+pensamiento apagado. Medido con el banco: 31.961 caracteres razonando en el paso 1, cero
+ficheros escritos, tarea muerta por reloj. La palanca ya existía pero solo se enteraba si
+el turno se CORTABA; un turno que piensa sin parar no dispara nada.
+
+**La sugerencia anti-estancamiento se envía antes de matar.** El bloque la escribía en
+`mensajes` y hacía `break` en la línea siguiente: el texto que existe justo para decirle
+al modelo cómo salir del estancamiento no se mandó nunca. Ahora hay ventana de gracia
+proporcional al presupuesto.
+
+**Techo de pasos derivado del encargo** (`techo_por_contrato`), no la constante 40 para
+todo: un encargo de doce sistemas llega a 120.
+
+**Mutaciones detectadas en disco**, no por una lista de cinco nombres de tool. Un producto
+escrito por `generar_codigo`, `copiar_archivo` o un sub-agente dejaba el registro vacío y
+apagaba de golpe la revisión profunda, la parada verificada y el bloque ENTREGA.
+
+**Presupuesto de pared cableado** (`COGNIA_PARED_S`): el agente sabe cuánto reloj le queda
+y no retiene un cierre si no quedan 120 s para hacer algo con el turno que gana.
+
+**Telemetría real** (`cognia/harness/telemetria.py`): diario JSONL por tarea (tokens de
+entrada y salida, tool calls con su exit, cortes, compactaciones, motivo de cierre) y su
+resumen dentro del JSON de `cognia hacer`.
+
+Medido con un banco nuevo de 25 tareas largas con verificación end-to-end real
+(`banco_largo/`, Chromium vía Playwright, servidores HTTP, pytest), 10 tareas por ronda y
+480 s de pared cada una: tests funcionales 0,340 → 0,426; funcionalidad 0,250 → 0,334;
+integridad 0,200 → 0,400; productos muertos 7 → 5; pasos por tarea 8,6 → 15,5 en el mismo
+tiempo. Detalle e informe en `INFORME_ARNES_TAREAS_LARGAS_20260901.md`.
+
+---
+
 ## [4.21.0] - 2026-08-31
 
 ### El tool call cortado APAGA EL PENSAMIENTO, en vez de subir el tope

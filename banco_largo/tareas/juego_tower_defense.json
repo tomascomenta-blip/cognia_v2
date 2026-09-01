@@ -1,0 +1,126 @@
+{
+  "id": "juego-tower-defense",
+  "familia": "juego-canvas",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 900,
+  "prompt": "Construye un juego de tower defense COMPLETO y JUGABLE en HTML+JavaScript puro (sin librerias externas, sin CDN, todo local). Entregalo en el directorio de trabajo actual con index.html como punto de entrada y el codigo en uno o varios .js propios.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Un mapa con un camino por el que avanzan los enemigos desde una entrada hasta una salida.\n2. Oleadas: al menos 5 oleadas con dificultad creciente (mas enemigos, mas vida, mas velocidad).\n3. Enemigos de al menos 3 tipos distintos con estadisticas diferentes (vida, velocidad, recompensa).\n4. Al menos 3 tipos de torre con coste, alcance, cadencia y dano distintos; se colocan con el raton sobre casillas validas y no se pueden colocar sobre el camino ni encima de otra torre.\n5. Economia: oro inicial, ganancia por matar enemigos, coste al construir, y mejora de torres (upgrade) con coste creciente.\n6. Vidas del jugador: cada enemigo que llega a la salida resta vida; a cero vidas es game over.\n7. Proyectiles con colision real contra los enemigos y dano aplicado.\n8. Interfaz: oro, vidas, numero de oleada y boton para empezar la siguiente oleada; seleccion de tipo de torre.\n9. Guardado y carga de la partida en localStorage (oro, vidas, oleada y torres colocadas), con botones de guardar y cargar.\n10. Pausa y reanudacion.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo exactamente):\n- El punto de entrada es index.html y el juego arranca solo al cargar la pagina.\n- Debe existir un unico <canvas> y el bucle de juego debe pintar en el continuamente con requestAnimationFrame.\n- Expon en la consola un objeto global window.JUEGO con AL MENOS estas propiedades y metodos, siempre actualizados:\n    window.JUEGO.oro            -> numero\n    window.JUEGO.vidas          -> numero\n    window.JUEGO.oleada         -> numero (empieza en 0 o 1)\n    window.JUEGO.enemigos       -> array de enemigos vivos\n    window.JUEGO.torres         -> array de torres colocadas\n    window.JUEGO.proyectiles    -> array de proyectiles en vuelo\n    window.JUEGO.tiposTorre     -> array con los tipos de torre disponibles\n    window.JUEGO.tiposEnemigo   -> array con los tipos de enemigo disponibles\n    window.JUEGO.iniciarOleada()  -> lanza la siguiente oleada\n    window.JUEGO.construir(tipo, x, y) -> intenta construir; devuelve true si construyo, false si no (sin oro, casilla invalida, ocupada)\n    window.JUEGO.mejorar(indiceTorre)  -> mejora una torre; devuelve true/false\n    window.JUEGO.guardar()   -> guarda en localStorage y devuelve true\n    window.JUEGO.cargar()    -> restaura desde localStorage y devuelve true\n    window.JUEGO.pausar()    -> alterna pausa; devuelve el estado de pausa\n    window.JUEGO.tick(ms)    -> avanza la simulacion ese numero de milisegundos (para pruebas deterministas)\n- No debe haber ningun error en la consola del navegador.\n- Escribe tambien un README.md corto explicando como jugar y como se ejecuta.\n\nNo entregues un esqueleto ni una demo visual: cada sistema de la lista debe estar implementado y probado por ti antes de decir que has terminado. Abre el resultado, comprueba que funciona y corrige lo que falle.",
+  "criterios_exito": [
+    "index.html abre sin errores de consola y el canvas se pinta y cambia con el tiempo",
+    "window.JUEGO expone el estado completo y los metodos del contrato",
+    "iniciarOleada genera enemigos que se mueven por el camino",
+    "construir cobra oro y rechaza posiciones invalidas o sin fondos",
+    "las torres disparan proyectiles que matan enemigos y dan oro",
+    "guardar y cargar restauran la partida",
+    "hay al menos 3 tipos de torre y 3 de enemigo con estadisticas distintas"
+  ],
+  "criterios_fallo": [
+    "el canvas queda en blanco o estatico",
+    "window.JUEGO no existe o le faltan metodos",
+    "construir siempre devuelve true (no valida oro ni casilla)",
+    "los enemigos no se mueven o los proyectiles no colisionan",
+    "errores de JavaScript en consola al cargar o al jugar"
+  ],
+  "artefactos": [
+    {"glob": "index.html", "obligatorio": true, "min_bytes": 500},
+    {"glob": "*.js", "obligatorio": true, "min_bytes": 4000},
+    {"glob": "README.md", "obligatorio": false, "min_bytes": 200}
+  ],
+  "pruebas": [
+    {
+      "nombre": "artefactos-presentes", "tipo": "fichero", "capa": "completitud",
+      "glob": "index.html", "min_bytes": 500, "contiene": ["canvas"]
+    },
+    {
+      "nombre": "codigo-con-sustancia", "tipo": "fichero", "capa": "completitud",
+      "glob": "*.js", "min_bytes": 4000, "min_lineas": 250,
+      "no_contiene": ["TODO: implementar", "not implemented"]
+    },
+    {
+      "nombre": "los-tres-tipos", "tipo": "fichero", "capa": "completitud",
+      "glob": "*.js", "contiene": ["tiposTorre", "tiposEnemigo", "localStorage", "requestAnimationFrame"]
+    },
+    {
+      "nombre": "arranca-y-pinta", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "entregable": true, "pagina": "index.html", "espera_ms": 1500,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {"tipo": "selector", "sel": "canvas", "min": 1},
+        {"tipo": "canvas", "min_colores": 4},
+        {"tipo": "js", "nombre": "api", "codigo": "() => !!(window.JUEGO && typeof window.JUEGO.iniciarOleada==='function' && typeof window.JUEGO.construir==='function' && typeof window.JUEGO.guardar==='function' && typeof window.JUEGO.tick==='function')"}
+      ]
+    },
+    {
+      "nombre": "oleada-genera-enemigos-que-avanzan", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "pagina": "index.html", "espera_ms": 1000, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "() => window.JUEGO.iniciarOleada()"},
+        {"tipo": "esperar", "ms": 1500},
+        {"tipo": "js", "codigo": "() => { window.__p0 = (window.JUEGO.enemigos[0]||{}); window.__x0 = window.__p0.x; window.__y0 = window.__p0.y; }"},
+        {"tipo": "js", "codigo": "() => { try { window.JUEGO.tick(1500); } catch(e) {} }"},
+        {"tipo": "esperar", "ms": 1500}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "hay_enemigos", "codigo": "() => window.JUEGO.enemigos.length", "min": 1},
+        {"tipo": "js", "nombre": "se_mueven", "codigo": "() => { const e = window.JUEGO.enemigos[0]; if(!e) return false; return (Math.abs((e.x||0)-(window.__x0||0)) + Math.abs((e.y||0)-(window.__y0||0))) > 0.5; }"}
+      ]
+    },
+    {
+      "nombre": "economia-y-construccion", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "pagina": "index.html", "espera_ms": 1000, "max_errores_consola": 0,
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "tipos_torre", "codigo": "() => (window.JUEGO.tiposTorre||[]).length", "min": 3},
+        {"tipo": "js", "nombre": "tipos_enemigo", "codigo": "() => (window.JUEGO.tiposEnemigo||[]).length", "min": 3},
+        {"tipo": "js", "nombre": "construir_cobra", "codigo": "() => { const antes = window.JUEGO.oro; let puesto=false; for (let x=0;x<20 && !puesto;x++) for (let y=0;y<20 && !puesto;y++) { if (window.JUEGO.construir(0, x*32+16, y*32+16)) puesto=true; } return puesto && window.JUEGO.oro < antes && window.JUEGO.torres.length>=1; }"}
+      ]
+    },
+    {
+      "nombre": "las-torres-matan-y-dan-oro", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "pagina": "index.html", "espera_ms": 1000, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "() => { for (let x=0;x<20;x++) for (let y=0;y<20;y++) { window.JUEGO.construir(0, x*32+16, y*32+16); } window.JUEGO.iniciarOleada(); }"},
+        {"tipo": "esperar", "ms": 800},
+        {"tipo": "js", "codigo": "() => { window.__vivos0 = window.JUEGO.enemigos.length; window.__oro0 = window.JUEGO.oro; for (let i=0;i<40;i++) { try { window.JUEGO.tick(200); } catch(e) {} } }"},
+        {"tipo": "esperar", "ms": 2500}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "hubo_combate", "codigo": "() => { const j = window.JUEGO; return (j.proyectiles && j.proyectiles.length >= 0) && (j.enemigos.length < (window.__vivos0||0) || j.oro > (window.__oro0||0) || (j.enemigos[0] && j.enemigos[0].vida < (j.tiposEnemigo[0].vida||9999))); }"}
+      ]
+    },
+    {
+      "nombre": "guardado-sobrevive-a-la-recarga", "tipo": "web", "capa": "integridad", "peso": 1.5,
+      "pagina": "index.html", "espera_ms": 1000, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "() => { for (let x=0;x<20;x++) for (let y=0;y<20;y++) { if (window.JUEGO.torres.length>=2) break; window.JUEGO.construir(0, x*32+16, y*32+16); } window.__t = window.JUEGO.torres.length; window.__o = window.JUEGO.oro; window.JUEGO.guardar(); }"},
+        {"tipo": "recargar", "ms": 1500},
+        {"tipo": "js", "codigo": "() => window.JUEGO.cargar()"},
+        {"tipo": "esperar", "ms": 600}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "restaurado", "codigo": "() => { const g = JSON.parse(localStorage.getItem(Object.keys(localStorage)[0]) || 'null'); return window.JUEGO.torres.length >= 1; }"}
+      ]
+    },
+    {
+      "nombre": "no-se-puede-construir-sin-oro", "tipo": "web", "capa": "robustez", "peso": 1.5,
+      "pagina": "index.html", "espera_ms": 1000, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "() => { window.JUEGO.oro = 0; }"}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "rechaza", "codigo": "() => { let alguno=false; for (let x=0;x<12 && !alguno;x++) for (let y=0;y<12 && !alguno;y++) { if (window.JUEGO.construir(0, x*32+16, y*32+16)) alguno=true; } return !alguno; }"},
+        {"tipo": "js", "nombre": "pausa", "codigo": "() => typeof window.JUEGO.pausar === 'function' && (window.JUEGO.pausar(), true)"}
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas", "tipo": "dos_pasadas", "capa": "regresion",
+      "prueba": {
+        "tipo": "web", "pagina": "index.html", "espera_ms": 1200, "max_errores_consola": 0,
+        "afirmaciones": [
+          {"tipo": "canvas_cambia", "ms": 1000},
+          {"tipo": "js", "nombre": "api_viva", "codigo": "() => !!window.JUEGO"}
+        ]
+      }
+    }
+  ]
+}

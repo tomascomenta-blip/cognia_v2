@@ -1,0 +1,163 @@
+{
+  "id": "app-notas-persistente",
+  "familia": "web",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 950,
+  "prompt": "Construye una APLICACION DE NOTAS que funcione entera en el navegador y guarde los datos en IndexedDB. HTML + CSS + JavaScript puro: sin librerias, sin CDN, sin npm install, sin pip install y sin ninguna peticion de red a un servidor externo. Todo tiene que funcionar sirviendo la carpeta de trabajo con un servidor estatico y abriendo index.html. Entrega index.html en la RAIZ del directorio de trabajo actual y el codigo en uno, dos o como mucho TRES ficheros .js propios, ademas de sw.js.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Almacenamiento en IndexedDB con una base de datos propia y al menos dos almacenes: uno de notas y otro del indice de busqueda. Nada de guardar las notas en localStorage: localStorage solo vale para preferencias.\n2. Crear, editar y borrar notas con titulo, cuerpo, lista de etiquetas y marcas de tiempo de creacion y de ultima modificacion.\n3. Etiquetas: asignar varias a una nota, listar las etiquetas existentes con su numero de notas, y filtrar la lista por etiqueta.\n4. Busqueda de texto completo con INDICE INVERTIDO PROPIO: al guardar una nota se trocea el texto en terminos normalizados (minusculas, sin acentos, sin signos) y se actualiza el indice; buscar consulta el indice y devuelve las notas ordenadas por puntuacion. Prohibido recorrer todas las notas comparando cadenas en cada busqueda, y prohibido usar cualquier motor de busqueda externo.\n5. Papelera: borrar una nota la manda a la papelera en vez de destruirla; desde la papelera se puede restaurar una nota o vaciarla del todo. Las notas de la papelera no aparecen en la lista normal ni en los resultados de busqueda.\n6. Importacion y exportacion en JSON de todas las notas (incluidas etiquetas y marcas de tiempo), con area de texto para copiar y pegar. Importar un JSON invalido no puede corromper la base.\n7. Funcionamiento sin conexion: un service worker propio en sw.js, registrado desde la pagina, que precachea el esqueleto de la aplicacion (html, css, js) y responde desde la cache cuando no hay red. Si el registro falla la aplicacion tiene que seguir funcionando y avisar con console.warn, nunca con console.error.\n8. Interfaz: lista de notas con vista previa, editor con titulo y cuerpo, buscador en vivo, panel de papelera y contadores. Guardado automatico al dejar de teclear.\n9. Robustez: todas las operaciones son asincronas y ninguna puede dejar una promesa sin capturar; los errores se muestran en la interfaz y se registran con console.warn.\n10. Reconstruccion del indice: un boton y un metodo que reconstruyen el indice invertido desde cero recorriendo las notas, para reparar una base incoherente.\n\nCONTRATO TECNICO OBLIGATORIO (es la interfaz publica del producto y el evaluador automatico depende de ella; respetala exactamente):\n- El punto de entrada es index.html en la raiz y el service worker es sw.js, tambien en la raiz.\n- DOM: contenedor id app, lista id lista-notas donde cada nota es un elemento con atributo data-nota igual a su id, input id buscador, area id papelera, textarea id io-json, input id editor-titulo, textarea id editor-cuerpo y los botones id btn-nueva, btn-guardar, btn-borrar, btn-exportar, btn-importar, btn-vaciar-papelera y btn-reindexar. Todos esos elementos van escritos LITERALMENTE en index.html; no los crees desde JavaScript.\n- Expon un objeto global window.NOTAS. TODOS sus metodos devuelven una promesa (son async) salvo NOTAS.BD, que es el nombre de la base de datos de IndexedDB:\n    NOTAS.listo() -> true cuando la base esta abierta y lista\n    NOTAS.crear({titulo, cuerpo, etiquetas}) -> id de la nota (string), o null si titulo y cuerpo estan los dos vacios\n    NOTAS.obtener(id) -> la nota {id, titulo, cuerpo, etiquetas, creada, modificada, borrada} o null si no existe\n    NOTAS.editar(id, cambios) -> true, o false si la nota no existe\n    NOTAS.borrar(id) -> true (la manda a la papelera, borrada pasa a true), false si no existe\n    NOTAS.listar({etiqueta}) -> array de notas NO borradas, mas recientes primero\n    NOTAS.papelera() -> array de notas borradas\n    NOTAS.restaurar(id) -> true/false\n    NOTAS.vaciarPapelera() -> numero de notas destruidas definitivamente\n    NOTAS.buscar(texto) -> array de {id, titulo, puntuacion} ordenado por puntuacion descendente, consultando el indice invertido; array vacio si no hay resultados\n    NOTAS.indice() -> {terminos, notas} con el tamano del indice\n    NOTAS.reconstruirIndice() -> numero de terminos del indice reconstruido\n    NOTAS.etiquetas() -> array de {etiqueta, n}\n    NOTAS.exportarJSON() -> string JSON con todas las notas\n    NOTAS.importarJSON(texto) -> {importadas: n} si importo, o false si el texto no es valido (y en ese caso la base queda INTACTA)\n    NOTAS.borrarTodo() -> true, vacia la base y el indice (lo usa el evaluador automatico para partir de una base limpia)\n    NOTAS.render() -> repinta la lista. Ademas toda operacion que cambie datos repinta sola.\n- Sin errores en la consola del navegador en ningun momento.\n- Escribe tambien un README.md corto: como se sirve, como funciona el indice invertido y que hace el service worker.\n\nNo entregues un esqueleto ni una maqueta: cada sistema de la lista tiene que estar implementado. Antes de decir que has terminado, PRUEBA lo que hiciste: sirve la carpeta, crea varias notas, buscalas, borra y restaura desde la papelera, exporta e importa, recarga la pagina para comprobar que las notas siguen ahi, importa un JSON roto a proposito, mira la consola y CORRIGE todos los fallos que encuentres.",
+  "criterios_exito": [
+    "index.html arranca sin errores de consola y NOTAS.listo() resuelve",
+    "las notas se guardan de verdad en IndexedDB y sobreviven a una recarga",
+    "crear, editar, obtener, listar y borrar se comportan segun el contrato",
+    "la busqueda usa el indice invertido y devuelve solo las notas que casan",
+    "la papelera oculta las notas borradas y restaurar las devuelve a la lista",
+    "exportar e importar hacen un viaje de ida y vuelta sin perder notas",
+    "existe sw.js con precacheo y se registra desde la pagina",
+    "operaciones invalidas devuelven null o false sin corromper la base"
+  ],
+  "criterios_fallo": [
+    "window.NOTAS no existe, no es asincrono o le faltan metodos del contrato",
+    "las notas se guardan en localStorage en vez de IndexedDB",
+    "las notas desaparecen al recargar la pagina",
+    "buscar devuelve todas las notas o ninguna, o recorre linealmente sin indice",
+    "las notas borradas siguen apareciendo en la lista o en la busqueda",
+    "importar un JSON invalido vacia la base o lanza una excepcion",
+    "promesas sin capturar o errores de JavaScript en la consola"
+  ],
+  "artefactos": [
+    {"glob": "index.html", "obligatorio": true, "min_bytes": 600},
+    {"glob": "**/*.js", "obligatorio": true, "min_bytes": 7000},
+    {"glob": "sw.js", "obligatorio": true, "min_bytes": 250},
+    {"glob": "README.md", "obligatorio": false, "min_bytes": 200}
+  ],
+  "pruebas": [
+    {
+      "nombre": "pagina-y-contrato-dom", "tipo": "fichero", "capa": "completitud",
+      "glob": "index.html", "min_bytes": 600,
+      "contiene": ["id=.{0,2}lista-notas", "id=.{0,2}buscador", "editor-cuerpo", "io-json"],
+      "no_contiene": ["cdnjs", "unpkg", "jsdelivr", "src=.{0,2}https?://"]
+    },
+    {
+      "nombre": "codigo-con-sustancia", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/*.js", "min_bytes": 1200, "min_lineas": 400,
+      "contiene": ["indexedDB", "createObjectStore", "transaction", "reconstruirIndice"],
+      "no_contiene": ["TODO: implementar", "not implemented", "sin implementar todavia"]
+    },
+    {
+      "nombre": "service-worker-presente", "tipo": "fichero", "capa": "completitud",
+      "glob": "sw.js", "min_bytes": 250,
+      "contiene": ["addEventListener", "caches", "fetch", "install"]
+    },
+    {
+      "nombre": "arranca-y-guarda-en-indexeddb", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "entregable": true, "pagina": "index.html", "espera_ms": 2000, "max_errores_consola": 0,
+      "afirmaciones": [
+        {"tipo": "selector", "sel": "#lista-notas", "min": 1},
+        {"tipo": "selector", "sel": "#app, #buscador, #papelera, #io-json, #editor-titulo, #editor-cuerpo", "min": 6},
+        {"tipo": "selector", "sel": "#btn-nueva, #btn-guardar, #btn-borrar, #btn-exportar, #btn-importar, #btn-vaciar-papelera, #btn-reindexar", "min": 7},
+        {"tipo": "js", "nombre": "api_completa", "codigo": "() => { const n = window.NOTAS; if (!n) return false; return ['listo','crear','obtener','editar','borrar','listar','papelera','restaurar','vaciarPapelera','buscar','indice','reconstruirIndice','etiquetas','exportarJSON','importarJSON','borrarTodo','render'].every(m => typeof n[m] === 'function'); }"},
+        {"tipo": "js", "nombre": "base_lista", "codigo": "async () => { const r = await window.NOTAS.listo(); return r !== false; }"},
+        {"tipo": "js", "nombre": "ida_y_vuelta_por_la_base", "codigo": "async () => { await window.NOTAS.listo(); await window.NOTAS.borrarTodo(); const id = await window.NOTAS.crear({titulo: 'nota de arranque', cuerpo: 'contenido inicial', etiquetas: ['prueba']}); if (!id) return false; const n = await window.NOTAS.obtener(id); return !!(n && n.titulo === 'nota de arranque' && (n.etiquetas || []).indexOf('prueba') >= 0); }"},
+        {"tipo": "js", "nombre": "usa_indexeddb_no_localstorage", "codigo": "async () => { const claves = Object.keys(localStorage); const sospechosas = claves.filter(k => { const v = localStorage.getItem(k) || ''; return v.indexOf('contenido inicial') >= 0; }); return typeof indexedDB === 'object' && sospechosas.length === 0; }"}
+      ]
+    },
+    {
+      "nombre": "ciclo-completo-de-notas", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "pagina": "index.html", "espera_ms": 1800, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "async () => { await window.NOTAS.listo(); await window.NOTAS.borrarTodo(); window.__a = await window.NOTAS.crear({titulo: 'Compra', cuerpo: 'pan y leche para el jueves', etiquetas: ['casa']}); window.__b = await window.NOTAS.crear({titulo: 'Reunion', cuerpo: 'hablar del banco de tareas', etiquetas: ['trabajo']}); window.__c = await window.NOTAS.crear({titulo: 'Ideas', cuerpo: 'zafiro y cobalto para el tema oscuro', etiquetas: ['casa', 'ideas']}); await window.NOTAS.editar(window.__b, {titulo: 'Reunion larga'}); }"},
+        {"tipo": "esperar", "ms": 600}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "listar_cuenta_tres", "codigo": "async () => (await window.NOTAS.listar()).length", "igual": 3},
+        {"tipo": "js", "nombre": "la_edicion_persiste", "codigo": "async () => { const n = await window.NOTAS.obtener(window.__b); return !!(n && n.titulo === 'Reunion larga' && n.cuerpo.indexOf('banco de tareas') >= 0); }"},
+        {"tipo": "js", "nombre": "etiquetas_contadas", "codigo": "async () => { const e = await window.NOTAS.etiquetas(); const casa = (e || []).find(x => x.etiqueta === 'casa'); return !!casa && casa.n === 2; }"},
+        {"tipo": "js", "nombre": "filtrar_por_etiqueta", "codigo": "async () => (await window.NOTAS.listar({etiqueta: 'trabajo'})).length", "igual": 1},
+        {"tipo": "js", "nombre": "el_dom_pinta_las_notas", "codigo": "() => document.querySelectorAll('[data-nota]').length", "min": 3}
+      ]
+    },
+    {
+      "nombre": "busqueda-por-indice-invertido", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "pagina": "index.html", "espera_ms": 1800, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "async () => { await window.NOTAS.listo(); await window.NOTAS.borrarTodo(); window.__a = await window.NOTAS.crear({titulo: 'Compra', cuerpo: 'pan y leche para el jueves', etiquetas: ['casa']}); window.__b = await window.NOTAS.crear({titulo: 'Reunion', cuerpo: 'hablar del banco de tareas', etiquetas: ['trabajo']}); window.__c = await window.NOTAS.crear({titulo: 'Ideas', cuerpo: 'zafiro y cobalto para el tema oscuro', etiquetas: ['casa']}); }"},
+        {"tipo": "esperar", "ms": 600}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "encuentra_la_unica", "codigo": "async () => { const r = await window.NOTAS.buscar('zafiro'); return Array.isArray(r) && r.length === 1 && r[0].id === window.__c; }"},
+        {"tipo": "js", "nombre": "no_inventa_resultados", "codigo": "async () => (await window.NOTAS.buscar('palabrainexistentexyz')).length", "igual": 0},
+        {"tipo": "js", "nombre": "puntua_y_ordena", "codigo": "async () => { const r = await window.NOTAS.buscar('pan leche'); return Array.isArray(r) && r.length >= 1 && r[0].id === window.__a && typeof r[0].puntuacion === 'number'; }"},
+        {"tipo": "js", "nombre": "indice_poblado", "codigo": "async () => { const i = await window.NOTAS.indice(); return !!i && typeof i.terminos === 'number' && i.terminos >= 8; }"},
+        {"tipo": "js", "nombre": "reconstruir_no_pierde_nada", "codigo": "async () => { const t = await window.NOTAS.reconstruirIndice(); const r = await window.NOTAS.buscar('cobalto'); return typeof t === 'number' && t > 0 && r.length === 1 && r[0].id === window.__c; }"},
+        {"tipo": "js", "nombre": "la_papelera_no_sale_en_la_busqueda", "codigo": "async () => { await window.NOTAS.borrar(window.__c); const r = await window.NOTAS.buscar('zafiro'); return r.length === 0; }"}
+      ]
+    },
+    {
+      "nombre": "papelera-y-restauracion", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "pagina": "index.html", "espera_ms": 1800, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "async () => { await window.NOTAS.listo(); await window.NOTAS.borrarTodo(); window.__a = await window.NOTAS.crear({titulo: 'Nota uno', cuerpo: 'primera', etiquetas: []}); window.__b = await window.NOTAS.crear({titulo: 'Nota dos', cuerpo: 'segunda', etiquetas: []}); await window.NOTAS.borrar(window.__a); await window.NOTAS.borrar(window.__b); window.__restaurada = await window.NOTAS.restaurar(window.__a); window.__vaciadas = await window.NOTAS.vaciarPapelera(); }"},
+        {"tipo": "esperar", "ms": 600}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "restaurar_devuelve_true", "codigo": "() => window.__restaurada === true"},
+        {"tipo": "js", "nombre": "vaciar_destruye_una", "codigo": "() => window.__vaciadas", "igual": 1},
+        {"tipo": "js", "nombre": "queda_solo_la_restaurada", "codigo": "async () => { const l = await window.NOTAS.listar(); return l.length === 1 && l[0].id === window.__a; }"},
+        {"tipo": "js", "nombre": "la_papelera_queda_vacia", "codigo": "async () => (await window.NOTAS.papelera()).length", "igual": 0},
+        {"tipo": "js", "nombre": "la_destruida_ya_no_existe", "codigo": "async () => { const n = await window.NOTAS.obtener(window.__b); return n === null || n === undefined; }"}
+      ]
+    },
+    {
+      "nombre": "persistencia-recarga-y-exportacion", "tipo": "web", "capa": "integridad", "peso": 1.5,
+      "pagina": "index.html", "espera_ms": 1800, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "async () => { await window.NOTAS.listo(); await window.NOTAS.borrarTodo(); await window.NOTAS.crear({titulo: 'Persistente uno', cuerpo: 'sobrevive a la recarga', etiquetas: ['x']}); await window.NOTAS.crear({titulo: 'Persistente dos', cuerpo: 'tambien sobrevive', etiquetas: ['y']}); await window.NOTAS.crear({titulo: 'Persistente tres', cuerpo: 'y esta tambien', etiquetas: ['x']}); const exp = await window.NOTAS.exportarJSON(); localStorage.setItem('__prueba_exp', exp); localStorage.setItem('__prueba_n', String((await window.NOTAS.listar()).length)); }"},
+        {"tipo": "esperar", "ms": 800},
+        {"tipo": "recargar", "ms": 2000},
+        {"tipo": "js", "codigo": "async () => { await window.NOTAS.listo(); window.__tras = (await window.NOTAS.listar()).length; await window.NOTAS.borrarTodo(); window.__vacio = (await window.NOTAS.listar()).length; window.__imp = await window.NOTAS.importarJSON(localStorage.getItem('__prueba_exp')); window.__final = (await window.NOTAS.listar()).length; }"},
+        {"tipo": "esperar", "ms": 800}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "las_notas_sobreviven_a_la_recarga", "codigo": "() => { const n = Number(localStorage.getItem('__prueba_n') || '-1'); return n === 3 && window.__tras === 3; }"},
+        {"tipo": "js", "nombre": "borrar_todo_vacia_de_verdad", "codigo": "() => window.__vacio", "igual": 0},
+        {"tipo": "js", "nombre": "importar_restaura_todo", "codigo": "() => !!window.__imp && window.__final === 3"},
+        {"tipo": "js", "nombre": "el_contenido_vuelve_intacto", "codigo": "async () => { const l = await window.NOTAS.listar(); const t = l.map(n => n.titulo).sort(); return t.join('|') === 'Persistente dos|Persistente tres|Persistente uno'; }"},
+        {"tipo": "js", "nombre": "el_indice_sigue_sirviendo", "codigo": "async () => { const r = await window.NOTAS.buscar('sobrevive'); return Array.isArray(r) && r.length >= 1; }"},
+        {"tipo": "js", "nombre": "service_worker_registrado", "codigo": "async () => { if (!('serviceWorker' in navigator)) return true; let r = await navigator.serviceWorker.getRegistration(); if (!r) { await new Promise(res => setTimeout(res, 2000)); r = await navigator.serviceWorker.getRegistration(); } return !!r; }"}
+      ]
+    },
+    {
+      "nombre": "aguanta-lo-invalido", "tipo": "web", "capa": "robustez", "peso": 1.5,
+      "pagina": "index.html", "espera_ms": 1800, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "async () => { await window.NOTAS.listo(); await window.NOTAS.borrarTodo(); window.__a = await window.NOTAS.crear({titulo: 'Ancla', cuerpo: 'no se toca', etiquetas: []}); }"},
+        {"tipo": "esperar", "ms": 500}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "obtener_inexistente_es_nulo", "codigo": "async () => { const v = await window.NOTAS.obtener('id-que-no-existe-xyz'); return v === null || v === undefined; }"},
+        {"tipo": "js", "nombre": "editar_inexistente_es_false", "codigo": "async () => (await window.NOTAS.editar('id-que-no-existe-xyz', {titulo: 'x'})) === false"},
+        {"tipo": "js", "nombre": "borrar_inexistente_es_false", "codigo": "async () => (await window.NOTAS.borrar('id-que-no-existe-xyz')) === false"},
+        {"tipo": "js", "nombre": "crear_vacia_rechazada", "codigo": "async () => { const r = await window.NOTAS.crear({titulo: '', cuerpo: '', etiquetas: []}); const l = await window.NOTAS.listar(); return !r && l.length === 1; }"},
+        {"tipo": "js", "nombre": "importar_basura_no_corrompe", "codigo": "async () => { const antes = (await window.NOTAS.listar()).length; const r = await window.NOTAS.importarJSON('{ esto no es json valido'); const desp = (await window.NOTAS.listar()).length; const n = await window.NOTAS.obtener(window.__a); return r === false && antes === desp && !!n && n.titulo === 'Ancla'; }"},
+        {"tipo": "js", "nombre": "buscar_vacio_no_revienta", "codigo": "async () => { const r = await window.NOTAS.buscar('   '); return Array.isArray(r); }"}
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas", "tipo": "dos_pasadas", "capa": "regresion",
+      "prueba": {
+        "tipo": "web", "pagina": "index.html", "espera_ms": 2000, "max_errores_consola": 0,
+        "acciones": [
+          {"tipo": "js", "codigo": "async () => { await window.NOTAS.listo(); await window.NOTAS.borrarTodo(); window.__id = await window.NOTAS.crear({titulo: 'Repeticion', cuerpo: 'segunda pasada con turquesa', etiquetas: ['reg']}); }"},
+          {"tipo": "esperar", "ms": 700}
+        ],
+        "afirmaciones": [
+          {"tipo": "selector", "sel": "#lista-notas", "min": 1},
+          {"tipo": "js", "nombre": "api_viva", "codigo": "() => !!(window.NOTAS && typeof window.NOTAS.buscar === 'function')"},
+          {"tipo": "js", "nombre": "la_nota_se_encuentra", "codigo": "async () => { const r = await window.NOTAS.buscar('turquesa'); return r.length === 1 && r[0].id === window.__id; }"},
+          {"tipo": "js", "nombre": "sigue_pintando", "codigo": "() => document.querySelectorAll('[data-nota]').length", "min": 1}
+        ]
+      }
+    }
+  ]
+}

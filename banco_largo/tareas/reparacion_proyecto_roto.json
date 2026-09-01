@@ -1,0 +1,228 @@
+{
+  "id": "reparacion-proyecto-roto",
+  "familia": "reparacion",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 560,
+  "prompt": "En este directorio hay un proyecto Python YA ESCRITO que NO funciona: el paquete `inventario` (almacen, precios, texto, arbol y contador) viene con su suite de tests en `tests/`, y la suite FALLA. Tu encargo es DIAGNOSTICAR y ARREGLAR todos los fallos sin romper lo que ya funciona.\n\nEmpieza ejecutando la suite y leyendo lo que sale:\n\n    python -m pytest tests -q\n\ny si no tienes pytest a mano, el mismo proyecto trae un corredor sin dependencias:\n\n    python ejecutar_tests.py\n\nHay DIEZ defectos sembrados, de diez naturalezas distintas, repartidos por los cinco modulos del paquete. Ninguno es un error de sintaxis: el paquete importa y arranca, pero se comporta mal. Los tests describen el comportamiento CORRECTO y son la especificacion: estan bien escritos y no se tocan.\n\nLO QUE TIENES QUE HACER:\n1. Ejecutar la suite y anotar TODOS los fallos, no solo el primero.\n2. Para cada fallo, encontrar la CAUSA RAIZ leyendo el codigo del paquete, no adivinando por el mensaje de error.\n3. Arreglar cada causa en el fichero del paquete donde vive, con el arreglo minimo y correcto: nada de tragarse excepciones con try/except para que el test pase, nada de casos especiales cableados para los valores concretos que usa el test.\n4. Respetar la API publica: los nombres de modulos, clases, funciones y parametros que hay ahora tienen que seguir existiendo y significando lo mismo. Otro codigo depende de ellos.\n5. No tocar `tests/`, ni `conftest.py`, ni `ejecutar_tests.py`. No borrar tests, no relajar asserts, no marcar nada como saltado. No crees modulos nuevos dentro de `inventario/` aparte del que se pide abajo.\n6. Un fallo tiene que ver con hilos: la solucion correcta es sincronizar, no bajar el numero de hilos, no dormir mas ni menos, y no volver secuencial lo que se pide en paralelo.\n7. Otro fallo tiene que ver con como se escriben y se leen los ficheros de texto: la ida y la vuelta tienen que conservar acentos y simbolos, en cualquier maquina y con cualquier configuracion regional.\n8. Otro fallo tiene que ver con la precision del dinero: los totales en euros tienen que salir exactos a dos decimales.\n9. Escribir `inventario/diagnostico.py`, un modulo de diagnostico ejecutable que compruebe los cinco subsistemas por su cuenta (ver el contrato).\n10. Escribir `INFORME.md` con un apartado numerado por cada defecto encontrado: sintoma observado, fichero y funcion donde estaba, causa raiz en una frase y arreglo aplicado.\n11. Volver a correr la suite ENTERA y dejarla en verde, y comprobar que no has roto ningun test que ya pasaba al principio.\n\nRESTRICCION DURA: solo libreria estandar de Python. NADA de pip install, nada de red, nada de dependencias nuevas. El proyecto tiene que seguir corriendo con un Python 3.12 pelado.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo EXACTAMENTE):\n- La suite `tests/` se ejecuta con `python -m pytest tests -q` desde la raiz del proyecto y tiene que quedar ENTERA en verde, con el MISMO numero de tests que tiene ahora. Un test que desaparece cuenta como fallo.\n- Siguen existiendo, con la misma firma y el mismo significado, al menos: `inventario.almacen.Almacen` (con `reponer`, `retirar`, `bajo_minimo`, `unidades`, `skus`, `valor_total`, `fusionar`), `inventario.almacen.resumen_lineas`, `inventario.almacen.registrar_movimiento`, `inventario.almacen.aplicar_albaran`, `inventario.precios.precio_medio`, `inventario.precios.total_euros`, `inventario.precios.aplicar_descuento`, `inventario.precios.convertir`, `inventario.precios.desglose`, `inventario.precios.reparto`, `inventario.texto.es_codigo_valido`, `inventario.texto.firma`, `inventario.texto.normalizar_nombre`, `inventario.texto.guardar_csv`, `inventario.texto.cargar_csv`, `inventario.texto.tabla`, `inventario.arbol.nodo`, `inventario.arbol.profundidad`, `inventario.arbol.desplegar`, `inventario.arbol.buscar_nodo`, `inventario.arbol.contar_hojas`, `inventario.arbol.ruta_hasta`, `inventario.contador.Contador` y `inventario.contador.sumar_en_paralelo`.\n- Nuevo fichero `inventario/diagnostico.py` con `def main(argv=None)` que devuelve un entero, y el bloque `if __name__ == \"__main__\": sys.exit(main())`, de forma que se pueda ejecutar asi:\n    `python -m inventario.diagnostico`\n        comprueba por su cuenta los cinco subsistemas (almacen, precios, texto, arbol, contador) SIN importar nada de tests/, imprime una linea `OK <subsistema>: <detalle>` o `FALLO <subsistema>: <motivo>` por cada uno, y termina imprimiendo `DIAGNOSTICO OK` con codigo de salida 0 si todos pasan, o `DIAGNOSTICO FALLO` con codigo 1 si alguno falla.\n    `python -m inventario.diagnostico --estres`\n        ademas de lo anterior, ejerce los casos limite: listas vacias, textos con acentos y simbolos de moneda por fichero de ida y vuelta, un arbol de un solo nodo, dos llamadas seguidas a la funcion de historial sin pasarle historial, codigos mal formados, y 16 hilos sumando 50 veces cada uno sobre el mismo contador. Si todo aguanta imprime `ESTRES OK` y sale con 0; si algo revienta imprime `ESTRES FALLO` y sale con 1.\n    `python -m inventario.diagnostico --json`\n        imprime el resultado como un JSON con una clave por subsistema.\n- `INFORME.md` en la raiz, de al menos 20 lineas, con un apartado numerado por defecto arreglado.\n- Prohibido cambiar el contenido de `tests/`, `conftest.py` y `ejecutar_tests.py`.\n\nNo des la tarea por terminada hasta que `python -m pytest tests -q` salga en verde entero, `python -m inventario.diagnostico` imprima DIAGNOSTICO OK con codigo 0 y `python -m inventario.diagnostico --estres` imprima ESTRES OK. Ejecutalo tu mismo, mira la salida real y corrige lo que quede.",
+  "semilla": {
+    "conftest.py": "# -*- coding: utf-8 -*-\n\"\"\"conftest.py -- pone la raiz del proyecto en sys.path para que 'inventario' se importe.\"\"\"\nimport os\nimport sys\n\nRAIZ = os.path.dirname(os.path.abspath(__file__))\nif RAIZ not in sys.path:\n    sys.path.insert(0, RAIZ)\n",
+    "ejecutar_tests.py": "# -*- coding: utf-8 -*-\n\"\"\"ejecutar_tests.py -- corredor de la suite SIN pytest (solo libreria estandar).\n\nSirve para ver el estado de la suite cuando no hay pytest a mano:\n\n    python ejecutar_tests.py\n\nSale 0 si la suite pasa entera y 1 si algo falla. NO TOCAR: es parte del arnes de la tarea.\n\"\"\"\nfrom __future__ import annotations\n\nimport importlib\nimport inspect\nimport os\nimport sys\nimport tempfile\nimport traceback\nfrom pathlib import Path\n\nRAIZ = os.path.dirname(os.path.abspath(__file__))\nif RAIZ not in sys.path:\n    sys.path.insert(0, RAIZ)\n\nMODULOS = [\"tests.test_almacen\", \"tests.test_precios\", \"tests.test_texto\",\n           \"tests.test_arbol\", \"tests.test_concurrencia\"]\n\n\ndef main():\n    pasados, fallos = 0, []\n    for nombre in MODULOS:\n        try:\n            mod = importlib.import_module(nombre)\n        except Exception:\n            fallos.append((nombre, traceback.format_exc()))\n            continue\n        for fn_nombre, fn in sorted(vars(mod).items()):\n            if not fn_nombre.startswith(\"test_\") or not callable(fn):\n                continue\n            firma = inspect.signature(fn)\n            try:\n                if \"tmp_path\" in firma.parameters:\n                    with tempfile.TemporaryDirectory() as tmp:\n                        fn(Path(tmp))\n                else:\n                    fn()\n                pasados += 1\n                print(\"PASS %s.%s\" % (nombre, fn_nombre))\n            except Exception:\n                fallos.append((\"%s.%s\" % (nombre, fn_nombre), traceback.format_exc()))\n                print(\"FAIL %s.%s\" % (nombre, fn_nombre))\n    print(\"\\n%d pasados, %d fallos\" % (pasados, len(fallos)))\n    for nombre, tb in fallos:\n        print(\"\\n--- %s ---\\n%s\" % (nombre, tb))\n    return 0 if not fallos else 1\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+    "inventario/__init__.py": "# -*- coding: utf-8 -*-\n\"\"\"inventario -- paquete de gestion de almacen, precios, textos y arboles.\n\nCinco modulos independientes que comparten un estilo comun: funciones planas,\ndicts y clases pequenas. La suite de tests de tests/ describe el comportamiento\nque se espera de cada uno.\n\"\"\"\nfrom __future__ import annotations\n\n__version__ = \"1.4.0\"\n\nfrom .almacen import Almacen, resumen_lineas, registrar_movimiento\nfrom .precios import precio_medio, total_euros, aplicar_descuento, convertir\nfrom .texto import es_codigo_valido, firma, guardar_csv, cargar_csv, normalizar_nombre\nfrom .arbol import profundidad, desplegar, buscar_nodo, contar_hojas\nfrom .contador import Contador, sumar_en_paralelo\n\n__all__ = [\n    \"Almacen\", \"resumen_lineas\", \"registrar_movimiento\",\n    \"precio_medio\", \"total_euros\", \"aplicar_descuento\", \"convertir\",\n    \"es_codigo_valido\", \"firma\", \"guardar_csv\", \"cargar_csv\", \"normalizar_nombre\",\n    \"profundidad\", \"desplegar\", \"buscar_nodo\", \"contar_hojas\",\n    \"Contador\", \"sumar_en_paralelo\",\n]\n",
+    "inventario/almacen.py": "# -*- coding: utf-8 -*-\n\"\"\"almacen.py -- existencias de un almacen y movimientos de albaran.\n\nUn almacen guarda unidades por SKU, avisa de lo que esta bajo minimo y sabe\nponer precio a lo que tiene dentro. Los albaranes llegan como lineas de texto\n\"SKU:UNIDADES\" y hay que sumarlas enteras.\n\"\"\"\nfrom __future__ import annotations\n\n\nclass Almacen:\n    \"\"\"Existencias de un almacen, indexadas por SKU.\"\"\"\n\n    def __init__(self, nombre, minimo=5):\n        self.nombre = nombre\n        self.minimo = int(minimo)\n        self.existencias = {}\n\n    def reponer(self, sku, unidades):\n        \"\"\"Suma unidades al SKU. Devuelve las unidades resultantes.\"\"\"\n        if unidades < 0:\n            raise ValueError(\"no se repone en negativo: %r\" % unidades)\n        self.existencias[sku] = self.existencias.get(sku, 0) + int(unidades)\n        return self.existencias[sku]\n\n    def retirar(self, sku, unidades):\n        \"\"\"Retira unidades si las hay. True si pudo, False si no llega.\"\"\"\n        if unidades < 0:\n            raise ValueError(\"no se retira en negativo: %r\" % unidades)\n        hay = self.existencias.get(sku, 0)\n        if hay < unidades:\n            return False\n        self.existencias[sku] = hay - int(unidades)\n        return True\n\n    def bajo_minimo(self):\n        \"\"\"SKUs cuyas existencias estan POR DEBAJO del minimo, ordenados.\"\"\"\n        flojos = []\n        for sku, unidades in self.existencias.items():\n            if unidades > self.minimo:\n                flojos.append(sku)\n        return sorted(flojos)\n\n    def unidades(self, sku):\n        \"\"\"Unidades de un SKU (0 si no esta).\"\"\"\n        return self.existencias.get(sku, 0)\n\n    def skus(self):\n        \"\"\"Todos los SKU conocidos, en orden estable.\"\"\"\n        return sorted(self.existencias)\n\n    def valor_total(self, precios):\n        \"\"\"Suma unidades * precio para cada SKU con precio conocido.\"\"\"\n        total = 0.0\n        for sku in self.skus():\n            if sku in precios:\n                total += self.existencias[sku] * precios[sku]\n        return round(total, 2)\n\n    def fusionar(self, otro):\n        \"\"\"Absorbe otro almacen sumando sus existencias. Devuelve self.\"\"\"\n        for sku, unidades in otro.existencias.items():\n            self.reponer(sku, unidades)\n        return self\n\n    def __repr__(self):\n        return \"Almacen(%r, %d SKU)\" % (self.nombre, len(self.existencias))\n\n\ndef resumen_lineas(lineas):\n    \"\"\"Total de unidades de un albaran.\n\n    Cada linea es \"SKU:UNIDADES\". Las lineas vacias se ignoran.\n    \"\"\"\n    total = 0\n    utiles = [l for l in lineas if l.strip()]\n    for i in range(len(utiles) - 1):\n        total += int(utiles[i].split(\":\")[1])\n    return total\n\n\ndef registrar_movimiento(sku, unidades, historial=[]):\n    \"\"\"Anota un movimiento y devuelve el historial.\n\n    Si no se pasa historial se empieza uno NUEVO en cada llamada.\n    \"\"\"\n    historial.append((sku, int(unidades)))\n    return historial\n\n\ndef aplicar_albaran(almacen, lineas):\n    \"\"\"Aplica un albaran completo al almacen. Devuelve las unidades movidas.\"\"\"\n    movidas = 0\n    for linea in lineas:\n        if not linea.strip():\n            continue\n        sku, unidades = linea.split(\":\")\n        almacen.reponer(sku.strip(), int(unidades))\n        movidas += int(unidades)\n    return movidas\n",
+    "inventario/precios.py": "# -*- coding: utf-8 -*-\n\"\"\"precios.py -- aritmetica de dinero: medias, totales, descuentos y divisas.\n\nLo que sale de aqui son euros con DOS decimales exactos. Un centimo de mas\nen un total es un error, no un detalle.\n\"\"\"\nfrom __future__ import annotations\n\nCAMBIOS = {\"EUR\": 1.0, \"USD\": 1.1, \"GBP\": 0.85}\n\n\ndef precio_medio(precios):\n    \"\"\"Media aritmetica de una lista de precios, a dos decimales.\n\n    Una lista vacia vale 0.0: un almacen sin articulos no tiene precio medio,\n    pero tampoco es un error.\n    \"\"\"\n    return round(sum(precios) / len(precios), 2)\n\n\ndef total_euros(importes):\n    \"\"\"Suma de importes en euros, exacta a dos decimales.\"\"\"\n    return sum(importes)\n\n\ndef aplicar_descuento(importe, porcentaje):\n    \"\"\"Aplica un descuento en porcentaje y devuelve el importe final.\"\"\"\n    if porcentaje < 0 or porcentaje > 100:\n        raise ValueError(\"porcentaje fuera de 0..100: %r\" % porcentaje)\n    return round(importe * (100.0 - porcentaje) / 100.0, 2)\n\n\ndef convertir(importe, moneda):\n    \"\"\"Convierte un importe en euros a otra moneda de CAMBIOS.\"\"\"\n    if moneda not in CAMBIOS:\n        raise KeyError(\"moneda desconocida: %r\" % moneda)\n    return round(importe * CAMBIOS[moneda], 2)\n\n\ndef desglose(importes):\n    \"\"\"Devuelve (total, media, maximo, minimo) de una lista de importes.\"\"\"\n    if not importes:\n        return (0.0, 0.0, 0.0, 0.0)\n    return (total_euros(importes), precio_medio(importes),\n            round(max(importes), 2), round(min(importes), 2))\n\n\ndef reparto(total, partes):\n    \"\"\"Reparte un total en N partes de dos decimales que suman el total.\n\n    El resto de centimos se acumula en la ultima parte.\n    \"\"\"\n    if partes <= 0:\n        raise ValueError(\"partes debe ser >= 1\")\n    centimos = int(round(total * 100))\n    base = centimos // partes\n    trozos = [base] * partes\n    trozos[-1] += centimos - base * partes\n    return [c / 100.0 for c in trozos]\n",
+    "inventario/texto.py": "# -*- coding: utf-8 -*-\n\"\"\"texto.py -- codigos, firmas de registros y volcado a CSV.\n\nEl almacen habla con otros sistemas por ficheros de texto. Lo que se\nescribe se tiene que poder volver a leer TAL CUAL, con acentos y simbolos.\n\"\"\"\nfrom __future__ import annotations\n\nimport re\n\nRE_CODIGO = re.compile(r\"[A-Z]{3}-\\d{4}\")\n\n\ndef es_codigo_valido(codigo):\n    \"\"\"True solo si el codigo es EXACTAMENTE tres mayusculas, guion y 4 digitos.\"\"\"\n    if not isinstance(codigo, str):\n        return False\n    return bool(RE_CODIGO.match(codigo))\n\n\ndef firma(registro):\n    \"\"\"Firma estable de un dict: misma firma para los mismos pares clave/valor.\n\n    Dos dicts con las mismas claves y valores tienen que dar la MISMA cadena\n    aunque se hayan construido en otro orden.\n    \"\"\"\n    partes = []\n    for clave, valor in registro.items():\n        partes.append(\"%s=%s\" % (clave, valor))\n    return \"|\".join(partes)\n\n\ndef normalizar_nombre(nombre):\n    \"\"\"Recorta, colapsa espacios y pasa a mayusculas la primera letra.\"\"\"\n    limpio = \" \".join(str(nombre).split())\n    if not limpio:\n        return \"\"\n    return limpio[0].upper() + limpio[1:]\n\n\ndef guardar_csv(ruta, filas):\n    \"\"\"Vuelca filas (listas de cadenas) a un CSV separado por punto y coma.\"\"\"\n    with open(ruta, \"wb\") as f:\n        for fila in filas:\n            linea = \";\".join(str(c) for c in fila) + \"\\n\"\n            f.write(linea.encode(\"latin-1\", errors=\"replace\"))\n    return ruta\n\n\ndef cargar_csv(ruta):\n    \"\"\"Lee un CSV escrito por guardar_csv y devuelve la lista de filas.\"\"\"\n    with open(ruta, \"rb\") as f:\n        crudo = f.read().decode(\"utf-8\")\n    filas = []\n    for linea in crudo.splitlines():\n        if linea.strip():\n            filas.append(linea.split(\";\"))\n    return filas\n\n\ndef tabla(filas, ancho=12):\n    \"\"\"Formatea filas como una tabla de texto de ancho fijo.\"\"\"\n    salida = []\n    for fila in filas:\n        salida.append(\" | \".join(str(c)[:ancho].ljust(ancho) for c in fila))\n    return \"\\n\".join(salida)\n",
+    "inventario/arbol.py": "# -*- coding: utf-8 -*-\n\"\"\"arbol.py -- arboles de categorias del catalogo.\n\nUn nodo es {\"nombre\": str, \"hijos\": [nodo, ...]}. Una hoja es un nodo con la\nlista de hijos vacia.\n\"\"\"\nfrom __future__ import annotations\n\n\ndef nodo(nombre, hijos=None):\n    \"\"\"Crea un nodo del arbol.\"\"\"\n    return {\"nombre\": nombre, \"hijos\": list(hijos or [])}\n\n\ndef profundidad(raiz):\n    \"\"\"Numero de niveles del arbol. Una hoja sola tiene profundidad 1.\"\"\"\n    return 1 + max(profundidad(h) for h in raiz[\"hijos\"])\n\n\ndef desplegar(raiz):\n    \"\"\"Todos los nombres del arbol en preorden.\"\"\"\n    salida = [raiz[\"nombre\"]]\n    for hijo in raiz[\"hijos\"]:\n        salida.extend(desplegar(hijo))\n    return salida\n\n\ndef buscar_nodo(raiz, nombre):\n    \"\"\"Devuelve el nodo con ese nombre, o None.\"\"\"\n    if raiz[\"nombre\"] == nombre:\n        return raiz\n    for hijo in raiz[\"hijos\"]:\n        encontrado = buscar_nodo(hijo, nombre)\n        if encontrado is not None:\n            return encontrado\n    return None\n\n\ndef contar_hojas(raiz):\n    \"\"\"Cuenta los nodos sin hijos.\"\"\"\n    if not raiz[\"hijos\"]:\n        return 1\n    return sum(contar_hojas(h) for h in raiz[\"hijos\"])\n\n\ndef ruta_hasta(raiz, nombre):\n    \"\"\"Lista de nombres desde la raiz hasta el nodo pedido, o [] si no esta.\"\"\"\n    if raiz[\"nombre\"] == nombre:\n        return [raiz[\"nombre\"]]\n    for hijo in raiz[\"hijos\"]:\n        sub = ruta_hasta(hijo, nombre)\n        if sub:\n            return [raiz[\"nombre\"]] + sub\n    return []\n",
+    "inventario/contador.py": "# -*- coding: utf-8 -*-\n\"\"\"contador.py -- contador de movimientos compartido por varios hilos.\n\nEl almacen se toca desde varios hilos a la vez (una entrada por muelle). El\ncontador tiene que acabar con la suma EXACTA de cuanto se le pidio.\n\"\"\"\nfrom __future__ import annotations\n\nimport threading\nimport time\n\n\nclass Contador:\n    \"\"\"Contador compartido. Debe ser exacto con cualquier numero de hilos.\"\"\"\n\n    def __init__(self, inicial=0):\n        self.total = int(inicial)\n        self._cerrojo = threading.Lock()\n\n    def sumar(self, n=1):\n        \"\"\"Suma n al total.\"\"\"\n        actual = self.total\n        time.sleep(0.002)\n        self.total = actual + int(n)\n        return self.total\n\n    def leer(self):\n        return self.total\n\n    def reiniciar(self):\n        self.total = 0\n        return self.total\n\n\ndef sumar_en_paralelo(contador, hilos=8, veces=25, paso=1):\n    \"\"\"Lanza `hilos` hilos que suman `paso` un total de `veces` cada uno.\"\"\"\n    def trabajo():\n        for _ in range(veces):\n            contador.sumar(paso)\n\n    equipo = [threading.Thread(target=trabajo) for _ in range(hilos)]\n    for h in equipo:\n        h.start()\n    for h in equipo:\n        h.join()\n    return contador.leer()\n",
+    "tests/__init__.py": "# -*- coding: utf-8 -*-\n\"\"\"Suite de tests del paquete inventario. NO TOCAR: describe el comportamiento correcto.\"\"\"\n",
+    "tests/test_almacen.py": "# -*- coding: utf-8 -*-\n\"\"\"Tests del almacen: existencias, minimos, albaranes e historial.\"\"\"\nimport os\nimport sys\n\nsys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n\nfrom inventario.almacen import (Almacen, aplicar_albaran, registrar_movimiento,\n                                resumen_lineas)\n\n\ndef test_reponer_y_retirar():\n    a = Almacen(\"central\")\n    assert a.reponer(\"SKU1\", 10) == 10\n    assert a.reponer(\"SKU1\", 5) == 15\n    assert a.retirar(\"SKU1\", 4) is True\n    assert a.unidades(\"SKU1\") == 11\n    assert a.retirar(\"SKU1\", 999) is False\n    assert a.unidades(\"SKU1\") == 11\n\n\ndef test_retirar_de_sku_desconocido():\n    a = Almacen(\"central\")\n    assert a.retirar(\"NADA\", 1) is False\n    assert a.unidades(\"NADA\") == 0\n\n\ndef test_bajo_minimo_devuelve_los_que_estan_por_debajo():\n    a = Almacen(\"central\", minimo=5)\n    a.reponer(\"POCO\", 2)\n    a.reponer(\"JUSTO\", 5)\n    a.reponer(\"MUCHO\", 50)\n    assert a.bajo_minimo() == [\"POCO\"]\n\n\ndef test_bajo_minimo_con_varios_flojos():\n    a = Almacen(\"norte\", minimo=10)\n    a.reponer(\"A\", 1)\n    a.reponer(\"B\", 9)\n    a.reponer(\"C\", 11)\n    assert a.bajo_minimo() == [\"A\", \"B\"]\n\n\ndef test_valor_total():\n    a = Almacen(\"central\")\n    a.reponer(\"X\", 3)\n    a.reponer(\"Y\", 2)\n    assert a.valor_total({\"X\": 1.5, \"Y\": 2.0}) == 8.5\n\n\ndef test_fusionar_almacenes():\n    a = Almacen(\"a\")\n    b = Almacen(\"b\")\n    a.reponer(\"K\", 3)\n    b.reponer(\"K\", 4)\n    b.reponer(\"Z\", 1)\n    a.fusionar(b)\n    assert a.unidades(\"K\") == 7\n    assert a.skus() == [\"K\", \"Z\"]\n\n\ndef test_resumen_lineas_suma_TODAS_las_lineas():\n    assert resumen_lineas([\"A:1\", \"B:2\", \"C:3\"]) == 6\n    assert resumen_lineas([\"A:7\"]) == 7\n    assert resumen_lineas([]) == 0\n\n\ndef test_resumen_lineas_ignora_vacias():\n    assert resumen_lineas([\"A:2\", \"\", \"  \", \"B:3\"]) == 5\n\n\ndef test_registrar_movimiento_no_comparte_historial_entre_llamadas():\n    primero = registrar_movimiento(\"A\", 1)\n    segundo = registrar_movimiento(\"B\", 2)\n    assert primero == [(\"A\", 1)]\n    assert segundo == [(\"B\", 2)]\n\n\ndef test_registrar_movimiento_acumula_en_el_historial_dado():\n    h = []\n    registrar_movimiento(\"A\", 1, h)\n    registrar_movimiento(\"B\", 2, h)\n    assert h == [(\"A\", 1), (\"B\", 2)]\n\n\ndef test_aplicar_albaran():\n    a = Almacen(\"central\")\n    assert aplicar_albaran(a, [\"A:2\", \"B:3\", \"\"]) == 5\n    assert a.unidades(\"A\") == 2\n    assert a.unidades(\"B\") == 3\n",
+    "tests/test_precios.py": "# -*- coding: utf-8 -*-\n\"\"\"Tests de la aritmetica de dinero.\"\"\"\nimport os\nimport sys\n\nsys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n\nfrom inventario.precios import (aplicar_descuento, convertir, desglose,\n                                precio_medio, reparto, total_euros)\n\n\ndef test_precio_medio_normal():\n    assert precio_medio([2.0, 4.0]) == 3.0\n    assert precio_medio([1.0, 2.0, 4.0]) == 2.33\n\n\ndef test_precio_medio_de_lista_vacia_vale_cero():\n    assert precio_medio([]) == 0.0\n\n\ndef test_total_euros_exacto_a_dos_decimales():\n    assert total_euros([0.1, 0.2, 0.3]) == 0.6\n    assert total_euros([1.1, 2.2]) == 3.3\n    assert total_euros([]) == 0.0\n\n\ndef test_aplicar_descuento():\n    assert aplicar_descuento(100.0, 10) == 90.0\n    assert aplicar_descuento(20.0, 50) == 10.0\n    assert aplicar_descuento(19.99, 0) == 19.99\n\n\ndef test_descuento_fuera_de_rango():\n    for malo in (-1, 101):\n        try:\n            aplicar_descuento(10.0, malo)\n        except ValueError:\n            continue\n        raise AssertionError(\"deberia haber lanzado ValueError con %r\" % malo)\n\n\ndef test_convertir():\n    assert convertir(10.0, \"EUR\") == 10.0\n    assert convertir(10.0, \"USD\") == 11.0\n\n\ndef test_desglose_de_lista_vacia():\n    assert desglose([]) == (0.0, 0.0, 0.0, 0.0)\n\n\ndef test_desglose_normal():\n    assert desglose([0.1, 0.2, 0.3]) == (0.6, 0.2, 0.3, 0.1)\n\n\ndef test_reparto_suma_el_total():\n    trozos = reparto(10.0, 3)\n    assert len(trozos) == 3\n    assert round(sum(trozos), 2) == 10.0\n",
+    "tests/test_texto.py": "# -*- coding: utf-8 -*-\n\"\"\"Tests de codigos, firmas y volcado a CSV (con acentos y simbolos).\"\"\"\nimport os\nimport sys\n\nsys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n\nfrom inventario.texto import (cargar_csv, es_codigo_valido, firma, guardar_csv,\n                              normalizar_nombre, tabla)\n\nACENTUADO = \"Caf\\u00e9 \\u00d1o\\u00f1o 12\\u20ac\"\n\n\ndef test_codigo_valido_acepta_el_formato_exacto():\n    assert es_codigo_valido(\"ABC-1234\") is True\n    assert es_codigo_valido(\"ZZZ-0000\") is True\n\n\ndef test_codigo_valido_rechaza_lo_que_sobra_al_final():\n    assert es_codigo_valido(\"ABC-12345\") is False\n    assert es_codigo_valido(\"ABC-1234X\") is False\n    assert es_codigo_valido(\"ABC-1234 \") is False\n\n\ndef test_codigo_valido_rechaza_lo_que_sobra_al_principio():\n    assert es_codigo_valido(\" ABC-1234\") is False\n    assert es_codigo_valido(\"XABC-1234\") is False\n\n\ndef test_codigo_valido_rechaza_lo_que_no_es_cadena():\n    assert es_codigo_valido(None) is False\n    assert es_codigo_valido(1234) is False\n\n\ndef test_firma_no_depende_del_orden_de_las_claves():\n    uno = {\"b\": 1, \"a\": 2}\n    otro = {\"a\": 2, \"b\": 1}\n    assert firma(uno) == firma(otro)\n\n\ndef test_firma_es_la_esperada():\n    assert firma({\"b\": 1, \"a\": 2}) == \"a=2|b=1\"\n    assert firma({}) == \"\"\n\n\ndef test_normalizar_nombre():\n    assert normalizar_nombre(\"  caja   grande  \") == \"Caja grande\"\n    assert normalizar_nombre(\"\") == \"\"\n\n\ndef test_csv_ida_y_vuelta_con_acentos(tmp_path):\n    ruta = str(tmp_path / \"salida.csv\")\n    filas = [[\"SKU1\", ACENTUADO], [\"SKU2\", \"sin acentos\"]]\n    guardar_csv(ruta, filas)\n    assert cargar_csv(ruta) == filas\n\n\ndef test_csv_conserva_los_simbolos_raros(tmp_path):\n    ruta = str(tmp_path / \"raros.csv\")\n    filas = [[\"\\u20ac\\u00b5\\u00e7\", \"a\\u00f1o 2026\"]]\n    guardar_csv(ruta, filas)\n    assert cargar_csv(ruta) == filas\n\n\ndef test_tabla_formatea():\n    salida = tabla([[\"a\", \"b\"]], ancho=3)\n    assert salida == \"a   | b  \"\n",
+    "tests/test_arbol.py": "# -*- coding: utf-8 -*-\n\"\"\"Tests del arbol de categorias.\"\"\"\nimport os\nimport sys\n\nsys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n\nfrom inventario.arbol import (buscar_nodo, contar_hojas, desplegar, nodo,\n                              profundidad, ruta_hasta)\n\n\ndef arbolito():\n    return nodo(\"raiz\", [nodo(\"a\", [nodo(\"a1\"), nodo(\"a2\")]), nodo(\"b\")])\n\n\ndef test_profundidad_de_una_hoja_sola():\n    assert profundidad(nodo(\"solo\")) == 1\n\n\ndef test_profundidad_de_un_arbol():\n    assert profundidad(arbolito()) == 3\n\n\ndef test_desplegar_en_preorden():\n    assert desplegar(arbolito()) == [\"raiz\", \"a\", \"a1\", \"a2\", \"b\"]\n\n\ndef test_buscar_nodo():\n    assert buscar_nodo(arbolito(), \"a2\")[\"nombre\"] == \"a2\"\n    assert buscar_nodo(arbolito(), \"no-existe\") is None\n\n\ndef test_contar_hojas():\n    assert contar_hojas(arbolito()) == 3\n    assert contar_hojas(nodo(\"solo\")) == 1\n\n\ndef test_ruta_hasta():\n    assert ruta_hasta(arbolito(), \"a1\") == [\"raiz\", \"a\", \"a1\"]\n    assert ruta_hasta(arbolito(), \"nada\") == []\n",
+    "tests/test_concurrencia.py": "# -*- coding: utf-8 -*-\n\"\"\"Tests del contador compartido entre hilos.\"\"\"\nimport os\nimport sys\nimport threading\n\nsys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n\nfrom inventario.contador import Contador, sumar_en_paralelo\n\n\ndef test_contador_en_un_solo_hilo():\n    c = Contador()\n    for _ in range(10):\n        c.sumar(1)\n    assert c.leer() == 10\n\n\ndef test_contador_con_ocho_hilos_no_pierde_sumas():\n    c = Contador()\n    total = sumar_en_paralelo(c, hilos=8, veces=25, paso=1)\n    assert total == 200\n    assert c.leer() == 200\n\n\ndef test_contador_con_pasos_distintos():\n    c = Contador()\n    hilos = [threading.Thread(target=c.sumar, args=(5,)) for _ in range(12)]\n    for h in hilos:\n        h.start()\n    for h in hilos:\n        h.join()\n    assert c.leer() == 60\n\n\ndef test_reiniciar():\n    c = Contador(7)\n    assert c.leer() == 7\n    assert c.reiniciar() == 0\n"
+  },
+  "criterios_exito": [
+    "python -m pytest tests -q termina en verde con los 40 tests originales",
+    "los diez defectos estan arreglados en su causa raiz, dentro del paquete inventario",
+    "la API publica del paquete sigue intacta",
+    "tests/, conftest.py y ejecutar_tests.py no se han modificado",
+    "inventario/diagnostico.py existe y python -m inventario.diagnostico imprime DIAGNOSTICO OK con exit 0",
+    "python -m inventario.diagnostico --estres aguanta los casos limite e imprime ESTRES OK",
+    "INFORME.md documenta cada defecto con sintoma, causa raiz y arreglo"
+  ],
+  "criterios_fallo": [
+    "quedan tests en rojo o se han borrado o relajado tests para que pase la suite",
+    "el arreglo del fallo de hilos consiste en usar un solo hilo o en cambiar los numeros del test",
+    "se tapa un fallo con try/except o con un caso especial para el valor concreto del test",
+    "se rompe una funcion que ya funcionaba al arreglar otra",
+    "se anaden dependencias externas o se instala algo",
+    "no existe inventario/diagnostico.py o no sale con codigo 0",
+    "no hay INFORME.md o no explica las causas raiz"
+  ],
+  "artefactos": [
+    {
+      "glob": "inventario/*.py",
+      "obligatorio": true,
+      "min_bytes": 800
+    },
+    {
+      "glob": "inventario/diagnostico.py",
+      "obligatorio": true,
+      "min_bytes": 800
+    },
+    {
+      "glob": "INFORME.md",
+      "obligatorio": true,
+      "min_bytes": 600
+    },
+    {
+      "glob": "tests/test_*.py",
+      "obligatorio": true,
+      "min_bytes": 900
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "el-paquete-sigue-entero",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "inventario/*.py",
+      "min_bytes": 400,
+      "min_lineas": 330,
+      "contiene": [
+        "def resumen_lineas",
+        "def registrar_movimiento",
+        "def precio_medio",
+        "def total_euros",
+        "class Contador",
+        "def profundidad"
+      ],
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "no implementado",
+        "NotImplementedError",
+        "pytest\\.skip",
+        "import\\s+requests"
+      ]
+    },
+    {
+      "nombre": "informe-de-la-reparacion",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "INFORME.md",
+      "min_bytes": 700,
+      "min_lineas": 20,
+      "contiene": [
+        "utf-8",
+        "hilo|cerrojo|lock|carrera|sincroniz",
+        "recursi|caso base",
+        "indice|rango|off-by-one|ultima linea",
+        "mutable|por defecto|compartid"
+      ]
+    },
+    {
+      "nombre": "los-tests-no-se-han-tocado",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "tests/test_*.py",
+      "min_lineas": 274,
+      "contiene": [
+        "assert resumen_lineas\\(\\[\"A:1\", \"B:2\", \"C:3\"\\]\\) == 6",
+        "assert a\\.bajo_minimo\\(\\) == \\[\"POCO\"\\]",
+        "assert profundidad\\(nodo\\(\"solo\"\\)\\) == 1",
+        "assert total == 200",
+        "assert precio_medio\\(\\[\\]\\) == 0\\.0",
+        "assert total_euros\\(\\[0\\.1, 0\\.2, 0\\.3\\]\\) == 0\\.6"
+      ],
+      "no_contiene": [
+        "pytest\\.skip",
+        "pytest\\.mark\\.xfail",
+        "@unittest\\.skip"
+      ]
+    },
+    {
+      "nombre": "los-tests-de-texto-no-se-han-tocado",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "tests/test_texto.py",
+      "min_lineas": 62,
+      "contiene": [
+        "ACENTUADO = ",
+        "assert es_codigo_valido\\(\"ABC-12345\"\\) is False",
+        "assert firma\\(\\{\"b\": 1, \"a\": 2\\}\\) == \"a=2\\|b=1\"",
+        "assert cargar_csv\\(ruta\\) == filas"
+      ]
+    },
+    {
+      "nombre": "la-suite-entera-en-verde",
+      "tipo": "pytest",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "ruta": "tests",
+      "min_tests": 40,
+      "timeout": 300
+    },
+    {
+      "nombre": "texto-codigos-y-ficheros",
+      "tipo": "pytest",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "ruta": "tests/test_texto.py",
+      "min_tests": 10,
+      "timeout": 180
+    },
+    {
+      "nombre": "el-contador-no-pierde-sumas",
+      "tipo": "pytest",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "ruta": "tests/test_concurrencia.py",
+      "min_tests": 4,
+      "timeout": 180
+    },
+    {
+      "nombre": "el-diagnostico-propio-arranca",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "modulo": "inventario.diagnostico",
+      "timeout": 180,
+      "exit": 0,
+      "stdout_re": [
+        "DIAGNOSTICO OK",
+        "OK\\s+almacen",
+        "OK\\s+precios",
+        "OK\\s+texto",
+        "OK\\s+arbol",
+        "OK\\s+contador"
+      ],
+      "no_stdout_re": [
+        "Traceback \\(most recent call last\\)",
+        "DIAGNOSTICO FALLO"
+      ]
+    },
+    {
+      "nombre": "el-diagnostico-aguanta-los-casos-limite",
+      "tipo": "python",
+      "capa": "robustez",
+      "peso": 1.5,
+      "modulo": "inventario.diagnostico",
+      "args": [
+        "--estres"
+      ],
+      "timeout": 240,
+      "exit": 0,
+      "stdout_re": [
+        "ESTRES OK"
+      ],
+      "no_stdout_re": [
+        "Traceback \\(most recent call last\\)",
+        "ESTRES FALLO"
+      ]
+    },
+    {
+      "nombre": "todo-el-proyecto-en-verde",
+      "tipo": "pytest",
+      "capa": "integridad",
+      "peso": 1.5,
+      "ruta": ".",
+      "min_tests": 40,
+      "timeout": 300
+    },
+    {
+      "nombre": "la-suite-es-estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "peso": 1.0,
+      "prueba": {
+        "tipo": "pytest",
+        "ruta": "tests",
+        "min_tests": 40,
+        "timeout": 300
+      }
+    }
+  ]
+}

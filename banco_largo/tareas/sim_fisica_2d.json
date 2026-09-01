@@ -1,0 +1,287 @@
+{
+  "id": "sim-fisica-2d",
+  "familia": "simulacion",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 950,
+  "prompt": "Escribe desde cero un MOTOR DE FISICA 2D en JavaScript, sin ninguna libreria (nada de matter.js, planck, box2d ni p5), sin CDN, sin npm install y sin ninguna peticion de red: solo JavaScript estandar del navegador y de Node. Entregalo en el directorio de trabajo actual con tres ficheros: fisica.js (el motor), index.html (la demo interactiva en canvas) y pruebas.js (las comprobaciones numericas que se ejecutan con node).\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. CUERPOS RIGIDOS de dos formas: circulos (centro + radio) y poligonos convexos (lista de vertices en coordenadas locales, con rotacion). Cada cuerpo tiene masa, momento de inercia, restitucion, friccion, velocidad lineal, velocidad angular y bandera de estatico.\n2. INTEGRADOR ESTABLE con paso fijo (semi-implicito de Euler o Verlet), con subdivision interna cuando le piden avanzar mas tiempo del paso fijo, para que nunca explote ni produzca NaN.\n3. DETECCION DE COLISIONES: circulo-circulo, circulo-poligono y poligono-poligono resuelta con SAT (teorema de los ejes separadores), calculando normal de contacto, profundidad de penetracion y puntos de contacto. Debe haber una fase amplia (grid o AABB) para no comparar todos contra todos.\n4. RESOLUCION POR IMPULSOS con restitucion y friccion de Coulomb, correccion de penetracion (posicional, tipo Baumgarte o split impulse) y varias iteraciones de solver por paso para que las pilas de cajas no tiemblen.\n5. RESTRICCIONES TIPO MUELLE entre dos cuerpos, con longitud de reposo, rigidez y amortiguacion, aplicadas cada paso.\n6. DORMIDO DE CUERPOS EN REPOSO: un cuerpo cuya velocidad lineal y angular se mantengan por debajo de un umbral durante medio segundo se marca dormido y deja de integrarse, hasta que un contacto nuevo o una fuerza lo despierten.\n7. COMPROBACIONES NUMERICAS PROPIAS: conservacion aproximada de la cantidad de movimiento y de la energia en escenarios sin friccion ni gravedad, ausencia de NaN e infinitos, no interpenetracion en reposo, y determinismo. Al menos 10 comprobaciones distintas.\n8. ESCENAS de demostracion: al menos 4 (vacio, pila de cajas, pendulo de muelles y un revoltijo aleatorio sembrado por semilla).\n9. DEMO INTERACTIVA en index.html sobre <canvas>: dibuja los cuerpos, sus contactos y una capa de informacion (numero de cuerpos, contactos, dormidos, energia); permite lanzar cuerpos con el raton, cambiar de escena, pausar y avanzar paso a paso.\n10. DETERMINISMO: el motor no puede usar Math.random directo; todo el azar sale de un generador propio sembrado, para que la misma escena con la misma semilla de exactamente el mismo estado.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el; es la interfaz publica del motor, respetalo exactamente):\n- fisica.js define el objeto FISICA y lo expone de las DOS maneras: window.FISICA en el navegador y module.exports = FISICA si existe module (para que node pruebas.js funcione). El eje Y crece HACIA ABAJO, como en el canvas.\n- API de FISICA:\n    FISICA.mundo               -> {gravedad: {x, y}, cuerpos: [...], restricciones: [...]} (objeto plano, la gravedad se puede modificar)\n    FISICA.PASO_FIJO           -> numero, el paso de integracion en segundos (por ejemplo 1/120)\n    FISICA.crearCirculo(x, y, radio, opts)          -> cuerpo centrado en (x, y), o null si los datos son invalidos (radio <= 0, NaN, ...)\n    FISICA.crearPoligono(x, y, vertices, opts)      -> cuerpo cuyo origen local esta en (x, y), o null si hay menos de 3 vertices o son invalidos\n    FISICA.crearCaja(x, y, ancho, alto, opts)       -> cuerpo poligonal CENTRADO en (x, y) (cuerpo.x y cuerpo.y son\n                                                       siempre el centro de masa), o null si es invalido (ancho o alto <= 0, NaN)\n      opts admite {masa, restitucion, friccion, estatico, vx, vy, angulo, w}\n    cuerpo -> {id, forma: 'circulo'|'poligono', x, y, vx, vy, angulo, w, masa, inercia, restitucion, friccion, estatico, dormido, radio, vertices}\n    FISICA.eliminar(cuerpo)    -> true si lo quito del mundo, false si ya no estaba\n    FISICA.paso(dt)            -> avanza dt segundos subdividiendo en pasos de PASO_FIJO; devuelve el numero de pasos dados\n    FISICA.avanzar(segundos)   -> lo mismo para tiempos largos; devuelve el numero de pasos dados\n    FISICA.colisiones()        -> array con los contactos del ultimo paso: {a, b, normal: {x, y}, penetracion}\n    FISICA.contactosAcumulados -> contador de contactos resueltos desde el ultimo reiniciar()\n    FISICA.energia()           -> energia total (cinetica de traslacion + rotacion + potencial) como numero\n    FISICA.momento()           -> {x, y}, suma de masa por velocidad de los cuerpos NO estaticos\n    FISICA.muelle(a, b, longitud, rigidez, amortiguacion) -> la restriccion creada, o null si los datos no valen\n    FISICA.restricciones       -> array de restricciones activas\n    FISICA.dormidos()          -> numero de cuerpos dormidos ahora mismo\n    FISICA.despertar(cuerpo)   -> lo despierta; devuelve true\n    FISICA.escenas             -> array con los nombres de las escenas (al menos 4, incluidos 'vacio', 'pila', 'pendulo' y 'revoltijo')\n    FISICA.reiniciar(escena)   -> vacia el mundo y carga esa escena ('vacio' lo deja SIN cuerpos); devuelve el nombre cargado\n    FISICA.semilla(n)          -> siembra el generador pseudoaleatorio del motor y devuelve n. reiniciar() construye\n                                  la escena consumiendo ESE generador, asi que semilla(n) seguido de reiniciar(e)\n                                  reproduce exactamente la misma escena todas las veces\n    FISICA.finito()            -> true si ningun cuerpo tiene NaN o Infinity en posicion, velocidad o angulo\n    FISICA.estado()            -> objeto JSON-serializable con el estado completo del mundo\n    FISICA.autoprueba()        -> ejecuta TODAS las comprobaciones numericas y devuelve {total, ok, fallos: [{nombre, detalle}]}\n    FISICA.pausar()            -> alterna la pausa y devuelve true si queda PAUSADA. La pausa detiene SOLO el bucle de requestAnimationFrame de la demo; paso() y avanzar() siguen funcionando siempre\n- pruebas.js se ejecuta con `node pruebas.js` desde el directorio del producto, carga fisica.js con require, corre FISICA.autoprueba() y ESCRIBE POR SALIDA ESTANDAR una linea por comprobacion con el formato exacto `[OK] nombre` o `[FALLO] nombre: detalle`, y una ultima linea `RESULTADO: N/M`. Sale con codigo 0 si todas pasan y con codigo 1 si alguna falla. Tiene que haber al menos 10 comprobaciones.\n- index.html carga fisica.js con una etiqueta <script src=\"fisica.js\"></script> (ruta relativa, nunca una URL) y arranca la demo solo. Debe existir un <canvas> que se repinte con requestAnimationFrame y no debe haber NINGUN error en la consola del navegador.\n- Escribe tambien un README.md (minimo 200 bytes) que explique como abrir la demo, como correr `node pruebas.js` y que comprueba cada prueba.\n\nNada de red, nada de CDN, nada de dependencias: solo la biblioteca estandar del lenguaje.\n\nNo entregues un esqueleto: cada sistema de la lista tiene que estar implementado. Cuando creas que has terminado, EJECUTA `node pruebas.js` tu mismo, ABRE index.html, comprueba que la pila de cajas se estabiliza y se duerme en vez de temblar, que no aparecen NaN y que no hay errores en consola, y CORRIGE lo que falle antes de darlo por bueno.",
+  "criterios_exito": [
+    "node pruebas.js sale con codigo 0 y todas las comprobaciones en [OK]",
+    "index.html abre sin errores de consola y el canvas dibuja los cuerpos",
+    "dos circulos frontales chocan, rebotan y conservan momento y energia dentro de tolerancia",
+    "una pila de cajas sobre suelo estatico se apoya sin hundirse y acaba dormida",
+    "los muelles tiran de los cuerpos hacia su longitud de reposo",
+    "entradas invalidas devuelven null y un dt enorme no produce NaN",
+    "la misma escena con la misma semilla produce el mismo estado()"
+  ],
+  "criterios_fallo": [
+    "pruebas.js no existe, no arranca con node o imprime [FALLO]",
+    "el canvas queda vacio o el motor lanza errores en consola",
+    "los cuerpos se atraviesan, se hunden en el suelo o tiemblan para siempre",
+    "aparecen NaN o Infinity tras avanzar la simulacion",
+    "crearCirculo con radio 0 o NaN crea un cuerpo igualmente",
+    "el motor usa una libreria externa o carga algo por red",
+    "la simulacion no es reproducible con la misma semilla"
+  ],
+  "artefactos": [
+    {
+      "glob": "fisica.js",
+      "obligatorio": true,
+      "min_bytes": 3000
+    },
+    {
+      "glob": "pruebas.js",
+      "obligatorio": true,
+      "min_bytes": 500
+    },
+    {
+      "glob": "index.html",
+      "obligatorio": true,
+      "min_bytes": 600
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "artefactos-presentes",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "index.html",
+      "min_bytes": 600,
+      "contiene": [
+        "canvas",
+        "<script[^>]*src\\s*=\\s*[\\\"'][^\\\"']*fisica\\.js"
+      ],
+      "no_contiene": [
+        "src\\s*=\\s*[\\\"']https?://"
+      ]
+    },
+    {
+      "nombre": "motor-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "min_bytes": 3000,
+      "min_lineas": 450,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "por implementar",
+        "require\\(['\"]matter",
+        "require\\(['\"]planck",
+        "resto del codigo"
+      ]
+    },
+    {
+      "nombre": "los-sistemas-en-el-codigo",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "contiene": [
+        "restitucion",
+        "friccion",
+        "dormido",
+        "muelle",
+        "penetracion",
+        "normal",
+        "inercia",
+        "module.exports"
+      ]
+    },
+    {
+      "nombre": "las-autopruebas-pasan-en-node",
+      "tipo": "nodo",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "entry": "pruebas.js",
+      "timeout": 120,
+      "exit": 0,
+      "stdout_re": [
+        "\\[OK\\](?:[\\s\\S]*?\\[OK\\]){9}",
+        "RESULTADO:\\s*\\d+/\\d+"
+      ],
+      "no_stdout_re": [
+        "\\[FALLO\\]",
+        "Cannot find module"
+      ]
+    },
+    {
+      "nombre": "la-demo-arranca-y-pinta",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "pagina": "index.html",
+      "espera_ms": 1500,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "canvas",
+          "min": 1
+        },
+        {
+          "tipo": "canvas",
+          "min_colores": 4
+        },
+        {
+          "tipo": "js",
+          "nombre": "api_completa",
+          "codigo": "() => { const F = window.FISICA; if (!F) return false; const fs = ['crearCirculo','crearPoligono','crearCaja','eliminar','paso','avanzar','colisiones','energia','momento','muelle','dormidos','despertar','reiniciar','semilla','finito','estado','autoprueba','pausar']; return fs.every(f => typeof F[f] === 'function') && !!F.mundo && Array.isArray(F.mundo.cuerpos) && Array.isArray(F.escenas) && F.escenas.length >= 4 && typeof F.PASO_FIJO === 'number' && F.PASO_FIJO > 0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "autoprueba_en_verde",
+          "codigo": "() => { const r = window.FISICA.autoprueba(); return (r && r.total >= 10 && r.ok === r.total) ? 1 : 0; }",
+          "min": 1
+        }
+      ]
+    },
+    {
+      "nombre": "choque-conserva-momento-y-energia",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "rebote_elastico",
+          "codigo": "() => { const F = window.FISICA; if (F.pausar() === false) F.pausar(); F.reiniciar('vacio'); F.mundo.gravedad.x = 0; F.mundo.gravedad.y = 0; const a = F.crearCirculo(100, 200, 12, {masa: 1, vx: 60, vy: 0, restitucion: 1, friccion: 0}); const b = F.crearCirculo(300, 200, 12, {masa: 1, vx: -60, vy: 0, restitucion: 1, friccion: 0}); if (!a || !b) return false; const p0 = F.momento(), e0 = F.energia(), c0 = F.contactosAcumulados || 0; F.avanzar(3); const p1 = F.momento(), e1 = F.energia(); const choco = (F.contactosAcumulados || 0) > c0; const reboto = a.vx < 0 && b.vx > 0; const okP = Math.abs(p1.x - p0.x) < 1.0 && Math.abs(p1.y - p0.y) < 1.0; const okE = Math.abs(e1 - e0) <= 0.15 * Math.max(1, Math.abs(e0)); return choco && reboto && okP && okE && F.finito(); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "hay_contactos_registrados",
+          "codigo": "() => { const F = window.FISICA; F.reiniciar('vacio'); F.mundo.gravedad.x = 0; F.mundo.gravedad.y = 0; const a = F.crearCirculo(100, 100, 15, {masa: 1, vx: 80, restitucion: 0.8, friccion: 0}); const b = F.crearCirculo(200, 100, 15, {masa: 1, vx: 0, restitucion: 0.8, friccion: 0}); let visto = 0; for (let i = 0; i < 400; i++) { F.paso(F.PASO_FIJO); const cs = F.colisiones(); if (cs && cs.length) { const c = cs[0]; if (c.normal && typeof c.normal.x === 'number' && typeof c.penetracion === 'number') visto++; } } return visto > 0 && b.vx > 0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "pila-de-cajas-se-apoya-y-se-duerme",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "no_se_hunden_ni_tiemblan",
+          "codigo": "() => { const F = window.FISICA; if (F.pausar() === false) F.pausar(); F.reiniciar('vacio'); F.mundo.gravedad.x = 0; F.mundo.gravedad.y = 600; const suelo = F.crearCaja(300, 500, 600, 40, {estatico: true, friccion: 0.6, restitucion: 0.05}); const c1 = F.crearCaja(300, 300, 40, 40, {masa: 1, friccion: 0.6, restitucion: 0.05}); const c2 = F.crearCaja(300, 240, 40, 40, {masa: 1, friccion: 0.6, restitucion: 0.05}); if (!suelo || !c1 || !c2) return false; F.avanzar(5); const apoyado = c1.y > 400 && c1.y < 500 && Math.abs(c1.vy) < 5; const encima = c2.y < c1.y - 10; return apoyado && encima && F.finito(); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "se_duermen_en_reposo",
+          "codigo": "() => { const F = window.FISICA; return (F.dormidos() >= 1) ? 1 : 0; }",
+          "min": 1
+        },
+        {
+          "tipo": "js",
+          "nombre": "despertar_los_reactiva",
+          "codigo": "() => { const F = window.FISICA; const c = F.mundo.cuerpos.find(b => b.dormido && !b.estatico); if (!c) return false; F.despertar(c); return c.dormido === false; }"
+        }
+      ]
+    },
+    {
+      "nombre": "los-muelles-tiran",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 1.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_muelle_acerca_al_reposo",
+          "codigo": "() => { const F = window.FISICA; if (F.pausar() === false) F.pausar(); F.reiniciar('vacio'); F.mundo.gravedad.x = 0; F.mundo.gravedad.y = 0; const a = F.crearCirculo(200, 200, 10, {estatico: true}); const b = F.crearCirculo(320, 200, 10, {masa: 1, friccion: 0, restitucion: 0.2}); const m = F.muelle(a, b, 60, 40, 2); if (!m || !Array.isArray(F.restricciones) || F.restricciones.length < 1) return false; const d0 = Math.hypot(b.x - a.x, b.y - a.y); F.avanzar(1.5); const d1 = Math.hypot(b.x - a.x, b.y - a.y); return d1 < d0 - 10 && d1 > 5 && F.finito(); }"
+        }
+      ]
+    },
+    {
+      "nombre": "aguanta-lo-invalido",
+      "tipo": "web",
+      "capa": "robustez",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "rechaza_cuerpos_imposibles",
+          "codigo": "() => { const F = window.FISICA; if (F.pausar() === false) F.pausar(); F.reiniciar('vacio'); const malos = [F.crearCirculo(0, 0, 0), F.crearCirculo(NaN, 0, 10), F.crearCirculo(0, 0, -3), F.crearPoligono(0, 0, [{x: 0, y: 0}]), F.crearCaja(0, 0, 0, 10)]; const ninguno = malos.every(m => !m); return ninguno && F.mundo.cuerpos.length === 0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "un_dt_enorme_no_explota",
+          "codigo": "() => { const F = window.FISICA; F.reiniciar('pila'); F.paso(5); F.avanzar(2); const n = F.mundo.cuerpos.length; return n > 0 && F.finito() && F.mundo.cuerpos.every(b => Math.abs(b.x) < 1e6 && Math.abs(b.y) < 1e6); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "eliminar_es_idempotente",
+          "codigo": "() => { const F = window.FISICA; F.reiniciar('vacio'); const c = F.crearCirculo(50, 50, 10, {masa: 1}); const n = F.mundo.cuerpos.length; return F.eliminar(c) === true && F.mundo.cuerpos.length === n - 1 && F.eliminar(c) === false; }"
+        }
+      ]
+    },
+    {
+      "nombre": "la-simulacion-es-reproducible",
+      "tipo": "web",
+      "capa": "integridad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "misma_semilla_mismo_estado",
+          "codigo": "() => { const F = window.FISICA; if (F.pausar() === false) F.pausar(); F.semilla(77); F.reiniciar('revoltijo'); F.avanzar(3); const a = JSON.stringify(F.estado()); F.semilla(77); F.reiniciar('revoltijo'); F.avanzar(3); const b = JSON.stringify(F.estado()); return typeof a === 'string' && a.length > 300 && a === b; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "distinta_semilla_distinto_mundo",
+          "codigo": "() => { const F = window.FISICA; F.semilla(1); F.reiniciar('revoltijo'); const a = JSON.stringify(F.estado()); F.semilla(2); F.reiniciar('revoltijo'); const b = JSON.stringify(F.estado()); return a !== b; }"
+        }
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "peso": 1.0,
+      "prueba": {
+        "tipo": "web",
+        "pagina": "index.html",
+        "espera_ms": 1500,
+        "max_errores_consola": 0,
+        "acciones": [
+          {
+            "tipo": "js",
+            "codigo": "() => { const F = window.FISICA; F.reiniciar('pila'); F.avanzar(2); }"
+          }
+        ],
+        "afirmaciones": [
+          {
+            "tipo": "canvas",
+            "min_colores": 4
+          },
+          {
+            "tipo": "js",
+            "nombre": "sigue_finito",
+            "codigo": "() => window.FISICA.finito() && window.FISICA.mundo.cuerpos.length > 0"
+          }
+        ]
+      }
+    }
+  ]
+}

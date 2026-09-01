@@ -1,0 +1,417 @@
+{
+  "id": "visor-datos-3d",
+  "familia": "3d",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 950,
+  "prompt": "Construye un VISOR 3D INTERACTIVO de un conjunto de datos, en HTML + JavaScript puro con WebGL y SIN NINGUNA LIBRERIA: nada de three.js, nada de gl-matrix, nada de CDN, nada de npm install ni de pip install. Solo ficheros locales y las APIs que ya trae el navegador. Toda la matematica de camara y de proyeccion la escribes tu a mano. Entregalo en el directorio de trabajo actual con index.html como punto de entrada y el codigo en uno o varios .js propios.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Un conjunto de datos generado en local: al menos 400 puntos, cada uno con id, coordenadas x, y, z, una categoria (minimo 4 categorias distintas) y un valor numerico. Se genera con un generador pseudoaleatorio DETERMINISTA propio (un LCG a partir de una semilla entera fija). Prohibido Math.random: dos cargas de la pagina tienen que dar exactamente los mismos datos.\n2. Un motor WebGL propio: contexto webgl o webgl2, shaders de vertices y de fragmentos escritos, compilados y enlazados por ti, atributos y uniformes, buffers subidos con bufferData y pintado con drawArrays o drawElements. Prohibido el contexto 2d para dibujar la escena.\n3. Matrices 4x4 a mano, en column-major (como las espera WebGL): perspectiva, mirar-a (look-at), traslacion, escala, rotacion y multiplicacion de matrices. Son sesenta lineas de codigo, no una dependencia.\n4. Camara orbital: la escena gira arrastrando con el raton, se acerca y se aleja con la rueda del raton y se puede reiniciar. El angulo vertical se recorta para que la camara no se de la vuelta.\n5. Dos representaciones de los MISMOS datos: nube de puntos y barras 3D (un prisma por punto, con altura proporcional a su valor).\n6. Ejes X, Y y Z dibujados en la escena con su rejilla, mas etiquetas de texto en HTML colocadas encima del lienzo usando la proyeccion de coordenadas 3D a pixeles.\n7. Seleccion de puntos por raycast: al pinchar en el lienzo se elige el punto mas cercano al rayo que sale de la camara y se muestran sus datos en el panel de informacion.\n8. Filtros que actualizan la escena de verdad: por categoria y por rango de valor. Al filtrar se vuelve a subir la geometria a la GPU y cambia el numero de puntos visibles y lo que se ve en pantalla.\n9. Transiciones animadas al cambiar de representacion (puntos a barras y al reves): la geometria interpola durante al menos 600 milisegundos.\n10. Interfaz completa: selector de categoria, los dos limites del rango de valor, botones de representacion, boton de reinicio de camara, leyenda de colores por categoria y panel con los datos del punto seleccionado.\n11. Coloreado por categoria, consistente entre la leyenda, los puntos y las barras.\n12. Un README.md corto que explique que se ve y como se maneja.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo EXACTAMENTE):\n- El punto de entrada es index.html y el visor arranca solo al cargar la pagina, sin pulsar nada.\n- Hay un unico elemento <canvas id=\"lienzo\"> y el contexto WebGL se crea con las opciones {preserveDrawingBuffer: true, antialias: false} para que se puedan capturar los pixeles ya pintados.\n- La escena NO gira sola: solo se redibuja cuando cambia el estado o cuando corre una transicion.\n- Ids del DOM que deben existir: #lienzo, #panel, #selector-categoria (un <select> cuyas opciones tienen value igual al nombre de la categoria, mas una primera opcion de value vacio que significa 'todas'), #filtro-min, #filtro-max, #btn-puntos, #btn-barras, #btn-reset, #info (panel del punto seleccionado), #leyenda y #etiquetas (contenedor con al menos tres hijos de clase .etiqueta, uno por eje).\n- Expon un objeto global window.VISOR, siempre actualizado, con AL MENOS esto:\n    window.VISOR.lienzo        -> el elemento <canvas>\n    window.VISOR.gl            -> el contexto WebGLRenderingContext o WebGL2RenderingContext\n    window.VISOR.semilla       -> entero fijo del generador determinista\n    window.VISOR.datos         -> array de puntos {id, x, y, z, categoria, valor}\n    window.VISOR.visibles      -> array de los puntos que pasan los filtros\n    window.VISOR.categorias    -> array con los nombres de las categorias\n    window.VISOR.filtro        -> {categoria, min, max} con el filtro vigente\n    window.VISOR.seleccion     -> el punto seleccionado o null\n    window.VISOR.modo          -> 'puntos' o 'barras' (el modo DESTINO, se actualiza al instante)\n    window.VISOR.enTransicion  -> true mientras la animacion de cambio de modo esta corriendo\n    window.VISOR.camara        -> {theta, phi, radio, objetivo}\n    window.VISOR.render()              -> redibuja YA, de forma sincrona\n    window.VISOR.tick(ms)              -> avanza las transiciones ese numero de milisegundos (para pruebas deterministas)\n    window.VISOR.matrizProyeccion()    -> array de 16 numeros, column-major\n    window.VISOR.matrizVista()         -> array de 16 numeros, column-major\n    window.VISOR.multiplicar(a, b)     -> producto de dos matrices de 16, column-major\n    window.VISOR.identidad()           -> matriz identidad de 16\n    window.VISOR.orbitar(dTheta, dPhi) -> suma dTheta a camara.theta y dPhi a camara.phi (phi se recorta)\n    window.VISOR.zoom(factor)          -> multiplica camara.radio por factor, recortado a limites sanos\n    window.VISOR.resetCamara()         -> devuelve la camara a su posicion inicial exacta\n    window.VISOR.proyectar(punto)      -> {x, y, z, dentro} en PIXELES CSS relativos a la esquina superior izquierda del lienzo\n    window.VISOR.seleccionarEn(px, py) -> raycast en esos mismos pixeles CSS; devuelve el punto elegido o null si no hay ninguno cerca; actualiza VISOR.seleccion y el panel #info, que debe mostrar el id del punto\n    window.VISOR.filtrar({categoria, min, max}) -> aplica el filtro y devuelve el numero de puntos visibles\n    window.VISOR.limpiarFiltros()      -> quita todos los filtros; visibles vuelve a ser todo\n    window.VISOR.setModo(modo)         -> cambia a 'puntos' o 'barras' arrancando una transicion de al menos 600 ms; un modo desconocido se ignora sin romper nada\n- Los botones #btn-puntos y #btn-barras llaman a setModo, y el <select> #selector-categoria filtra al dispararse su evento change.\n- No debe haber NINGUN error en la consola del navegador, ni al cargar ni al interactuar. Los avisos van con console.warn, nunca con console.error.\n- Nada de red: cero fetch a dominios externos, cero <script src> remotos, cero fuentes ni texturas descargadas.\n\nNo entregues un esqueleto ni una captura bonita: cada sistema de la lista tiene que estar implementado. Antes de decir que has terminado, ABRE el resultado, comprueba que el lienzo pinta, que la camara gira, que los filtros cambian lo que se ve, que la seleccion devuelve el punto correcto y que la consola esta limpia; corrige todo lo que falle y vuelve a probarlo.",
+  "criterios_exito": [
+    "index.html abre sin errores de consola y el lienzo WebGL pinta la escena",
+    "window.VISOR expone el estado y todos los metodos del contrato",
+    "las matrices de proyeccion y vista se calculan a mano y multiplicar() da el producto correcto",
+    "orbitar y zoom cambian la camara y lo que se ve en pantalla",
+    "filtrar por categoria y por rango reduce los puntos visibles y redibuja la escena",
+    "seleccionarEn devuelve el punto que proyecta en ese pixel y lo muestra en #info",
+    "setModo anima la transicion entre puntos y barras y termina en el modo pedido",
+    "los datos son deterministas: dos cargas dan exactamente los mismos puntos"
+  ],
+  "criterios_fallo": [
+    "el lienzo queda en blanco o no hay contexto WebGL",
+    "usa three.js, gl-matrix o cualquier libreria descargada",
+    "window.VISOR no existe o le faltan metodos del contrato",
+    "filtrar no cambia visibles o no cambia un solo pixel de la escena",
+    "seleccionarEn devuelve siempre el mismo punto o siempre null",
+    "errores de JavaScript en la consola al cargar o al interactuar",
+    "los datos se generan con Math.random y cambian en cada carga"
+  ],
+  "artefactos": [
+    {
+      "glob": "index.html",
+      "obligatorio": true,
+      "min_bytes": 600
+    },
+    {
+      "glob": "**/*.js",
+      "obligatorio": true,
+      "min_bytes": 1200
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "artefactos-presentes",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "index.html",
+      "min_bytes": 600,
+      "contiene": [
+        "<canvas",
+        "lienzo",
+        "id=[\"']panel[\"']"
+      ],
+      "no_contiene": [
+        "cdn\\.",
+        "unpkg",
+        "jsdelivr",
+        "three\\.min"
+      ]
+    },
+    {
+      "nombre": "codigo-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "min_bytes": 1200,
+      "min_lineas": 400,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "no implementado",
+        "three\\.min",
+        "gl-matrix",
+        "cdn\\.",
+        "unpkg",
+        "jsdelivr"
+      ]
+    },
+    {
+      "nombre": "webgl-y-matrices-escritas-a-mano",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "contiene": [
+        "createShader",
+        "shaderSource",
+        "linkProgram",
+        "gl_Position",
+        "uniformMatrix4fv",
+        "bufferData",
+        "drawArrays|drawElements",
+        "preserveDrawingBuffer"
+      ],
+      "no_contiene": [
+        "Math\\.random"
+      ]
+    },
+    {
+      "nombre": "arranca-y-pinta-con-webgl",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "pagina": "index.html",
+      "espera_ms": 1800,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "canvas",
+          "min": 1
+        },
+        {
+          "tipo": "canvas",
+          "min_colores": 1
+        },
+        {
+          "tipo": "js",
+          "nombre": "api_completa",
+          "codigo": "() => { const V=window.VISOR; if(!V) return false; const m=['render','tick','matrizProyeccion','matrizVista','multiplicar','identidad','orbitar','zoom','resetCamara','proyectar','seleccionarEn','filtrar','limpiarFiltros','setModo']; return m.every(k => typeof V[k]==='function') && Array.isArray(V.datos) && Array.isArray(V.visibles) && Array.isArray(V.categorias) && !!V.camara; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "contexto_webgl",
+          "codigo": "() => { const g=window.VISOR.gl; if(!g) return false; const w2 = (typeof WebGL2RenderingContext!=='undefined') && (g instanceof WebGL2RenderingContext); return !!(w2 || (typeof WebGLRenderingContext!=='undefined' && g instanceof WebGLRenderingContext)); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "n_datos",
+          "codigo": "() => (window.VISOR.datos||[]).length",
+          "min": 400
+        },
+        {
+          "tipo": "js",
+          "nombre": "n_categorias",
+          "codigo": "() => (window.VISOR.categorias||[]).length",
+          "min": 4
+        },
+        {
+          "tipo": "js",
+          "nombre": "manda_geometria_a_la_gpu",
+          "codigo": "() => { const V=window.VISOR; const CUENTA=(V)=>{const g=V.gl; let llamadas=0, vertices=0; const da=g.drawArrays, de=g.drawElements; g.drawArrays=function(m,i,n){llamadas++; vertices+=n; return da.apply(g,arguments);}; g.drawElements=function(m,n){llamadas++; vertices+=n; return de.apply(g,arguments);}; try{V.render();} finally {g.drawArrays=da; g.drawElements=de;} return {llamadas:llamadas, vertices:vertices};}; const r=CUENTA(V); return r.llamadas>=1 && r.vertices>=300; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "forma_del_punto",
+          "codigo": "() => { const p=window.VISOR.datos[0]; return !!p && p.id!==undefined && typeof p.x==='number' && typeof p.y==='number' && typeof p.z==='number' && typeof p.valor==='number' && typeof p.categoria==='string'; }"
+        }
+      ]
+    },
+    {
+      "nombre": "matrices-a-mano-correctas",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "proyeccion_es_perspectiva",
+          "codigo": "() => { const m=[].slice.call(window.VISOR.matrizProyeccion()); return m.length===16 && Math.abs(m[11]+1)<1e-5 && Math.abs(m[15])<1e-9 && m[0]>0 && m[5]>0 && m.every(x=>Number.isFinite(x)); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "multiplicar_da_el_producto",
+          "codigo": "() => { const V=window.VISOR; const A=[],B=[]; for(let i=0;i<16;i++){A.push(((i*7)%13)-6); B.push(((i*5)%11)-5);} const C=[].slice.call(V.multiplicar(A,B)); const E=new Array(16).fill(0); for(let c=0;c<4;c++){for(let r=0;r<4;r++){let s=0; for(let k=0;k<4;k++){s+=A[k*4+r]*B[c*4+k];} E[c*4+r]=s;}} if(C.length!==16) return false; for(let i=0;i<16;i++){ if(Math.abs(C[i]-E[i])>1e-4) return false; } return true; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "identidad_es_neutra",
+          "codigo": "() => { const V=window.VISOR; const I=[].slice.call(V.identidad()); const M=[].slice.call(V.matrizProyeccion()); const P=[].slice.call(V.multiplicar(I,M)); const Q=[].slice.call(V.multiplicar(M,I)); if(I.length!==16) return false; for(let i=0;i<16;i++){ if(Math.abs(P[i]-M[i])>1e-4 || Math.abs(Q[i]-M[i])>1e-4) return false; } return true; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "la_vista_depende_de_la_camara",
+          "codigo": "() => { const V=window.VISOR; V.resetCamara(); const a=[].slice.call(V.matrizVista()); V.orbitar(0.7,0.1); const b=[].slice.call(V.matrizVista()); let dif=0; for(let i=0;i<16;i++){ dif+=Math.abs(a[i]-b[i]); } V.resetCamara(); const c=[].slice.call(V.matrizVista()); let vuelta=0; for(let i=0;i<16;i++){ vuelta+=Math.abs(a[i]-c[i]); } return dif>1e-3 && vuelta<1e-4; }"
+        }
+      ]
+    },
+    {
+      "nombre": "camara-orbital-mueve-la-escena",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "orbitar_y_zoom_cambian_la_imagen",
+          "codigo": "() => { const V=window.VISOR; const HUELLA=(V)=>{V.render(); let h=2166136261; for(const p of V.visibles){const s=V.proyectar(p); if(!s||!s.dentro) continue; h=((h*31)+Math.round(s.x)*7+Math.round(s.y))>>>0;} return h;}; V.limpiarFiltros(); V.resetCamara(); const a=HUELLA(V); V.orbitar(0.9,0.25); const b=HUELLA(V); V.zoom(1.7); const d=HUELLA(V); V.resetCamara(); const e=HUELLA(V); return a!==b && b!==d && a===e; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "la_camara_lleva_la_cuenta",
+          "codigo": "() => { const V=window.VISOR; V.resetCamara(); const t0=V.camara.theta, p0=V.camara.phi, r0=V.camara.radio; V.orbitar(0.5,0.15); const ok1 = Math.abs(V.camara.theta-t0-0.5)<1e-6 && V.camara.phi!==p0; V.zoom(2); const ok2 = Math.abs(V.camara.radio-r0)>1e-6; V.resetCamara(); const ok3 = Math.abs(V.camara.theta-t0)<1e-9 && Math.abs(V.camara.radio-r0)<1e-9 && Math.abs(V.camara.phi-p0)<1e-9; return ok1 && ok2 && ok3; }"
+        }
+      ]
+    },
+    {
+      "nombre": "filtros-cambian-la-escena",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "filtro_por_categoria",
+          "codigo": "() => { const V=window.VISOR; V.limpiarFiltros(); const total=V.datos.length; const cat=V.categorias[0]; const n=V.filtrar({categoria:cat}); return n===V.visibles.length && n>0 && n<total && V.visibles.every(p=>p.categoria===cat); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "filtro_por_rango_de_valor",
+          "codigo": "() => { const V=window.VISOR; V.limpiarFiltros(); const vals=V.datos.map(p=>p.valor).slice().sort((a,b)=>a-b); const med=vals[Math.floor(vals.length/2)]; const n=V.filtrar({min:med}); return n>0 && n<V.datos.length && V.visibles.every(p=>p.valor>=med) && n===V.visibles.length; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "limpiar_filtros_restaura_todo",
+          "codigo": "() => { const V=window.VISOR; V.filtrar({categoria:V.categorias[1]}); V.limpiarFiltros(); return V.visibles.length===V.datos.length; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "filtrar_resube_la_geometria",
+          "codigo": "() => { const V=window.VISOR; const CUENTA=(V)=>{const g=V.gl; let llamadas=0, vertices=0; const da=g.drawArrays, de=g.drawElements; g.drawArrays=function(m,i,n){llamadas++; vertices+=n; return da.apply(g,arguments);}; g.drawElements=function(m,n){llamadas++; vertices+=n; return de.apply(g,arguments);}; try{V.render();} finally {g.drawArrays=da; g.drawElements=de;} return {llamadas:llamadas, vertices:vertices};}; const HUELLA=(V)=>{V.render(); let h=2166136261; for(const p of V.visibles){const s=V.proyectar(p); if(!s||!s.dentro) continue; h=((h*31)+Math.round(s.x)*7+Math.round(s.y))>>>0;} return h;}; V.limpiarFiltros(); const a=CUENTA(V); const ha=HUELLA(V); V.filtrar({categoria:V.categorias[0]}); const b=CUENTA(V); const hb=HUELLA(V); V.limpiarFiltros(); const d=CUENTA(V); return b.vertices < a.vertices && d.vertices === a.vertices && ha !== hb; }"
+        }
+      ]
+    },
+    {
+      "nombre": "seleccion-por-raycast",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "proyectar_da_pixeles_del_lienzo",
+          "codigo": "() => { const V=window.VISOR; V.limpiarFiltros(); V.render(); const c=V.lienzo||document.querySelector('canvas'); let dentro=0; for(const p of V.datos){ const s=V.proyectar(p); if(s && s.dentro && Number.isFinite(s.x) && Number.isFinite(s.y) && s.x>=0 && s.y>=0 && s.x<=c.clientWidth && s.y<=c.clientHeight) dentro++; } return dentro >= 20; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_raycast_acierta_el_punto",
+          "codigo": "() => { const V=window.VISOR; V.limpiarFiltros(); V.render(); const c=V.lienzo||document.querySelector('canvas'); let probados=0; for(const p of V.visibles){ const s=V.proyectar(p); if(!s||!s.dentro) continue; if(s.x<10||s.y<10||s.x>c.clientWidth-10||s.y>c.clientHeight-10) continue; probados++; const sel=V.seleccionarEn(s.x,s.y); if(sel && String(sel.id)===String(p.id)) return true; if(probados>=20) break; } return false; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_raycast_no_inventa",
+          "codigo": "() => { const V=window.VISOR; return V.seleccionarEn(-9999,-9999)===null && V.seleccionarEn(1e6,1e6)===null; }"
+        }
+      ]
+    },
+    {
+      "nombre": "el-panel-esta-cableado",
+      "tipo": "web",
+      "capa": "integridad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1400,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "click",
+          "sel": "#btn-barras"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 250
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => { window.__transicion = window.VISOR.enTransicion; window.VISOR.tick(5000); }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 300
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_boton_cambia_de_modo",
+          "codigo": "() => window.VISOR.modo==='barras' && window.VISOR.enTransicion===false"
+        },
+        {
+          "tipo": "js",
+          "nombre": "hubo_transicion_animada",
+          "codigo": "() => window.__transicion===true"
+        },
+        {
+          "tipo": "js",
+          "nombre": "volver_a_puntos_tambien_anima",
+          "codigo": "() => { const V=window.VISOR; V.setModo('puntos'); const a=V.enTransicion; V.tick(5000); return a===true && V.enTransicion===false && V.modo==='puntos'; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_select_filtra",
+          "codigo": "() => { const V=window.VISOR; const s=document.querySelector('#selector-categoria'); if(!s) return false; s.value=V.categorias[0]; s.dispatchEvent(new Event('change',{bubbles:true})); const ok = V.visibles.length>0 && V.visibles.length<V.datos.length && V.visibles.every(p=>p.categoria===V.categorias[0]); s.value=''; s.dispatchEvent(new Event('change',{bubbles:true})); return ok && V.visibles.length===V.datos.length; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "info_muestra_la_seleccion",
+          "codigo": "() => { const V=window.VISOR; V.limpiarFiltros(); V.render(); const info=document.querySelector('#info'); if(!info) return false; for(const p of V.visibles){ const s=V.proyectar(p); if(!s||!s.dentro) continue; const sel=V.seleccionarEn(s.x,s.y); if(sel){ return V.seleccion===sel && info.textContent.indexOf(String(sel.id))>=0; } } return false; }"
+        },
+        {
+          "tipo": "selector",
+          "sel": "#etiquetas .etiqueta",
+          "min": 3
+        },
+        {
+          "tipo": "selector",
+          "sel": "#leyenda",
+          "min": 1
+        },
+        {
+          "tipo": "selector",
+          "sel": "#btn-puntos",
+          "min": 1
+        },
+        {
+          "tipo": "selector",
+          "sel": "#btn-reset",
+          "min": 1
+        }
+      ]
+    },
+    {
+      "nombre": "casos-limite-sin-romperse",
+      "tipo": "web",
+      "capa": "robustez",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "filtro_que_no_deja_nada",
+          "codigo": "() => { const V=window.VISOR; const n=V.filtrar({min:1e9}); V.render(); return n===0 && V.visibles.length===0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "rango_imposible",
+          "codigo": "() => { const V=window.VISOR; const n=V.filtrar({min:100,max:1}); V.render(); return n===0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "seleccionar_sin_nada_visible",
+          "codigo": "() => { const V=window.VISOR; const r=V.seleccionarEn(400,300); V.limpiarFiltros(); return r===null || (r && r.id!==undefined); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "zoom_y_giro_extremos_sin_nan",
+          "codigo": "() => { const V=window.VISOR; V.zoom(1e6); V.zoom(1e-9); V.orbitar(1000,1000); V.render(); const m=[].slice.call(V.matrizVista()).concat([].slice.call(V.matrizProyeccion())); V.resetCamara(); return m.length===32 && m.every(x=>Number.isFinite(x)); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "modo_desconocido_no_rompe",
+          "codigo": "() => { const V=window.VISOR; V.setModo('inexistente'); V.tick(3000); V.render(); return V.modo==='puntos' || V.modo==='barras'; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "sigue_dibujando_despues_del_maltrato",
+          "codigo": "() => { const V=window.VISOR; V.limpiarFiltros(); V.resetCamara(); const CUENTA=(V)=>{const g=V.gl; let llamadas=0, vertices=0; const da=g.drawArrays, de=g.drawElements; g.drawArrays=function(m,i,n){llamadas++; vertices+=n; return da.apply(g,arguments);}; g.drawElements=function(m,n){llamadas++; vertices+=n; return de.apply(g,arguments);}; try{V.render();} finally {g.drawArrays=da; g.drawElements=de;} return {llamadas:llamadas, vertices:vertices};}; const r=CUENTA(V); return r.llamadas>=1 && r.vertices>=300; }"
+        }
+      ]
+    },
+    {
+      "nombre": "estable-y-determinista-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "peso": 1.0,
+      "prueba": {
+        "tipo": "web",
+        "pagina": "index.html",
+        "espera_ms": 1500,
+        "max_errores_consola": 0,
+        "acciones": [
+          {
+            "tipo": "js",
+            "codigo": "() => { sessionStorage.setItem('__banco_d0', JSON.stringify(window.VISOR.datos.slice(0,3))); sessionStorage.setItem('__banco_n', String(window.VISOR.datos.length)); }"
+          },
+          {
+            "tipo": "recargar",
+            "ms": 1800
+          }
+        ],
+        "afirmaciones": [
+          {
+            "tipo": "js",
+            "nombre": "los_datos_son_deterministas",
+            "codigo": "() => { const a=sessionStorage.getItem('__banco_d0'); const n=sessionStorage.getItem('__banco_n'); const b=JSON.stringify(window.VISOR.datos.slice(0,3)); return !!a && a===b && n===String(window.VISOR.datos.length); }"
+          },
+          {
+            "tipo": "canvas",
+            "min_colores": 1
+          },
+          {
+            "tipo": "js",
+            "nombre": "la_api_sigue_viva",
+            "codigo": "() => !!(window.VISOR && typeof window.VISOR.render==='function' && typeof window.VISOR.filtrar==='function')"
+          }
+        ]
+      }
+    }
+  ]
+}

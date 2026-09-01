@@ -171,6 +171,101 @@ _SIMPLE_HINTS = (
 )
 
 
+_OBS_DIRS_FUERA = {"__pycache__", ".git", "node_modules", ".pytest_cache",
+                   "venv", ".venv", "venv312", "venv312gpu", ".cognia", "dist",
+                   "build", ".mypy_cache", "site-packages"}
+_OBS_TOPE_FICHEROS = 4000
+
+
+def _ficheros_tocados_desde(raiz, ts, tope=_OBS_TOPE_FICHEROS):
+    """Ficheros bajo `raiz` con mtime posterior a `ts`. Nunca lanza.
+
+    Es la deteccion de mutaciones por OBSERVACION: no pregunta como se llamaba
+    la herramienta, mira el disco. El tope de ficheros existe porque el cwd
+    puede ser un repo enorme y esto corre despues de cada tool call: pasado el
+    tope se abandona y se devuelve lo visto, que es peor que nada pero no
+    cuesta segundos.
+    """
+    fuera = []
+    vistos = 0
+    try:
+        for base, dirs, ficheros in os.walk(str(raiz)):
+            dirs[:] = [d for d in dirs if d not in _OBS_DIRS_FUERA
+                       and not d.startswith(".")]
+            for f in ficheros:
+                vistos += 1
+                if vistos > tope:
+                    return fuera[:20]
+                ruta = os.path.join(base, f)
+                try:
+                    if os.path.getmtime(ruta) >= ts - 0.05:
+                        fuera.append(os.path.relpath(ruta, str(raiz)))
+                except OSError:
+                    continue
+                if len(fuera) >= 20:
+                    return fuera
+    except Exception:
+        pass
+    return fuera
+
+
+# Pared minima que tiene que quedar para que valga la pena retener un cierre y
+# pedir otro ciclo de trabajo. Por debajo de esto el turno que se gana no cabe:
+# con este modelo un paso util (generacion + tool) cuesta del orden de 30-60 s.
+_PARED_MINIMA_TRABAJO = 120.0
+ENV_PARED = "COGNIA_PARED_S"
+
+
+def _pared_restante(t0):
+    """Segundos de presupuesto de PARED que le quedan a la tarea, o None.
+
+    El agente no sabia cuanto reloj le queda: quien lo mata es el de fuera (un
+    runner, un cron, la paciencia del dueno) y el bucle se enteraba cuando ya
+    estaba muerto. Con COGNIA_PARED_S puesto, las compuertas pueden decidir
+    entre 'gasta otro ciclo' y 'entrega lo que hay'. Sin la variable, todo
+    sigue como estaba.
+    """
+    crudo = os.environ.get(ENV_PARED, "")
+    if not crudo:
+        return None
+    try:
+        total = float(crudo)
+    except (TypeError, ValueError):
+        return None
+    if total <= 0:
+        return None
+    return max(0.0, total - (__import__("time").time() - t0))
+
+
+def techo_por_contrato(task: str, base: int = AGENT_HARD_CAP) -> int:
+    """El techo de pasos que merece ESTE encargo, por el trabajo que enumera.
+
+    POR QUE (2026-08-31). `AGENT_HARD_CAP` era una constante: 40 pasos para
+    "resume este parrafo" y 40 para un encargo de doce sistemas. El presupuesto
+    salia de la LONGITUD del texto y de la dificultad estimada, dos proxies que
+    saturan: cualquier encargo largo da dificultad 1,0 y se lleva el mismo
+    techo, tenga tres requisitos o quince.
+
+    El numero de requisitos ENUMERADOS es una medida directa de cuanto trabajo
+    distinto se pidio, y es la que usa el contrato para decidir si se puede
+    cerrar. Que las dos decisiones -- cuanto presupuesto doy y cuando dejo
+    cerrar -- salgan de la misma cuenta es lo que evita el caso absurdo de
+    retener un cierre por requisitos pendientes sin dar pasos para hacerlos.
+
+    Solo puede SUBIR el techo (nunca por debajo de `base`) y no pasa del tope
+    que ya existia para la ampliacion ganada con evidencia, asi que ninguna
+    tarea que hoy funciona pierde nada.
+    """
+    try:
+        from cognia.harness.contrato_tarea import derivar
+        n = len(derivar(task or ""))
+    except Exception:
+        return base
+    if n < 3:
+        return base
+    return max(base, min(AGENT_CAP_CON_PROGRESO, n * 6))
+
+
 def estimate_step_budget(task: str, orch, hard_cap: int = AGENT_HARD_CAP) -> int:
     """
     Decide how many steps to grant this task.
@@ -320,6 +415,29 @@ from cognia.harness.veredicto_tool import es_fallo as _es_fallo_tool
 # El techo de generacion REAL es n_ctx - prompt, no max_tokens: ver el modulo
 # (mide el caso que se llevo la tarea del Minecraft el 2026-08-30).
 from cognia.agent import presupuesto_salida as _ps
+from cognia.harness import telemetria as _tel
+
+
+def _tel_turno(resp, paso, ms, n_tools=0):
+    """Un renglon del diario por llamada al modelo. Apagado por defecto.
+
+    Los numeros salen del usage que YA tiene el bucle: sin esto la unica forma
+    de saber cuantos tokens costo un paso era estimarlos desde fuera con
+    chars/4, que es justo la medida que este repo tiene documentado que miente.
+    """
+    if not _tel.activa():
+        return
+    try:
+        u = (getattr(resp, "usage", None) or {})
+        _tel.evento("turno", paso=paso,
+                    tokens_entrada=int(u.get("prompt_tokens") or 0),
+                    tokens_salida=int(u.get("completion_tokens") or 0),
+                    estimado=bool(getattr(resp, "usage_estimado", False)),
+                    finish=str(getattr(resp, "finish_reason", "") or ""),
+                    n_tool_calls=int(n_tools),
+                    ms=int(ms * 1000))
+    except Exception:
+        pass
 from cognia.agent.model_profiles import MIN_TOKENS_RAZONADOR
 
 # Tools cuyo trabajo ES repetirse: correr la suite tras cada arreglo, mirar la
@@ -469,6 +587,18 @@ CORTE_ANTES_DEL_TOOL_CALL = (
 # chars pensando y el tool call salio cortado a los 697. A nivel de modulo para
 # que se pueda leer y calibrar sin abrir el bucle.
 _RAZON_SE_LO_COMIO = 6000
+# Techo VIVO de razonamiento por turno: a partir de aqui, un turno que no ha
+# emitido ni un fragmento de respuesta ni de tool call se corta y se repite sin
+# pensamiento. 12.000 chars son ~4.000 tokens, ~85 s de generacion con el
+# modelo de esta casa: ya es caro y todavia deja pensar de sobra a un turno
+# legitimo (la mediana de un paso sano medida esta noche es de 300-900 chars).
+# COGNIA_TOPE_RAZON lo mueve; 0 lo apaga.
+try:
+    _TOPE_RAZON_VIVO = max(0, int(os.environ.get("COGNIA_TOPE_RAZON", "12000")))
+except Exception:
+    _TOPE_RAZON_VIVO = 12000
+if _TOPE_RAZON_VIVO == 0:
+    _TOPE_RAZON_VIVO = 10 ** 9
 
 
 def _corte_en_tool_call(resp, schemas) -> str:
@@ -632,6 +762,28 @@ def _lleva_marca_truncado(tc) -> bool:
     return _MARCA_ARG_TRUNCADO in str(getattr(tc, "argumentos_crudos", "") or "")
 
 
+def _tool_calls_con_parciales(resp):
+    """Los tool calls del turno, VENGAN DE DONDE VENGAN.
+
+    Un turno que termino bien los deja en `.tool_calls`. Uno que se corto
+    -- por cancelacion, por caida de red o porque el server devolvio 500 al no
+    poder parsear unos argumentos cortados a media cadena -- los deja en
+    `.tool_calls_parciales`, que hasta hoy no leia NADIE en el repo. Justo el
+    caso del 500 es el que trae dentro el fichero a medio escribir, o sea los
+    KB por los que ya se pago la generacion.
+    """
+    salida = list(getattr(resp, "tool_calls", None) or ())
+    if str(getattr(resp, "finish_reason", "")) == "cancelado":
+        # UN TURNO QUE CORTO EL USUARIO NO SE RESCATA. chat_client vacia
+        # .tool_calls a proposito en ese caso (su docstring: "la respuesta
+        # cortada NUNCA tiene la clave 'tool_calls'"); leer aqui los parciales
+        # reabriria por la puerta de atras justo lo que ese diseno cierra:
+        # escribir ficheros despues del Esc.
+        return salida
+    salida.extend(getattr(resp, "tool_calls_parciales", None) or ())
+    return salida
+
+
 def _hay_parcial_rescatable(resp) -> bool:
     """True si el turno cortado trae DENTRO un fichero que se puede escribir.
 
@@ -646,7 +798,7 @@ def _hay_parcial_rescatable(resp) -> bool:
         from cognia.agent import rescate_parcial as _rp
     except ImportError:
         return False
-    for tc in (getattr(resp, "tool_calls", None) or ()):
+    for tc in _tool_calls_con_parciales(resp):
         if not getattr(tc, "argumentos_rotos", False):
             continue
         if getattr(tc, "nombre", "") not in _TOOLS_ESCRITURA:
@@ -1367,6 +1519,39 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             if _av:
                 print_fn(f"[warn_cl]{_av}[/warn_cl]")
 
+    def _razonamiento_desbocado() -> bool:
+        """True cuando ESTE turno se esta yendo entero en pensar.
+
+        POR QUE CORTAR Y NO SOLO AVISAR (2026-08-31). La palanca del
+        pensamiento de abajo ya sabe que apagar `enable_thinking` arregla el
+        caso; el problema es CUANDO se entera: solo si el turno se CORTA
+        (rampa de max_tokens o 500 del server). Un turno que piensa sin
+        parar y no llega a cortarse nunca no dispara nada, y ahi la tarea no
+        muere por un tope: muere por el RELOJ. Medido esta noche con el banco
+        de tareas largas, encargo de 4.785 chars: 8.002 chars de razonamiento
+        en el paso 1, cero tool calls, y la tarea entera consumida sin un solo
+        byte escrito en disco.
+
+        El corte es la unica intervencion barata: el stream ya lee `cancelado`
+        entre frames, asi que se para en el acto en vez de esperar minutos a
+        una generacion que ya se sabe esteril. El paso se repite con el
+        pensamiento apagado, que es lo que este repo tiene MEDIDO que produce
+        el fichero (52.535 chars pensando y cero tools con thinking on, contra
+        10.160 chars de tool call con thinking off).
+
+        General, no especifico: no mira que dice la tarea, solo la proporcion
+        entre lo pensado y lo producido en el turno en curso. Con el
+        pensamiento ya apagado, o en un modelo sin la palanca, es transparente.
+        """
+        if _pensamiento["apagado"] or not _lleva_thinking():
+            return False
+        if os.environ.get("COGNIA_THINKING", "").strip().lower() in (
+                "on", "1", "true", "si"):
+            return False
+        if _vivo["chars_tool"] or _vivo["tokens"]:
+            return False        # ya esta produciendo: pensar antes valio
+        return _vivo["chars_razon"] >= _TOPE_RAZON_VIVO
+
     def _kwargs_stream() -> dict:
         """Los kwargs que encienden la rama SSE, o {} si esta apagada."""
         if not _stream_on:
@@ -1374,8 +1559,20 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         k = {"on_token": _suma_token, "on_reasoning": _suma_razonamiento,
              "on_tool_frag": _suma_fragmento_tool}
         _cc = ctx.get("_cancelado") if isinstance(ctx, dict) else None
-        if callable(_cc):
-            k["cancelado"] = _cc
+
+        def _cancelar_turno() -> bool:
+            if callable(_cc):
+                try:
+                    if _cc():
+                        return True
+                except Exception:
+                    pass            # un hook roto no vuelve incancelable el turno
+            if _razonamiento_desbocado():
+                _corte_razon["pedido"] = True
+                return True
+            return False
+
+        k["cancelado"] = _cancelar_turno
         return k
 
     _aviso_ventana = {"dicho": 0}
@@ -1396,6 +1593,31 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # razone igual de bien sin pensamiento. Por eso hay knob: COGNIA_THINKING
     # =on lo impide, y el default solo se mueve cuando el turno se corto.
     _pensamiento = {"apagado": False}
+    # Bandera que pone el hook de cancelacion cuando el turno se fue en pensar.
+    _corte_razon = {"pedido": False, "veces": 0}
+
+    # -- CONTRATO DEL ENCARGO (2026-08-31) ---------------------------------
+    # La lista de lo que se pidio, viva mientras dura la tarea. Existe porque
+    # el cierre de este bucle era puramente sintactico ("el modelo no pidio
+    # herramientas en este turno") y por tanto un turno de prosa cerraba con
+    # exito un encargo de diez sistemas del que se habian hecho dos. Ver
+    # cognia/harness/contrato_tarea.py para lo que mide y lo que NO mide.
+    _contrato = None
+    try:
+        from cognia.harness import contrato_tarea as _ct_mod
+        _contrato = _ct_mod.Contrato(task)
+        if _contrato.activo:
+            print_fn(f"[detail]contrato del encargo: {len(_contrato)} "
+                     f"requisitos a cubrir[/detail]")
+            if _tel.activa():
+                _tel.evento("contrato", requisitos=len(_contrato))
+        if isinstance(ctx, dict):
+            ctx["_contrato"] = _contrato
+    except Exception as _e_ct:
+        _ct_mod = None
+        print_fn(f"[warn_cl]degradado: sin contrato del encargo "
+                 f"({type(_e_ct).__name__}: {_e_ct}); el cierre vuelve a ser "
+                 f"el de siempre[/warn_cl]")
 
     def _lleva_thinking() -> bool:
         """True si la plantilla de ESTE modelo lee enable_thinking. Sin eso la
@@ -1576,6 +1798,12 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # que devolviera una vuelta por vuelta dejaria el bucle girando para
     # siempre. x3 es holgado para lo administrativo y sigue siendo finito.
     _techo_bruto = max_turns if _pres is None else max_turns * 3
+    # Estado ADVERTIDO del gobernador de progreso: 0 = nunca avisado,
+    # 1 = avisado y en ventana de gracia, 2 = ventana consumida (el proximo
+    # veredicto de estancamiento ya cierra).
+    _advertido_prog = 0
+    _prog_pausado = None
+    _fin_ventana_prog = 0
     while pasos < _techo_bruto:
         # CORTE COOPERATIVO (T4, 2026-08-18). ctx['_cancelado'] es un callable
         # que inyecta cli.py cuando la tarea corre en el carril de fondo: el
@@ -1601,19 +1829,58 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         if _prog is not None:
             _v = _prog.veredicto()
             if _v.get("estado") == "estancado":
-                # No es un tope de cantidad: son N vueltas GASTANDO sin un solo
-                # avance verificado. Se le dice al modelo con la evidencia y se
-                # cierra honesto, que es mas barato que seguir hasta el tope.
-                # El hecho se ve UNA vez, en el footer del turno ('sin progreso
-                # verificado: sin_arranque' via motivo_de_cierre); antes salia
-                # ademas como aviso a columna 0 (juez 2026-08-24).
-                mensajes.append({"role": "user", "content": _v.get("sugerencia") or ""})
-                if _salida is not None:
-                    _salida.sellar("estancado_sin_progreso", _v.get("motivo", ""))
-                result_text = result_text or (
-                    "(cerrada sin progreso verificado: " + str(_v.get("motivo")) + ")")
-                _prog = None          # una sola vez por tarea
-                break
+                # LA SUGERENCIA SE ENVIA ANTES DE MATAR (2026-08-31).
+                #
+                # Hasta hoy este bloque appendeaba la sugerencia a `mensajes`
+                # y hacia `break` en la linea siguiente: el texto nunca salia
+                # en una llamada al modelo. `_SUGERENCIAS` (presupuesto_progreso
+                # .py:178-207) esta escrito PARA EL MODELO -- le dice como salir
+                # del estancamiento -- y el modelo no lo leyo jamas. El
+                # `_prog = None  # una sola vez por tarea` prometia una segunda
+                # oportunidad que el break hacia inalcanzable.
+                #
+                # Ahora hay un estado ADVERTIDO con ventana propia: la primera
+                # vez se manda la sugerencia y se le da al modelo una ventana
+                # exenta para cambiar de tactica; el gobernador se apaga durante
+                # esa ventana (no durante la tarea) y vuelve a mirar al salir.
+                # Si al volver sigue estancado, ahi si se cierra.
+                #
+                # POR QUE ES GENERAL, no un parche para tareas grandes: un corte
+                # que no da la oportunidad que su propio texto anuncia es un
+                # falso positivo en CUALQUIER tarea; solo que en una corta el
+                # coste es un turno y en una larga es el trabajo entero. La
+                # ventana escala con el presupuesto por el mismo motivo por el
+                # que ya escala umbral_arranque (ver la construccion del
+                # Progreso): un numero fijo significa cosas distintas segun el
+                # tamano de la tarea.
+                if _advertido_prog == 0:
+                    _advertido_prog = 1
+                    _ventana_prog = max(3, max_turns // 4)
+                    _fin_ventana_prog = pasos + _ventana_prog
+                    mensajes.append({"role": "user",
+                                     "content": _v.get("sugerencia") or ""})
+                    print_fn(f"[warn_cl]sin progreso verificado "
+                             f"({_v.get('motivo')}): te doy {_ventana_prog} "
+                             f"pasos para cambiar de tactica[/warn_cl]")
+                    if _tel.activa():
+                        _tel.evento("advertencia_progreso", motivo=str(_v.get("motivo")),
+                                    paso=pasos, ventana=_ventana_prog)
+                    _prog_pausado = _prog
+                    _prog = None      # el gobernador calla DURANTE la ventana
+                else:
+                    if _salida is not None:
+                        _salida.sellar("estancado_sin_progreso", _v.get("motivo", ""))
+                    result_text = result_text or (
+                        "(cerrada sin progreso verificado: " + str(_v.get("motivo")) + ")")
+                    _prog = None
+                    break
+        elif _prog_pausado is not None and pasos >= _fin_ventana_prog:
+            # Fin de la ventana de gracia: el gobernador vuelve. Si en esos
+            # pasos hubo un avance verificado, su propio contador ya lo sabe y
+            # el veredicto sale 'avanza'; si no, la proxima vuelta cierra.
+            _prog = _prog_pausado
+            _prog_pausado = None
+            _advertido_prog = 2
         if _pres is not None and not _pres.consume():
             # AMPLIACION GANADA CON EVIDENCIA (2026-08-30). El presupuesto de
             # pasos es un PRIOR sacado del texto de la tarea, y el texto no
@@ -1739,6 +2006,29 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         resp = completar(mensajes, tools=schemas, **_sampling_ventana(),
                          **_kwargs_stream())
         tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
+        _tel_turno(resp, pasos, __import__("time").time() - _t_paso,
+                   len(getattr(resp, "tool_calls", None) or []))
+        if _corte_razon["pedido"]:
+            # El turno se corto POR PENSAR de mas, no por el usuario ni por el
+            # tope. Se apaga el pensamiento y se repite el MISMO paso: la
+            # vuelta se devuelve al presupuesto porque no gasto trabajo util,
+            # que es exactamente el caso para el que existe el refund.
+            _corte_razon["pedido"] = False
+            _corte_razon["veces"] += 1
+            _apagar_pensamiento()
+            print_fn(f"[warn_cl]el paso {pasos} llevaba "
+                     f"{_vivo['chars_razon']} chars pensando sin producir "
+                     f"nada: corto y lo repito con el pensamiento apagado"
+                     f"[/warn_cl]")
+            if _tel.activa():
+                _tel.evento("corte", motivo="razonamiento_desbocado",
+                            paso=pasos, chars_razon=_vivo["chars_razon"])
+            if _pres is not None:
+                try:
+                    _pres.refund("razonamiento_desbocado")
+                except Exception:
+                    pass
+            continue
         if _prog is not None:
             try:
                 _u = resp.usage or {}
@@ -1924,7 +2214,51 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         # ocupacion de la ventana (la refina el hook post-compactacion).
         _anotar_uso_vivo(resp, perfil.get("n_ctx"), mensajes, print_fn)
 
-        if not resp.ok and _corte_en_tool_call(resp, schemas):
+        if (not resp.ok and _corte_en_tool_call(resp, schemas)
+                and _hay_parcial_rescatable(resp)):
+            # RESCATAR ANTES DE RENDIRSE (2026-09-01). El 500 "Failed to parse
+            # tool call arguments as JSON" llega con el fichero a medio escribir
+            # DENTRO de la peticion, y hasta hoy se cerraba el turno tirandolo:
+            # el rescate existia (`_rescatar_escritura`) pero solo miraba
+            # `resp.tool_calls`, que en este camino viene vacia. Se escriben las
+            # partes que estan completas y el turno SIGUE: el modelo continua
+            # desde lo que ya hay en disco en vez de reempezar el fichero.
+            _rescatados = []
+            for _tc_p in _tool_calls_con_parciales(resp):
+                if not getattr(_tc_p, "argumentos_rotos", False):
+                    continue
+                if getattr(_tc_p, "nombre", "") not in _TOOLS_ESCRITURA:
+                    continue
+                if getattr(_tc_p, "nombre", "") == "editar_archivo":
+                    continue
+                _crudo_p = getattr(_tc_p, "argumentos_crudos", "") or ""
+                try:
+                    _res_p = _rescatar_escritura(_tc_p, _crudo_p, ctx,
+                                                 run_tool, print_fn)
+                except Exception as _e_rp:
+                    _res_p = None
+                    print_fn(f"[warn_cl]rescate parcial fallido: "
+                             f"{type(_e_rp).__name__}: {_e_rp}[/warn_cl]")
+                if _res_p:
+                    _rescatados.append(str(_res_p)[:200])
+            if _tel.activa():
+                _tel.evento("rescate", motivo="tool_call_cortado_500",
+                            paso=pasos, rescatados=len(_rescatados))
+            if _rescatados:
+                print_fn(f"[ok_cl]rescatados {len(_rescatados)} fichero(s) del "
+                         f"turno cortado: sigo desde ahi en vez de "
+                         f"reempezar[/ok_cl]")
+                _lista_resc = "\n- ".join(_rescatados)
+                mensajes.append({"role": "user", "content":
+                                 "La llamada anterior se corto a media cadena, "
+                                 "pero el arnes rescato y ESCRIBIO en disco lo "
+                                 "que ya habias generado:\n- " + _lista_resc
+                                 + "\n\nNo reempieces esos ficheros: leelos si "
+                                   "hace falta y continua por donde ibas, "
+                                   "escribiendo en trozos mas cortos."})
+                continue
+        if (not resp.ok and _corte_en_tool_call(resp, schemas)
+                and not _hay_parcial_rescatable(resp)):
             # UN TOOL CALL CORTADO NO ES UN BACKEND CAIDO (2026-08-30).
             # llama-server devuelve HTTP 500 "Failed to parse tool call
             # arguments as JSON ... missing closing quote" cuando la
@@ -2145,6 +2479,70 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 # —stop mal puesto vs presupuesto— se veian iguales antes).
                 print_fn("[warn_cl]respuesta final truncada por max_tokens "
                          f"({sampling['max_tokens']})[/warn_cl]")
+            # COMPUERTA DE COMPLETITUD (2026-08-31). La primera pregunta no es
+            # "¿lo que hiciste corre?" sino "¿HICISTE lo que te pidieron?".
+            # Esta compuerta la hace: si el encargo enumeraba requisitos y de
+            # varios no hay ni rastro en lo que se produjo, el turno NO cierra;
+            # se le devuelve al modelo la lista literal de lo que falta y sigue
+            # trabajando.
+            #
+            # DOS DIFERENCIAS DELIBERADAS con las dos compuertas de abajo:
+            #  1. NO exige `_muta.ficheros_escritos()`. Ese registro conoce
+            #     cinco nombres de tool, asi que un producto escrito por
+            #     generar_codigo, por copiar_archivo o por un sub-agente lo
+            #     deja vacio y apaga las dos compuertas de golpe. La evidencia
+            #     de esta sale del DISCO: da igual quien lo escribiera.
+            #  2. El tope de insistencias escala con lo que falta (2 a 6).
+            #     Retener una sola vez un encargo de doce puntos no sirve.
+            #
+            # Lo que mide es cobertura lexica, no funcionamiento, y por eso
+            # solo puede RETENER un cierre, nunca declarar un exito.
+            if ok and _contrato is not None and _contrato.activo and _ct_mod:
+                try:
+                    _contrato.actualizar(
+                        _ct_mod.evidencia_de_disco(os.getcwd(), t0))
+                except Exception as _e_cev:
+                    print_fn(f"[warn_cl]contrato: no pude leer la evidencia "
+                             f"del disco ({type(_e_cev).__name__}); no retengo "
+                             f"el cierre[/warn_cl]")
+                else:
+                    # NO SE RETIENE UN CIERRE SIN RELOJ PARA TRABAJAR
+                    # (2026-09-01). Medido con el banco: la compuerta hace que
+                    # el agente trabaje mucho mas (8,6 -> 15,7 pasos de media)
+                    # y eso sube completitud y entregabilidad... pero en las
+                    # tareas que YA iban a cerrar bien, seguir trabajando las
+                    # dejo sin tiempo y entregaron menos que sin compuerta
+                    # (web-kanban 0,96 -> 0,49). Retener un cierre solo tiene
+                    # sentido si queda pared para hacer algo con el turno que
+                    # se gana: si no, la compuerta convierte una entrega buena
+                    # en una a medias.
+                    _resto = _pared_restante(t0)
+                    if _resto is not None and _resto < _PARED_MINIMA_TRABAJO:
+                        print_fn(f"[warn_cl]quedan {int(_resto)}s de "
+                                 f"presupuesto: entrego lo que hay en vez de "
+                                 f"empezar otro ciclo[/warn_cl]")
+                        if _tel.activa():
+                            _tel.evento("compuerta_contrato", paso=pasos,
+                                        pendientes=len(_contrato.pendientes()),
+                                        omitida_por_pared=int(_resto))
+                    elif _contrato.puede_insistir():
+                        _falta = _contrato.pendientes()
+                        print_fn(f"[warn_cl]el encargo tenia "
+                                 f"{len(_contrato)} requisitos y de "
+                                 f"{len(_falta)} no hay rastro en lo "
+                                 f"producido: sigo trabajando "
+                                 f"({_contrato.nudges + 1}/"
+                                 f"{_contrato.tope_nudges()})[/warn_cl]")
+                        if _tel.activa():
+                            _tel.evento("compuerta_contrato", paso=pasos,
+                                        pendientes=len(_falta),
+                                        requisitos=len(_contrato),
+                                        nudge=_contrato.nudges + 1)
+                        _pendiente_verif = result_text or _pendiente_verif
+                        mensajes.append({"role": "user",
+                                         "content": _contrato.bloque_para_modelo()})
+                        result_text, ok = "", False
+                        continue
             # REVISION PROFUNDA (harness/revision_profunda.py): el arnes CORRE
             # lo construido antes de dejarlo entregar. Va ANTES de la parada
             # verificada porque un exito suyo registra evidencia fresca en el
@@ -2428,8 +2826,20 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 # y heredaria su exit ("evento sellado con el reloj rancio").
                 ctx.pop("_ultimo_exit", None)
                 ctx.pop("_ultimo_ok", None)
+            _t_tool = __import__("time").time()
             resultado = (_servido if _servido is not None
                          else run_tool(tc.nombre, args_str, ctx))
+            if _tel.activa():
+                try:
+                    _tel.evento("tool", nombre=tc.nombre, paso=pasos,
+                                ok=(ctx.get("_ultimo_ok") if isinstance(ctx, dict) else None),
+                                exit=(ctx.get("_ultimo_exit") if isinstance(ctx, dict) else None),
+                                bytes_args=len(args_str or ""),
+                                bytes_resultado=len(str(resultado or "")),
+                                servido_por_especulacion=_servido is not None,
+                                ms=int((__import__("time").time() - _t_tool) * 1000))
+                except Exception:
+                    pass
             # P0-1: EL EXIT REAL MANDA SOBRE LA REGEX. `run_tool` ya corrigio
             # su `ok` con el returncode del proceso y lo deja en el ctx; usar
             # aqui la regex otra vez hacia que un pytest en rojo
@@ -2456,6 +2866,26 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 _muta.resultado(_idm, tool_ok, resultado)
                 if tool_ok and _ts_1a_edicion is None:
                     _ts_1a_edicion = __import__("time").time()
+            elif _muta is not None and tool_ok and tc.nombre not in TOOLS_EXPLORATORIAS:
+                # LA MUTACION SE OBSERVA, NO SE DEDUCE DEL NOMBRE (2026-08-31).
+                # `es_operacion_de_fichero` conoce CINCO nombres de tool. Todo
+                # lo que escriba fuera de esa lista -- generar_codigo,
+                # copiar_archivo, una tool sintetizada, un `ejecutar` que corre
+                # un script que genera ficheros, o un sub-agente delegado --
+                # dejaba el registro vacio, y con el vacio se apagan de golpe
+                # la revision profunda, la parada verificada y el bloque
+                # ENTREGA: las tres exigen `_muta.ficheros_escritos()`. El
+                # cierre llegaba a afirmar "ningun fichero escrito" sobre
+                # trabajo real.
+                #
+                # Aqui se mira el DISCO: que ficheros del workspace cambiaron
+                # mientras corria esta tool. Una lista de nombres en otro
+                # modulo se desincroniza; el mtime no.
+                for _r_obs in _ficheros_tocados_desde(os.getcwd(), _t_tool):
+                    _idm = _muta.intento(_r_obs, tc.nombre + " (observado)")
+                    _muta.resultado(_idm, True, "cambio detectado en disco")
+                    if _ts_1a_edicion is None:
+                        _ts_1a_edicion = __import__("time").time()
             if _cont_fich is not None and tc.nombre in _rep_mod.TOOLS_EDICION:
                 # P12: cuenta la edicion por fichero normalizado; al umbral,
                 # el nudge va como turno user tras el resultado (abajo, junto
@@ -2900,6 +3330,15 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                  "tokens": tokens_total, "finish": finish})
     except Exception:
         pass
+    if _tel.activa():
+        try:
+            _tel.evento("cierre", ok=bool(ok), pasos=pasos, tokens=tokens_total,
+                        finish=str(finish or ""),
+                        razon=str((_envelope or {}).get("razon", "")),
+                        motivo=motivo_de_cierre(_envelope),
+                        chars_respuesta=len(result_text or ""))
+        except Exception:
+            pass
     return {"texto": result_text, "pasos": pasos, "ok": ok,
             "tokens": tokens_total, "finish": finish,
             "razon": (_envelope or {}).get("razon", ""),

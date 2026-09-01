@@ -1,0 +1,652 @@
+{
+  "id": "multi-componente",
+  "familia": "multi",
+  "dificultad": 5,
+  "presupuesto_s": 540,
+  "pasos": 80,
+  "longitud_esperada_lineas": 1400,
+  "prompt": "Construye un SISTEMA DE TRES COMPONENTES que se hablan entre si alrededor de un unico modelo de datos: un servidor HTTP en Python con almacen en SQLite y API JSON, un cliente web que consume esa API, y una CLI en Python que opera contra la MISMA API. El dominio es un gestor de tareas de equipo. Entregalo en el directorio de trabajo actual.\n\nRESTRICCION DURA: solo libreria estandar de Python (http.server, sqlite3, json, argparse, urllib, threading, subprocess, datetime) y JavaScript del navegador. NADA de pip install, NADA de npm install, NADA de CDN, ni Flask, ni FastAPI, ni requests, ni framework de front. El unico trafico permitido es contra 127.0.0.1.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Un MODELO DE DATOS unico en modelo.py que definen y comparten los tres componentes: esquema SQL, prioridades y estados validos, validacion, normalizacion y serializacion a JSON. Ni el servidor ni la CLI pueden redefinir por su cuenta lo que es una tarea valida.\n2. Un servidor HTTP en servidor.py sobre http.server con almacen SQLite: crea el esquema si no existe, abre y cierra la conexion bien, y responde JSON en UTF-8 con los codigos de estado correctos (200, 201, 400, 404).\n3. API REST completa sobre /api: alta, listado, consulta por id, modificacion, borrado, completado, esquema, estadisticas, salud y reinicio del almacen.\n4. Listado con filtros de verdad ejecutados en el servidor: por estado, por prioridad, busqueda por texto en el titulo y ordenacion.\n5. Estadisticas agregadas: total, pendientes, hechas y recuento por prioridad.\n6. Un cliente web en web/index.html + web/app.js + web/estilo.css que el propio servidor sirve en la raiz: lista las tareas, alta con formulario, completar y borrar, filtro por estado, buscador y panel de estadisticas. Todo con fetch y DOM, sin frameworks.\n7. Una CLI en cli.py con subcomandos que habla con la API por HTTP (urllib), con salida legible y salida JSON, y con codigos de salida distintos segun el tipo de fallo.\n8. Manejo de errores en los tres lados: cuerpo JSON invalido, campos que faltan, prioridad inexistente, id que no existe, ruta desconocida y API caida. Nada de trazas de Python escupidas al usuario.\n9. Un script de arranque demo.py que levanta el servidor en un puerto libre, ejecuta el camino completo con la CLI contra el, comprueba los resultados y apaga el servidor.\n10. Tests de integracion en tests/test_integracion.py que arrancan el servidor de verdad y ejercitan el camino cliente-servidor-CLI de punta a punta, incluidos los casos de error.\n11. Un README.md con como arrancar el servidor, como abrir el cliente y la tabla de subcomandos de la CLI.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo EXACTAMENTE):\nFICHEROS: modelo.py, servidor.py, cli.py, demo.py, web/index.html, web/app.js, web/estilo.css, tests/test_integracion.py, README.md.\n\nSERVIDOR: se arranca con `python servidor.py --puerto N [--bd RUTA]`, escucha en 127.0.0.1 en ese puerto y, si no se pasa --puerto, usa la variable de entorno PORT y si tampoco esta el 8080. La base por defecto es datos.db en el directorio de trabajo. Debe tolerar peticiones POST sin cuerpo.\nENDPOINTS (todos devuelven JSON):\n  GET    /                          -> 200, el HTML de web/index.html\n  GET    /app.js  y  GET /estilo.css-> 200, los ficheros de web/\n  GET    /api/salud                 -> 200 {\"ok\": true, \"version\": \"...\"}\n  GET    /api/esquema               -> 200 {\"prioridades\": [\"alta\",\"media\",\"baja\"], \"estados\": [\"pendiente\",\"hecha\"], \"campos\": [...]}\n  GET    /api/tareas                -> 200 {\"tareas\": [...], \"total\": N}; acepta ?estado=, ?prioridad=, ?q= (texto en el titulo) y ?orden= (titulo|prioridad|id). Un valor de filtro desconocido devuelve 200 con la lista vacia.\n  POST   /api/tareas                -> 201 {\"tarea\": {...}}; 400 {\"error\": \"...\"} si falta titulo, si la prioridad no es valida o si el cuerpo no es JSON. El mensaje de error de prioridad debe nombrar las prioridades validas.\n  GET    /api/tareas/<id>           -> 200 {\"tarea\": {...}} o 404 {\"error\": \"...\"} (tambien 404 si el id no es un numero)\n  PUT    /api/tareas/<id>           -> 200 {\"tarea\": {...}} con los campos actualizados, o 404\n  DELETE /api/tareas/<id>           -> 200 {\"borrado\": true} o 404\n  POST   /api/tareas/<id>/completar -> 200 {\"tarea\": {... \"estado\": \"hecha\"}} o 404\n  GET    /api/estadisticas          -> 200 {\"total\": N, \"pendientes\": N, \"hechas\": N, \"por_prioridad\": {\"alta\": N, \"media\": N, \"baja\": N}}\n  POST   /api/reset                 -> 200 {\"ok\": true, \"borradas\": N}; vacia la tabla Y reinicia el contador de ids, de modo que la siguiente tarea creada tiene id 1\n  cualquier otra ruta               -> 404 {\"error\": \"...\"}\nFORMA DE UNA TAREA en JSON, con estas claves exactas: {\"id\": entero, \"titulo\": texto, \"prioridad\": \"alta\"|\"media\"|\"baja\", \"estado\": \"pendiente\"|\"hecha\", \"etiquetas\": [textos], \"creada_en\": texto ISO, \"actualizada_en\": texto ISO}. La prioridad por defecto es \"media\" y el estado inicial \"pendiente\".\n\nCLI: `python cli.py [--api URL] [--json] SUBCOMANDO ...` con --api por defecto http://127.0.0.1:8080. Subcomandos: `listar [--estado E] [--prioridad P] [--q TEXTO]`, `crear --titulo T [--prioridad P] [--etiqueta E ...]`, `ver ID`, `completar ID`, `borrar ID`, `estadisticas`. Codigos de salida: 0 si fue bien, 1 error de uso o de validacion, 2 la tarea no existe, 3 no se pudo hablar con la API. Nunca una traza de Python en pantalla.\n\nCLIENTE WEB: ids del DOM obligatorios #lista-tareas, #form-nueva, #input-titulo, #select-prioridad, #btn-crear, #filtro-estado, #buscador, #estadisticas y #error. Cada tarea pintada es un elemento con clase .tarea y atributo data-id. Expon un objeto global window.APP con: APP.API_BASE (cadena, \"\" por defecto), APP.estado, APP.cargar() (async, GET de las tareas y de las estadisticas, y pinta), APP.crear({titulo, prioridad, etiquetas}) (async, POST), APP.completar(id), APP.borrar(id), APP.pintarTareas(lista) (repinta #lista-tareas desde cero: pintar dos veces la misma lista deja el mismo numero de elementos), APP.filtrarLocal(lista, {estado, q}) (devuelve el subconjunto que casa) y APP.mostrarError(texto) (escribe en #error). Si la API no responde, el cliente muestra el aviso en #error y NO se rompe. PROHIBIDO console.error y prohibido dejar escapar excepciones: los avisos van con console.warn.\n\nDEMO: `python demo.py` levanta el servidor en un puerto libre con una base temporal, ejecuta la CLI contra el (crear tres tareas, listar, ver, completar, borrar, estadisticas), comprueba ademas que crear sin titulo sale con codigo 1 y que ver un id inexistente sale con codigo 2, apaga el servidor, imprime una linea `PASO <nombre>` por cada paso y termina imprimiendo `DEMO OK` con codigo de salida 0. Si algo falla imprime `DEMO FALLO: <motivo>` y sale con 1. Tiene que funcionar desde cualquier directorio de trabajo: resuelve las rutas a partir de __file__, nunca del cwd.\n\nAntes de decir que has terminado: arranca el servidor de verdad, pega peticiones a todos los endpoints, corre `python demo.py`, corre los tests de integracion y abre el cliente web. Corrige todo lo que falle y vuelve a pasarlo entero.",
+  "criterios_exito": [
+    "servidor.py arranca en el puerto que se le pasa y responde JSON en todos los endpoints del contrato",
+    "el CRUD completo funciona contra SQLite y los ids reinician tras POST /api/reset",
+    "los filtros por estado, prioridad, texto y orden se resuelven en el servidor",
+    "el servidor sirve el cliente web en / y sus ficheros estaticos",
+    "el cliente web pinta lo que devuelve la API, crea tareas y avisa en #error si la API no responde",
+    "python demo.py ejerce el camino servidor-CLI entero y termina con DEMO OK y exit 0",
+    "la CLI devuelve 0, 1, 2 o 3 segun el caso, sin trazas de Python",
+    "los tests de integracion arrancan el servidor real y pasan"
+  ],
+  "criterios_fallo": [
+    "usa Flask, FastAPI, requests o cualquier dependencia instalada",
+    "el servidor no abre el puerto o devuelve HTML de error en vez de JSON",
+    "los tres componentes duplican la definicion de tarea en vez de compartir modelo.py",
+    "un id inexistente devuelve 200 o una traza de Python",
+    "demo.py depende del directorio de trabajo y falla en una copia limpia",
+    "el cliente web se rompe cuando la API no contesta",
+    "no hay tests de integracion o no arrancan el servidor de verdad"
+  ],
+  "artefactos": [
+    {
+      "glob": "servidor.py",
+      "obligatorio": true,
+      "min_bytes": 4000
+    },
+    {
+      "glob": "cli.py",
+      "obligatorio": true,
+      "min_bytes": 2500
+    },
+    {
+      "glob": "modelo.py",
+      "obligatorio": true,
+      "min_bytes": 1200
+    },
+    {
+      "glob": "demo.py",
+      "obligatorio": true,
+      "min_bytes": 1500
+    },
+    {
+      "glob": "web/index.html",
+      "obligatorio": true,
+      "min_bytes": 700
+    },
+    {
+      "glob": "web/app.js",
+      "obligatorio": true,
+      "min_bytes": 1200
+    },
+    {
+      "glob": "tests/test_integracion.py",
+      "obligatorio": true,
+      "min_bytes": 1500
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 300
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "los-tres-componentes-en-disco",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "*.py",
+      "min_bytes": 800,
+      "min_lineas": 450,
+      "contiene": [
+        "sqlite3",
+        "http\\.server|ThreadingHTTPServer|BaseHTTPRequestHandler",
+        "argparse",
+        "urllib",
+        "/api/tareas"
+      ],
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "no implementado",
+        "import\\s+flask",
+        "import\\s+requests",
+        "from\\s+flask",
+        "fastapi",
+        "pip\\s+install"
+      ]
+    },
+    {
+      "nombre": "cliente-web-presente",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "web/*.html",
+      "min_bytes": 700,
+      "contiene": [
+        "lista-tareas",
+        "form-nueva",
+        "select-prioridad",
+        "filtro-estado",
+        "buscador",
+        "estadisticas"
+      ],
+      "no_contiene": [
+        "cdn\\.",
+        "unpkg",
+        "jsdelivr",
+        "react",
+        "vue\\.js",
+        "jquery"
+      ]
+    },
+    {
+      "nombre": "javascript-del-cliente-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "web/*.js",
+      "min_bytes": 1200,
+      "min_lineas": 120,
+      "contiene": [
+        "fetch",
+        "/api/tareas",
+        "APP",
+        "pintarTareas",
+        "filtrarLocal"
+      ],
+      "no_contiene": [
+        "console\\.error",
+        "TODO: implementar",
+        "not implemented"
+      ]
+    },
+    {
+      "nombre": "la-api-hace-el-crud-completo",
+      "tipo": "http_servidor",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "binario": "python",
+      "entry": "servidor.py",
+      "args": [
+        "--puerto",
+        "{puerto}"
+      ],
+      "espera": 30,
+      "peticiones": [
+        {
+          "ruta": "/api/salud",
+          "status": 200,
+          "re": [
+            "\"ok\"\\s*:\\s*true"
+          ]
+        },
+        {
+          "ruta": "/api/reset",
+          "metodo": "POST",
+          "cuerpo": {},
+          "status": 200
+        },
+        {
+          "ruta": "/api/tareas",
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*0\\b"
+          ]
+        },
+        {
+          "ruta": "/api/tareas",
+          "metodo": "POST",
+          "status": 201,
+          "cuerpo": {
+            "titulo": "alfa del banco",
+            "prioridad": "alta",
+            "etiquetas": [
+              "banco",
+              "uno"
+            ]
+          },
+          "re": [
+            "\"id\"\\s*:\\s*1\\b",
+            "alfa del banco",
+            "\"estado\"\\s*:\\s*\"pendiente\"",
+            "\"prioridad\"\\s*:\\s*\"alta\""
+          ]
+        },
+        {
+          "ruta": "/api/tareas",
+          "metodo": "POST",
+          "status": 201,
+          "cuerpo": {
+            "titulo": "beta del banco",
+            "prioridad": "baja"
+          },
+          "re": [
+            "\"id\"\\s*:\\s*2\\b",
+            "\"prioridad\"\\s*:\\s*\"baja\""
+          ]
+        },
+        {
+          "ruta": "/api/tareas/1",
+          "status": 200,
+          "re": [
+            "alfa del banco",
+            "\"etiquetas\"",
+            "banco"
+          ]
+        },
+        {
+          "ruta": "/api/tareas/1/completar",
+          "metodo": "POST",
+          "cuerpo": {},
+          "status": 200,
+          "re": [
+            "\"estado\"\\s*:\\s*\"hecha\""
+          ]
+        },
+        {
+          "ruta": "/api/tareas/2",
+          "metodo": "PUT",
+          "status": 200,
+          "cuerpo": {
+            "titulo": "beta corregida",
+            "prioridad": "media"
+          },
+          "re": [
+            "beta corregida",
+            "\"prioridad\"\\s*:\\s*\"media\""
+          ]
+        },
+        {
+          "ruta": "/api/tareas?estado=hecha",
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*1\\b",
+            "alfa del banco"
+          ]
+        },
+        {
+          "ruta": "/api/estadisticas",
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*2\\b",
+            "\"hechas\"\\s*:\\s*1\\b",
+            "\"pendientes\"\\s*:\\s*1\\b"
+          ]
+        },
+        {
+          "ruta": "/api/tareas/2",
+          "metodo": "DELETE",
+          "status": 200,
+          "re": [
+            "true"
+          ]
+        },
+        {
+          "ruta": "/api/tareas",
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*1\\b"
+          ]
+        },
+        {
+          "ruta": "/api/tareas/2",
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "filtros-busqueda-y-orden-en-el-servidor",
+      "tipo": "http_servidor",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "binario": "python",
+      "entry": "servidor.py",
+      "args": [
+        "--puerto",
+        "{puerto}"
+      ],
+      "espera": 30,
+      "peticiones": [
+        {
+          "ruta": "/api/reset",
+          "metodo": "POST",
+          "cuerpo": {},
+          "status": 200
+        },
+        {
+          "ruta": "/api/tareas",
+          "metodo": "POST",
+          "status": 201,
+          "cuerpo": {
+            "titulo": "zeta urgente",
+            "prioridad": "alta"
+          }
+        },
+        {
+          "ruta": "/api/tareas",
+          "metodo": "POST",
+          "status": 201,
+          "cuerpo": {
+            "titulo": "manzana tranquila",
+            "prioridad": "baja"
+          }
+        },
+        {
+          "ruta": "/api/tareas",
+          "metodo": "POST",
+          "status": 201,
+          "cuerpo": {
+            "titulo": "banana media",
+            "prioridad": "media"
+          }
+        },
+        {
+          "ruta": "/api/tareas?q=manzana",
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*1\\b",
+            "manzana tranquila"
+          ]
+        },
+        {
+          "ruta": "/api/tareas?prioridad=alta",
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*1\\b",
+            "zeta urgente"
+          ]
+        },
+        {
+          "ruta": "/api/tareas/3/completar",
+          "metodo": "POST",
+          "cuerpo": {},
+          "status": 200,
+          "re": [
+            "\"estado\"\\s*:\\s*\"hecha\""
+          ]
+        },
+        {
+          "ruta": "/api/tareas?estado=pendiente",
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*2\\b"
+          ]
+        },
+        {
+          "ruta": "/api/tareas?orden=titulo",
+          "status": 200,
+          "re": [
+            "banana media[\\s\\S]*manzana tranquila[\\s\\S]*zeta urgente"
+          ]
+        },
+        {
+          "ruta": "/api/estadisticas",
+          "status": 200,
+          "re": [
+            "\"por_prioridad\"",
+            "\"alta\"\\s*:\\s*1\\b",
+            "\"total\"\\s*:\\s*3\\b"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "el-camino-completo-servidor-cli",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "entry": "demo.py",
+      "timeout": 240,
+      "exit": 0,
+      "stdout_re": [
+        "DEMO OK",
+        "PASO\\s+\\w+",
+        "crear",
+        "completar",
+        "estadisticas"
+      ],
+      "no_stdout_re": [
+        "Traceback \\(most recent call last\\)",
+        "DEMO FALLO"
+      ]
+    },
+    {
+      "nombre": "el-cliente-web-pinta-la-api",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "web/index.html",
+      "espera_ms": 1800,
+      "max_errores_consola": 5,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const e=document.querySelector('#error'); window.__err0 = e ? e.textContent.trim().length : -1; }"
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => { window.__req=[]; const J=(o,s)=>new Response(JSON.stringify(o),{status:s||200,headers:{'Content-Type':'application/json'}}); window.fetch = async (u,o)=>{ const url=String(u); const m=(o&&o.method)||'GET'; window.__req.push([url,m]); if(url.indexOf('/api/esquema')>=0) return J({prioridades:['alta','media','baja'],estados:['pendiente','hecha'],campos:['id','titulo','prioridad','estado','etiquetas']}); if(url.indexOf('/api/estadisticas')>=0) return J({total:2,pendientes:1,hechas:1,por_prioridad:{alta:1,media:0,baja:1}}); if(m==='POST') return J({tarea:{id:9,titulo:'nueva desde el banco',prioridad:'alta',estado:'pendiente',etiquetas:['banco'],creada_en:'2026-01-01T00:00:00',actualizada_en:'2026-01-01T00:00:00'}},201); return J({tareas:[{id:1,titulo:'uno del banco',prioridad:'alta',estado:'pendiente',etiquetas:['a'],creada_en:'2026-01-01T00:00:00',actualizada_en:'2026-01-01T00:00:00'},{id:2,titulo:'dos del banco',prioridad:'baja',estado:'hecha',etiquetas:[],creada_en:'2026-01-01T00:00:00',actualizada_en:'2026-01-01T00:00:00'}],total:2}); }; }"
+        },
+        {
+          "tipo": "js",
+          "codigo": "async () => { await window.APP.cargar(); }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 500
+        },
+        {
+          "tipo": "js",
+          "codigo": "async () => { await window.APP.crear({titulo:'nueva desde el banco', prioridad:'alta', etiquetas:['banco']}); }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 500
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "#lista-tareas .tarea",
+          "min": 2
+        },
+        {
+          "tipo": "js",
+          "nombre": "aviso_cuando_no_hay_api",
+          "codigo": "() => window.__err0 > 0"
+        },
+        {
+          "tipo": "js",
+          "nombre": "pinta_lo_que_devuelve_la_api",
+          "codigo": "() => { const t=document.querySelector('#lista-tareas').textContent; return t.indexOf('uno del banco')>=0 && t.indexOf('dos del banco')>=0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "hablo_con_la_api",
+          "codigo": "() => { const r=window.__req||[]; const get=r.some(x=>x[0].indexOf('/api/tareas')>=0 && x[1]==='GET'); const post=r.some(x=>x[0].indexOf('/api/tareas')>=0 && x[1]==='POST'); return get && post; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_filtrado_local_funciona",
+          "codigo": "() => { const L=[{id:1,titulo:'alfa',estado:'pendiente',prioridad:'alta',etiquetas:[]},{id:2,titulo:'beta',estado:'hecha',prioridad:'baja',etiquetas:[]}]; const a=window.APP.filtrarLocal(L,{estado:'hecha',q:''}); const b=window.APP.filtrarLocal(L,{estado:'',q:'alf'}); const c=window.APP.filtrarLocal(L,{estado:'',q:''}); return a.length===1 && a[0].id===2 && b.length===1 && b[0].id===1 && c.length===2; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "las_tareas_llevan_su_id",
+          "codigo": "() => { const n=document.querySelectorAll('#lista-tareas .tarea'); return n.length>=2 && !!n[0].getAttribute('data-id'); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "pintar_dos_veces_no_duplica",
+          "codigo": "() => { const L=[{id:7,titulo:'siete',estado:'pendiente',prioridad:'media',etiquetas:[]}]; window.APP.pintarTareas(L); window.APP.pintarTareas(L); return document.querySelectorAll('#lista-tareas .tarea').length===1; }"
+        }
+      ]
+    },
+    {
+      "nombre": "los-tests-de-integracion-del-agente",
+      "tipo": "pytest",
+      "capa": "funcionalidad",
+      "peso": 1.0,
+      "ruta": "tests",
+      "min_tests": 6,
+      "timeout": 300
+    },
+    {
+      "nombre": "la-api-aguanta-lo-que-no-toca",
+      "tipo": "http_servidor",
+      "capa": "robustez",
+      "peso": 1.5,
+      "binario": "python",
+      "entry": "servidor.py",
+      "args": [
+        "--puerto",
+        "{puerto}"
+      ],
+      "espera": 30,
+      "peticiones": [
+        {
+          "ruta": "/api/reset",
+          "metodo": "POST",
+          "cuerpo": {},
+          "status": 200
+        },
+        {
+          "ruta": "/api/tareas",
+          "metodo": "POST",
+          "cuerpo": {
+            "prioridad": "alta"
+          },
+          "status": 400,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "ruta": "/api/tareas",
+          "metodo": "POST",
+          "cuerpo": {
+            "titulo": "x",
+            "prioridad": "altisima"
+          },
+          "status": 400,
+          "re": [
+            "error",
+            "alta"
+          ]
+        },
+        {
+          "ruta": "/api/tareas",
+          "metodo": "POST",
+          "cuerpo": "{esto no es json",
+          "status": 400,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "ruta": "/api/tareas/999999",
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "ruta": "/api/tareas/abc",
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "ruta": "/api/tareas/999999",
+          "metodo": "DELETE",
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "ruta": "/api/tareas/999999/completar",
+          "metodo": "POST",
+          "cuerpo": {},
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "ruta": "/api/no-existe-esta-ruta",
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "ruta": "/api/tareas?estado=inventado",
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*0\\b"
+          ]
+        },
+        {
+          "ruta": "/api/salud",
+          "status": 200,
+          "re": [
+            "\"ok\"\\s*:\\s*true"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "el-servidor-sirve-al-cliente-y-comparte-esquema",
+      "tipo": "http_servidor",
+      "capa": "integridad",
+      "peso": 1.5,
+      "binario": "python",
+      "entry": "servidor.py",
+      "args": [
+        "--puerto",
+        "{puerto}"
+      ],
+      "espera": 30,
+      "peticiones": [
+        {
+          "ruta": "/",
+          "status": 200,
+          "re": [
+            "<html",
+            "id=[\"']lista-tareas[\"']",
+            "id=[\"']form-nueva[\"']",
+            "id=[\"']select-prioridad[\"']"
+          ]
+        },
+        {
+          "ruta": "/app.js",
+          "status": 200,
+          "re": [
+            "APP",
+            "fetch",
+            "/api/tareas"
+          ]
+        },
+        {
+          "ruta": "/estilo.css",
+          "status": 200
+        },
+        {
+          "ruta": "/api/esquema",
+          "status": 200,
+          "re": [
+            "\"prioridades\"",
+            "alta",
+            "media",
+            "baja",
+            "\"estados\"",
+            "pendiente",
+            "hecha"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "el-camino-completo-aguanta-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "peso": 1.0,
+      "prueba": {
+        "tipo": "python",
+        "entry": "demo.py",
+        "timeout": 240,
+        "exit": 0,
+        "stdout_re": [
+          "DEMO OK"
+        ],
+        "no_stdout_re": [
+          "Traceback \\(most recent call last\\)",
+          "DEMO FALLO"
+        ]
+      }
+    }
+  ]
+}

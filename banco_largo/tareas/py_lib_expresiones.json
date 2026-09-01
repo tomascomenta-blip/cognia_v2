@@ -1,0 +1,221 @@
+{
+  "id": "py-lib-expresiones",
+  "familia": "py-lib",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 1100,
+  "prompt": "Construye una LIBRERIA DE EXPRESIONES MATEMATICAS completa en Python, usando SOLO la libreria estandar de Python 3.12. Prohibido: pip install, red, CDN, descargas, y cualquier dependencia de terceros (nada de sympy, numpy, lark, ply ni parsimonious). Solo modulos que ya trae Python. Entregala en el directorio de trabajo actual como un paquete importable llamado expr.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Tokenizador (analisis lexico) que convierte el texto en una lista de tokens con su posicion exacta en la fuente, ignorando espacios y reconociendo numeros enteros y decimales, identificadores, operadores, parentesis y comas.\n2. Parser DESCENDENTE RECURSIVO con precedencias y asociatividad correctas, incluyendo operador de potencia asociativo a la derecha, unario menos, llamadas a funcion con varios argumentos y parentesis anidados.\n3. AST explicito: una clase de nodo con tipo, hijos, posicion y los campos propios de cada clase de nodo. El AST se puede recorrer sin volver a mirar el texto.\n4. Evaluador sobre el AST con aritmetica, modulo, potencia y comparaciones.\n5. Entorno de variables encadenable: definir variables, consultarlas, copiarlo para las llamadas a funcion sin contaminar el entorno global.\n6. Funciones definidas por el usuario, con parametros por nombre, ambito local propio y RECURSION funcionando (para eso hace falta que la funcion predefinida si(cond, a, b) evalue solo la rama elegida).\n7. Funciones y constantes predefinidas (sqrt, abs, min, max, pow, log, sin, cos, redondear, si, pi, e) con comprobacion de aridad.\n8. Errores con POSICION EXACTA y mensaje util: una sola excepcion de dominio para todo error del lenguaje (lexico, sintactico, nombre desconocido, aridad mala, division por cero, recursion infinita), nunca excepciones crudas de Python.\n9. Simplificacion simbolica basica sobre el AST: elementos neutros, elementos absorbentes, resta de una expresion consigo misma, potencias triviales y plegado de constantes, devolviendo texto que se vuelve a poder parsear.\n10. REPL por linea de comandos con definicion de variables, definicion de funciones, comando de simplificacion, recuperacion de errores sin abortar y modo de una sola expresion.\n11. Bateria propia de tests con pytest que cubra casos limite (precedencia, asociatividad, unario, anidamiento profundo, entradas vacias, tokens invalidos, aridad, recursion) y TODOS los errores.\n12. README.md corto con la gramatica y ejemplos de uso.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el; respetalo al pie de la letra):\n- El paquete se llama expr y vive en expr/ con expr/__init__.py. Desde la raiz del proyecto, \"import expr\" tiene que funcionar sin instalar nada.\n- Semantica fijada del lenguaje de expresiones:\n  * numeros enteros y decimales; identificadores [A-Za-z_][A-Za-z0-9_]*\n  * operadores binarios: + - * / % ^ y comparaciones < <= > >= == !=\n  * precedencia de menor a mayor: comparaciones, luego + y -, luego * / %, luego el unario -, luego ^\n  * ^ es asociativo a la DERECHA: 2^3^2 vale 512\n  * el unario - liga MENOS fuerte que ^: -3^2 vale -9\n  * las comparaciones devuelven 1 (cierto) o 0 (falso)\n  * la division / es REAL, nunca entera: 7/2 vale 3.5\n  * los numeros que resultan enteros se escriben SIEMPRE sin decimales (13, no 13.0), tanto al imprimirlos como dentro del texto que devuelve simplificar (2+3 simplifica a \"5\", no a \"5.0\")\n  * si(cond, entonces, sino) evalua PEREZOSAMENTE: solo la rama elegida\n- API publica, re-exportada en expr/__init__.py:\n  * tokenizar(fuente) -> lista de Token. Cada Token tiene .tipo (str), .valor y .pos (indice 0-based del primer caracter del token dentro de fuente). Los tipos son EXACTAMENTE: \"numero\", \"ident\", \"op\", \"parizq\", \"parder\", \"coma\", \"fin\". No se emiten tokens de espacio y la lista termina SIEMPRE en un token de tipo \"fin\". El .valor de un token es su TEXTO tal cual para \"ident\", \"op\", \"parizq\", \"parder\" y \"coma\" (el token del + tiene .valor \"+\"), y el numero ya convertido para \"numero\".\n  * parsear(fuente) -> Nodo raiz. Cada nodo tiene .tipo (uno de \"numero\", \"variable\", \"binario\", \"unario\", \"llamada\"), .hijos (lista, vacia en las hojas) y .pos. Ademas: \"binario\" y \"unario\" tienen .op (el simbolo); \"numero\" tiene .valor; \"variable\" y \"llamada\" tienen .nombre. Los hijos van en orden: en \"binario\" el operando izquierdo y el derecho, en \"unario\" su unico operando y en \"llamada\" los argumentos en el orden escrito.\n  * evaluar(fuente, entorno=None) -> numero. Tokeniza, parsea y evalua.\n  * class Entorno con definir(nombre, valor), definir_funcion(nombre, parametros, cuerpo_fuente), obtener(nombre) y copia().\n  * class ErrorExpresion(Exception) con atributos .pos (int, 0-based, el caracter culpable) y .mensaje (str). TODO error del lenguaje se reporta con esta excepcion. .pos apunta al primer caracter del token CULPABLE: en \"1 + * 2\" el error esta en la posicion 4 (el asterisco), no en 0. Nunca se pueden escapar ZeroDivisionError, RecursionError, KeyError, IndexError ni SyntaxError.\n  * simplificar(fuente) -> str. Reglas minimas obligatorias: x*1 -> x, 1*x -> x, x*0 -> 0, 0*x -> 0, x+0 -> x, 0+x -> x, x-0 -> x, x-x -> 0, x/1 -> x, x^1 -> x, x^0 -> 1 y plegado de constantes (2+3 -> 5). La salida tiene que ser parseable y valer EXACTAMENTE lo mismo que la entrada.\n  * La profundidad maxima de llamadas es 200; al superarla se lanza ErrorExpresion (nunca RecursionError).\n- REPL: \"python -m expr\" lee lineas de la entrada estandar hasta EOF y termina con codigo de salida 0.\n  * linea \"nombre = expresion\": define la variable e imprime \"nombre = valor\"\n  * linea \"def nombre(a, b) = expresion\": define la funcion e imprime \"def nombre/2\" (nombre/aridad)\n  * linea \":simplificar EXPRESION\": imprime \"simplificado: <expresion simplificada>\"\n  * cualquier otra linea se evalua y se imprime SOLO el valor (los enteros sin decimales: 13, no 13.0)\n  * si la linea da error se imprime \"Error en la posicion N: mensaje\" y el REPL SIGUE VIVO\n  * \":salir\" termina con codigo 0\n  * \"python -m expr -e EXPRESION\" evalua esa unica expresion, imprime el valor y sale con 0; si la expresion es invalida imprime \"Error en la posicion N: mensaje\" y sale con codigo 1.\n- Los tests propios van en tests/, hacen falta AL MENOS 30 funciones de test y tienen que pasar con \"python -m pytest tests -q\" ejecutado desde la raiz del proyecto.\n\nNo entregues un esqueleto ni un prototipo: cada punto de la lista tiene que estar implementado. Antes de dar la tarea por terminada PRUEBA TU PROPIO TRABAJO: ejecuta la bateria de pytest, teclea expresiones en el REPL, comprueba a mano los casos de precedencia y los mensajes de error con su posicion, y CORRIGE lo que falle hasta que todo pase de verdad.",
+  "criterios_exito": [
+    "import expr funciona desde la raiz del proyecto sin instalar nada",
+    "la precedencia, la asociatividad derecha de ^ y el unario menos dan los valores correctos",
+    "el tokenizador devuelve los tipos y las posiciones exactas del contrato",
+    "parsear devuelve un AST con tipo, op, hijos y pos, y refleja la asociatividad",
+    "el Entorno soporta variables, funciones de usuario y recursion sin contaminar el ambito global",
+    "todo error del lenguaje sale como ErrorExpresion con .pos y .mensaje utiles",
+    "simplificar aplica las reglas obligatorias y conserva el valor de la expresion",
+    "el REPL evalua, define, simplifica, sobrevive a un error y sale con codigo 0",
+    "la bateria propia de pytest pasa entera desde la raiz"
+  ],
+  "criterios_fallo": [
+    "expr no es importable, o el API publica no esta en expr/__init__.py",
+    "2^3^2 no vale 512 o -3^2 no vale -9 (precedencia o asociatividad mal)",
+    "se escapan excepciones crudas de Python (ZeroDivisionError, RecursionError, SyntaxError)",
+    "la posicion del error es siempre 0 o no corresponde al caracter culpable",
+    "las funciones de usuario no admiten recursion o si() evalua las dos ramas",
+    "simplificar devuelve texto no parseable o cambia el valor de la expresion",
+    "el REPL aborta al primer error o sale con codigo distinto de 0",
+    "hay stubs, TODO o NotImplementedError en el camino principal"
+  ],
+  "artefactos": [
+    {
+      "glob": "expr/__init__.py",
+      "obligatorio": true,
+      "min_bytes": 200
+    },
+    {
+      "glob": "expr/*.py",
+      "obligatorio": true,
+      "min_bytes": 8000
+    },
+    {
+      "glob": "tests/*.py",
+      "obligatorio": true,
+      "min_bytes": 2000
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "paquete-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "expr/*.py",
+      "min_bytes": 300,
+      "min_lineas": 350,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "import sympy",
+        "import numpy",
+        "pip install"
+      ]
+    },
+    {
+      "nombre": "api-publica-declarada",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "expr/__init__.py",
+      "min_bytes": 100,
+      "contiene": [
+        "tokenizar",
+        "parsear",
+        "evaluar",
+        "simplificar",
+        "ErrorExpresion",
+        "Entorno"
+      ]
+    },
+    {
+      "nombre": "aritmetica-precedencia-y-asociatividad",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "args": [
+        "-c",
+        "import expr\ncasos = [('2+3*4', 14), ('(2+3)*4', 20), ('2^3^2', 512), ('-3^2', -9), ('(-3)^2', 9),\n         ('10%3', 1), ('7/2', 3.5), ('2*3+4*5', 26), ('1+2-3+4', 4), ('-(2+3)', -5),\n         ('2*-3', -6), ('((((1+1))))', 2), ('3 < 4', 1), ('3 > 4', 0), ('2 == 2', 1),\n         ('2 != 2', 0), ('1+2 < 4', 1), ('sqrt(16)', 4), ('abs(0-7)', 7),\n         ('max(1, min(9, 5))', 5), ('pow(2, 10)', 1024), ('redondear(2.4)', 2)]\nfor fuente, esperado in casos:\n    obtenido = expr.evaluar(fuente)\n    assert abs(float(obtenido) - float(esperado)) < 1e-9, (fuente, obtenido, esperado)\nassert abs(expr.evaluar('pi') - 3.141592653589793) < 1e-9\nassert abs(expr.evaluar('e') - 2.718281828459045) < 1e-9\nassert abs(expr.evaluar('si(1 < 2, 10, 20)') - 10) < 1e-9\nassert abs(expr.evaluar('si(1 > 2, 10, 20)') - 20) < 1e-9\nprint('OK aritmetica y precedencia:', len(casos), 'casos')\n"
+      ],
+      "timeout": 90,
+      "exit": 0,
+      "stdout_re": [
+        "OK aritmetica y precedencia"
+      ]
+    },
+    {
+      "nombre": "entorno-funciones-de-usuario-y-recursion",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "args": [
+        "-c",
+        "import expr\nen = expr.Entorno()\nen.definir('x', 5)\nen.definir('y', 2)\nassert abs(expr.evaluar('x*y + 1', en) - 11) < 1e-9\nassert abs(en.obtener('x') - 5) < 1e-9\nen.definir_funcion('cuad', ['n'], 'n*n')\nassert abs(expr.evaluar('cuad(7)', en) - 49) < 1e-9\nen.definir_funcion('hip', ['a', 'b'], 'sqrt(cuad(a) + cuad(b))')\nassert abs(expr.evaluar('hip(3, 4)', en) - 5) < 1e-9\nen.definir_funcion('fact', ['n'], 'si(n <= 1, 1, n * fact(n - 1))')\nassert abs(expr.evaluar('fact(6)', en) - 720) < 1e-9\nen.definir_funcion('fib', ['n'], 'si(n < 2, n, fib(n-1) + fib(n-2))')\nassert abs(expr.evaluar('fib(12)', en) - 144) < 1e-9\nassert abs(expr.evaluar('x', en) - 5) < 1e-9, 'la llamada contamino el entorno global'\nen.definir_funcion('sombra', ['x'], 'x + 1')\nassert abs(expr.evaluar('sombra(100)', en) - 101) < 1e-9\nassert abs(expr.evaluar('x', en) - 5) < 1e-9, 'el parametro piso la variable global'\notro = en.copia()\notro.definir('x', 99)\nassert abs(expr.evaluar('x', en) - 5) < 1e-9, 'copia() no aisla'\nassert abs(expr.evaluar('x', otro) - 99) < 1e-9\nprint('OK entorno, funciones de usuario y recursion')\n"
+      ],
+      "timeout": 120,
+      "exit": 0,
+      "stdout_re": [
+        "OK entorno, funciones de usuario y recursion"
+      ]
+    },
+    {
+      "nombre": "tokenizador-y-ast-del-contrato",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "args": [
+        "-c",
+        "import expr\nts = expr.tokenizar('12 + foo(3, x)')\ntipos = [t.tipo for t in ts]\nassert tipos == ['numero', 'op', 'ident', 'parizq', 'numero', 'coma', 'ident', 'parder', 'fin'], tipos\nposiciones = dict((t.pos, t) for t in ts)\nassert 5 in posiciones and str(posiciones[5].valor) == 'foo', [(t.pos, t.valor) for t in ts]\nassert 3 in posiciones and str(posiciones[3].valor) == '+'\nassert abs(float(ts[0].valor) - 12) < 1e-9, ts[0].valor\nassert len(expr.tokenizar('')) == 1 and expr.tokenizar('')[0].tipo == 'fin'\nn = expr.parsear('1 + 2 * 3')\nassert n.tipo == 'binario' and n.op == '+', (n.tipo, getattr(n, 'op', None))\nassert len(n.hijos) == 2\nassert n.hijos[0].tipo == 'numero' and abs(float(n.hijos[0].valor) - 1) < 1e-9\nd = n.hijos[1]\nassert d.tipo == 'binario' and d.op == '*', (d.tipo, getattr(d, 'op', None))\nu = expr.parsear('-x')\nassert u.tipo == 'unario' and u.op == '-' and u.hijos[0].tipo == 'variable' and u.hijos[0].nombre == 'x'\nll = expr.parsear('foo(1, 2, 3)')\nassert ll.tipo == 'llamada' and ll.nombre == 'foo' and len(ll.hijos) == 3\np = expr.parsear('2 ^ 3 ^ 2')\nassert p.tipo == 'binario' and p.op == '^' and p.hijos[1].tipo == 'binario' and p.hijos[1].op == '^', 'la potencia no es asociativa a la derecha'\nq = expr.parsear('1 - 2 - 3')\nassert q.hijos[0].tipo == 'binario' and q.hijos[0].op == '-', 'la resta no es asociativa a la izquierda'\nassert isinstance(expr.parsear('7').pos, int)\nprint('OK tokenizador y AST')\n"
+      ],
+      "timeout": 90,
+      "exit": 0,
+      "stdout_re": [
+        "OK tokenizador y AST"
+      ]
+    },
+    {
+      "nombre": "repl-vivo-por-entrada-estandar",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "modulo": "expr",
+      "stdin": "x = 6\ndef doble(n) = n * 2\ndoble(x) + 1\n1 + * 2\n2^3^2\n:simplificar x*1 + 0\n:salir\n",
+      "timeout": 90,
+      "exit": 0,
+      "stdout_re": [
+        "def doble/1",
+        "\\b13\\b",
+        "Error en la posicion 4",
+        "\\b512\\b",
+        "simplificado:\\s*x"
+      ]
+    },
+    {
+      "nombre": "errores-con-posicion-exacta",
+      "tipo": "python",
+      "capa": "robustez",
+      "peso": 1.5,
+      "args": [
+        "-c",
+        "import expr\nmalos = ['1 + * 2', '(1+2', '2 +', 'foo(', '1 @ 2', 'x + 1', 'sqrt(1, 2)', 'sqrt()',\n         '', '   ', ')', '1 2', '1/0', '3 % 0', 'noexiste(1)', '1..2', 'a b c']\nfor fuente in malos:\n    try:\n        expr.evaluar(fuente)\n    except expr.ErrorExpresion as e:\n        assert isinstance(e.pos, int), (fuente, type(e.pos))\n        assert 0 <= e.pos <= len(fuente) + 1, (fuente, e.pos)\n        assert isinstance(e.mensaje, str) and len(e.mensaje) >= 5, (fuente, e.mensaje)\n        assert len(str(e)) >= 5\n    except Exception as e:\n        raise AssertionError('excepcion CRUDA %r (%s) con %r' % (e, type(e).__name__, fuente))\n    else:\n        raise AssertionError('no fallo con la entrada invalida %r' % fuente)\ntry:\n    expr.evaluar('1 + * 2')\nexcept expr.ErrorExpresion as e:\n    assert e.pos == 4, 'la posicion del error deberia ser 4 y fue %r' % (e.pos,)\nen = expr.Entorno()\nen.definir_funcion('bucle', ['n'], 'bucle(n)')\ntry:\n    expr.evaluar('bucle(1)', en)\nexcept expr.ErrorExpresion:\n    pass\nexcept Exception as e:\n    raise AssertionError('la recursion infinita salio como %s, no como ErrorExpresion' % type(e).__name__)\nelse:\n    raise AssertionError('la recursion infinita no dio error')\nen2 = expr.Entorno()\nen2.definir_funcion('uno', ['a'], 'a')\ntry:\n    expr.evaluar('uno(1, 2)', en2)\nexcept expr.ErrorExpresion:\n    pass\nelse:\n    raise AssertionError('no comprueba la aridad de las funciones de usuario')\nassert abs(expr.evaluar('1 + 1') - 2) < 1e-9, 'la libreria quedo rota tras los errores'\nprint('OK errores con posicion:', len(malos) + 3)\n"
+      ],
+      "timeout": 120,
+      "exit": 0,
+      "stdout_re": [
+        "OK errores con posicion"
+      ]
+    },
+    {
+      "nombre": "cli-expresion-invalida-sale-con-1",
+      "tipo": "python",
+      "capa": "robustez",
+      "peso": 1.5,
+      "modulo": "expr",
+      "args": [
+        "-e",
+        "1 + * 2"
+      ],
+      "timeout": 60,
+      "exit": 1,
+      "stdout_re": [
+        "Error en la posicion 4"
+      ]
+    },
+    {
+      "nombre": "simplificar-conserva-el-valor",
+      "tipo": "python",
+      "capa": "integridad",
+      "peso": 1.5,
+      "args": [
+        "-c",
+        "import expr\ncasos = [('x*1', 'x'), ('1*x', 'x'), ('x*0', '0'), ('0*x', '0'), ('x+0', 'x'),\n         ('0+x', 'x'), ('x-0', 'x'), ('x-x', '0'), ('x/1', 'x'), ('x^1', 'x'),\n         ('x^0', '1'), ('2+3', '5'), ('2*3', '6'), ('1*x + 0', 'x'), ('(x*1)*1', 'x')]\nfor fuente, esperado in casos:\n    obtenido = expr.simplificar(fuente).replace(' ', '')\n    assert obtenido == esperado, (fuente, obtenido, esperado)\nen = expr.Entorno()\nen.definir('x', 7)\nen.definir('y', 3)\ninvariantes = ['x*1', 'x+0', 'x-x', 'x/1', 'x^1', 'x^0', '2+3', '1*x + 0', 'x*y + 0',\n               '(x+0)*(y*1)', 'x - x + y', '2*3 + x*1']\nfor fuente in invariantes:\n    a = expr.evaluar(fuente, en)\n    texto = expr.simplificar(fuente)\n    b = expr.evaluar(texto, en)\n    assert abs(float(a) - float(b)) < 1e-9, ('la simplificacion cambio el valor', fuente, texto, a, b)\n    expr.parsear(texto)\nprint('OK simplificacion:', len(casos) + len(invariantes))\n"
+      ],
+      "timeout": 90,
+      "exit": 0,
+      "stdout_re": [
+        "OK simplificacion"
+      ]
+    },
+    {
+      "nombre": "bateria-propia-de-pytest",
+      "tipo": "pytest",
+      "capa": "funcionalidad",
+      "peso": 1.0,
+      "ruta": "tests",
+      "min_tests": 25,
+      "timeout": 300
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "python",
+        "modulo": "expr",
+        "args": [
+          "-e",
+          "2^3^2"
+        ],
+        "timeout": 60,
+        "exit": 0,
+        "stdout_re": [
+          "\\b512\\b"
+        ]
+      }
+    }
+  ]
+}

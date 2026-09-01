@@ -27015,6 +27015,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     from cognia.compresion_salidas import comprimir
     from cognia.agent.loop import (
         estimate_step_budget, wants_more_steps, AGENT_HARD_CAP,
+        techo_por_contrato,
         first_action_block, objective_context, register_action,
         task_pide_ejecucion as _task_pide_ejecucion, salida_de_ejecucion,
         error_accionable_de_ejecucion, ya_reporta_fallo, anexo_fallo_final,
@@ -27374,6 +27375,16 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     # Dynamic step budget: the model decides how many steps the task deserves.
     budget = max_steps if max_steps else estimate_step_budget(task, orch)
 
+    # EL TECHO SALE DEL ENCARGO, NO DE UNA CONSTANTE (2026-08-31). Ver
+    # loop.techo_por_contrato: un encargo que enumera doce sistemas no puede
+    # tener el mismo tope de pasos que "resume este parrafo". Nunca baja de
+    # AGENT_HARD_CAP, asi que ninguna tarea de hoy pierde presupuesto.
+    try:
+        _techo_tarea = techo_por_contrato(task)
+    except Exception as _e_tc:
+        _techo_tarea = AGENT_HARD_CAP
+        _aviso_degradado("cli.agente.techo_contrato", f"{type(_e_tc).__name__}: {_e_tc}")
+
     # ── Ruteo HIBRIDO por dificultad (2026-07-15) ──────────────────────────
     # La dificultad estimada de la TAREA + el nivel /esfuerzo arman el perfil
     # de la corrida: que miembros puede despertar generar_codigo (colonia
@@ -27388,7 +27399,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         ctx["hybrid"] = _hyb
         ctx["_delegation_max"] = _hyb.get("delegacion_max", 2)
         if not max_steps:
-            budget = max(1, min(AGENT_HARD_CAP,
+            budget = max(1, min(_techo_tarea,
                                 round(budget * _hyb.get("pasos_factor", 1.0))))
         _print_fn(f"[detail]hibrido: modalidad={_hyb['modalidad']} "
                   f"dificultad={_hyb['dificultad']} esfuerzo={_hyb['esfuerzo']}"
@@ -27401,7 +27412,17 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                   f"delegacion quedan en los valores base[/warn_cl]")
         _aviso_degradado("cli.agente.hybrid_router",
                          f"{type(_e_hyb).__name__}: {_e_hyb}")
-    _print_fn(f"[detail]Presupuesto de pasos: {budget} (techo {AGENT_HARD_CAP})[/detail]")
+    _print_fn(f"[detail]Presupuesto de pasos: {budget} (techo {_techo_tarea})"
+               f"[/detail]")
+    try:
+        from cognia.harness import telemetria as _tel_cli
+        if _tel_cli.activa():
+            _tel_cli.evento("inicio", presupuesto=budget, techo=AGENT_HARD_CAP,
+                            tarea_chars=len(task or ""),
+                            dificultad=(ctx.get("hybrid") or {}).get("dificultad"),
+                            modalidad=(ctx.get("hybrid") or {}).get("modalidad"))
+    except Exception:
+        pass
 
     # Auto-decompose: gateado por DIFICULTAD estimada o encadenamiento
     # explicito, no por longitud (E-INT 2026-07-08: len>120 era un proxy
@@ -27588,7 +27609,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # max_turns con piso 8: la heuristica corta (2-4 pasos) esta
             # calibrada al 3B; el nativo cierra solo cuando termina y el
             # tope es proteccion, no racionamiento.
-            _nat_turns = min(max(budget, 8), AGENT_HARD_CAP)
+            _nat_turns = min(max(budget, 8), techo_por_contrato(task))
             if _hz_task_id:
                 # Horizonte: mismo bucle, envuelto en ciclos con contrato.
                 from cognia.agent.horizonte import ciclos_con_contrato

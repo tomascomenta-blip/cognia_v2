@@ -1,0 +1,412 @@
+{
+  "id": "node-servidor-ws",
+  "familia": "node",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 1100,
+  "prompt": "Construye un SERVIDOR DE CHAT con WebSocket en Node.js puro en el directorio de trabajo actual. Prohibido: dependencias externas, `npm install`, las librerias ws o socket.io o express, red saliente, CDN. Solo modulos incorporados de Node (http, crypto, net, fs, path, url). El apreton de manos y el enmarcado de WebSocket se implementan A MANO sobre el modulo http.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Apreton de manos RFC 6455 sobre el evento 'upgrade' del servidor http: validar Sec-WebSocket-Key y la version, calcular la respuesta con sha1 de la clave concatenada con la GUID 258EAFA5-E914-47DA-95CA-C5AB0DC85B11 en base64, y responder 101; rechazar con 400 lo que no sea un upgrade valido.\n2. Enmarcado y desenmarcado de tramas: leer tramas de cliente (siempre enmascaradas, aplicar el XOR de 4 bytes), soportar cargas de 7, 16 y 64 bits, escribir tramas de servidor sin mascara, y manejar los opcodes de texto, ping, pong y cierre.\n3. Salas: varias salas simultaneas, cada una con su lista de conectados y su historial; existe siempre la sala general.\n4. Apodos: cada conexion elige apodo al entrar; apodo vacio o repetido en la misma sala se rechaza con un mensaje de error, sin cerrar el proceso.\n5. Difusion: un mensaje llega a todos los conectados de esa sala y a nadie de las demas.\n6. Mensajes de sistema: entrada y salida de usuarios, cambio de sala y expulsiones se anuncian en la sala con el apodo \"sistema\".\n7. Historial persistido en fichero JSON: se escribe al recibir cada mensaje y se CARGA al arrancar, de modo que sobrevive a un reinicio del proceso.\n8. Expulsion por inactividad: una conexion que lleva mas de 5 minutos sin enviar nada recibe un mensaje de sistema y se le cierra el socket limpiamente. El tiempo se lee SIEMPRE de una unica funcion ahora() basada en un reloj virtual, para poder probarlo sin esperar.\n9. Endpoints HTTP de estado, salas, historial y publicacion de mensajes, todos con JSON y Content-Type correcto, para poder gobernar y probar el servidor sin navegador.\n10. Cliente web servido por el propio servidor: una pagina que conecta por WebSocket, permite elegir apodo y sala, envia y muestra mensajes en vivo, sin ninguna descarga externa.\n11. Robustez: JSON mal formado, campos que faltan, sala inexistente, texto demasiado largo y rutas desconocidas responden con un codigo HTTP correcto y un JSON de error, y el servidor SIGUE VIVO.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo al pie de la letra):\n\nFicheros, con estos nombres exactos:\n    servidor.js     punto de entrada: `node servidor.js --puerto <N>`; si existe la variable de entorno PORT, manda ella\n    cliente.html    el cliente web, servido en GET /. AUTOCONTENIDO: el HTML, el CSS y el JavaScript viven en ESE MISMO fichero (nada de <script src=...> ni <link rel=stylesheet> a otro fichero), porque se sirve tal cual y ahi tiene que verse la llamada a new WebSocket(...)\n    pruebas.js      suite propia: `node pruebas.js`\n    historial.json  el fichero de persistencia, en el directorio de trabajo\n    README.md       como se usa\n\nWebSocket en la ruta /ws del mismo puerto. Los mensajes del cliente son JSON con {\"tipo\":\"entrar\"|\"mensaje\"|\"sala\"|\"salir\", ...}; los del servidor son JSON con {\"tipo\":\"mensaje\"|\"sistema\"|\"error\"|\"bienvenida\", ...}.\n\nEndpoints HTTP, con estas respuestas EXACTAS:\n    GET  /                      -> 200 text/html, el contenido de cliente.html\n    GET  /estado                -> 200 {\"ok\":true,\"conectados\":<n>,\"salas\":[...],\"tiempo_ms\":<n>,\"version\":\"...\"}\n    GET  /salas                 -> 200 {\"salas\":[{\"nombre\":\"...\",\"usuarios\":<n>,\"mensajes\":<n>}]}\n    GET  /historial?sala=<s>    -> 200 {\"sala\":\"<s>\",\"mensajes\":[{\"id\":<n>,\"sala\":\"...\",\"apodo\":\"...\",\"texto\":\"...\",\"ts\":<n>}]}\n                                   404 {\"error\":\"...\"} si la sala no existe\n    POST /sala      {\"nombre\":\"<s>\"}                    -> 201 {\"ok\":true,\"sala\":\"<s>\"}; 400 nombre invalido; 409 si ya existe\n    POST /mensaje   {\"sala\":\"<s>\",\"apodo\":\"<a>\",\"texto\":\"<t>\"}\n                                -> 201 {\"ok\":true,\"id\":<n>} y ademas lo difunde por WebSocket a esa sala\n                                   400 {\"error\":\"...\"} si falta apodo o texto, o si el texto pasa de 1000 caracteres\n                                   404 {\"error\":\"...\"} si la sala no existe\n    POST /reloj     {\"avanzar_ms\":<n>}                  -> 200 {\"ok\":true,\"ahora_ms\":<n>,\"expulsados\":<n>}\n                                   avanza el reloj VIRTUAL del servidor y aplica en el acto la expulsion por inactividad\n    GET  /ws                    -> 101 cuando el upgrade es valido; 400 {\"error\":\"...\"} cuando se\n                                   pide como peticion HTTP normal, sin cabeceras de upgrade\n    GET  /apreton?clave=<clave> -> 200 {\"clave\":\"<clave>\",\"aceptar\":\"<base64>\"}\n                                   calcula la respuesta del apreton con la MISMA funcion que usa el\n                                   upgrade real (sha1 de clave+GUID, en base64). Con la clave del RFC\n                                   dGhlIHNhbXBsZSBub25jZQ== tiene que salir exactamente\n                                   s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\n    cualquier otra ruta         -> 404 {\"error\":\"no encontrado\"}\n\nReglas del reloj virtual: tiempo_ms empieza en 0 al arrancar el proceso y vale (milisegundos reales transcurridos + suma de los saltos pedidos por POST /reloj). Todo el codigo lee la hora de esa unica funcion.\nLa sala general existe siempre, tambien en un arranque en frio. Las salas creadas por POST /sala que no llegan a tener ningun mensaje no se persisten.\nEn el cliente cliente.html deben existir los ids del DOM: #mensajes, #texto, #enviar, #apodo, #sala.\n`node pruebas.js` levanta el servidor en un puerto libre, conecta un cliente WebSocket REAL escrito a mano (apreton de manos + tramas enmascaradas), ejecuta AL MENOS 10 comprobaciones e imprime como ultima linea `pruebas: <ok>/<total> OK`, saliendo con 0 si todas pasan y 1 si alguna falla.\n\nVERIFICACION ANTES DE ENTREGAR (obligatoria): arranca el servidor de verdad y pruebalo. Abre el cliente en el navegador o conecta dos clientes desde `node pruebas.js` y comprueba que un mensaje de uno llega al otro y no llega a otra sala; pega peticiones a cada endpoint y comprueba el codigo HTTP y el JSON; para el proceso, vuelve a arrancarlo y comprueba que el historial sigue ahi; avanza el reloj con POST /reloj y comprueba que la expulsion por inactividad ocurre; manda basura (JSON roto, campos que faltan, texto de 5000 caracteres) y comprueba que el servidor responde con error y NO se cae. Corrige todo lo que falle antes de darlo por terminado. No entregues un esqueleto: cada punto de la lista debe estar implementado, ejecutado y corregido por ti.",
+  "criterios_exito": [
+    "el servidor arranca con node servidor.js y sirve el cliente en GET /",
+    "el apreton de manos y el enmarcado de WebSocket estan escritos a mano, sin ws ni socket.io",
+    "POST /mensaje publica y GET /historial lo devuelve",
+    "el historial sobrevive al reinicio del proceso",
+    "las salas aislan los mensajes y hay mensajes de sistema",
+    "el reloj virtual permite provocar la expulsion por inactividad sin esperar",
+    "los errores devuelven 400 o 404 con JSON y el servidor sigue en pie",
+    "node pruebas.js conecta un cliente WebSocket real y sale en verde"
+  ],
+  "criterios_fallo": [
+    "usa la libreria ws, socket.io o express",
+    "el servidor no abre el puerto o se cae ante una peticion mal formada",
+    "el historial se pierde al reiniciar",
+    "los endpoints devuelven siempre 200 o siempre el mismo cuerpo",
+    "no hay cliente web o no conecta por WebSocket",
+    "la expulsion por inactividad depende del reloj real y no se puede probar"
+  ],
+  "artefactos": [
+    {
+      "glob": "servidor.js",
+      "obligatorio": true,
+      "min_bytes": 7000
+    },
+    {
+      "glob": "cliente.html",
+      "obligatorio": true,
+      "min_bytes": 800
+    },
+    {
+      "glob": "pruebas.js",
+      "obligatorio": true,
+      "min_bytes": 2000
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "servidor-con-sustancia-y-sin-dependencias",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "servidor.js",
+      "min_bytes": 7000,
+      "min_lineas": 300,
+      "contiene": [
+        "258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
+        "Sec-WebSocket-Accept",
+        "crypto",
+        "upgrade",
+        "historial"
+      ],
+      "no_contiene": [
+        "require\\(['\\\"]ws['\\\"]\\)",
+        "socket\\.io",
+        "require\\(['\\\"]express['\\\"]\\)",
+        "TODO: implementar"
+      ]
+    },
+    {
+      "nombre": "cliente-web-propio",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "cliente.html",
+      "min_bytes": 800,
+      "contiene": [
+        "new WebSocket",
+        "id\\s*=\\s*[\"']?mensajes",
+        "id\\s*=\\s*[\"']?texto",
+        "id\\s*=\\s*[\"']?enviar"
+      ],
+      "no_contiene": [
+        "https?://(cdn|unpkg|ajax|code)\\."
+      ]
+    },
+    {
+      "nombre": "arranca-y-sirve-el-cliente",
+      "tipo": "http_servidor",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "binario": "node",
+      "entry": "servidor.js",
+      "args": [
+        "--puerto",
+        "{puerto}"
+      ],
+      "espera": 25,
+      "peticiones": [
+        {
+          "ruta": "/",
+          "metodo": "GET",
+          "status": 200,
+          "re": [
+            "<html|<!doctype",
+            "new WebSocket",
+            "id\\s*=\\s*[\"']?mensajes"
+          ]
+        },
+        {
+          "ruta": "/estado",
+          "metodo": "GET",
+          "status": 200,
+          "re": [
+            "\"ok\"\\s*:\\s*true",
+            "\"conectados\"\\s*:",
+            "\"salas\"\\s*:",
+            "\"tiempo_ms\"\\s*:"
+          ]
+        },
+        {
+          "ruta": "/salas",
+          "metodo": "GET",
+          "status": 200,
+          "re": [
+            "general"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "el-apreton-de-manos-esta-calculado-a-mano",
+      "tipo": "http_servidor",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "binario": "node",
+      "entry": "servidor.js",
+      "args": [
+        "--puerto",
+        "{puerto}"
+      ],
+      "espera": 25,
+      "peticiones": [
+        {
+          "ruta": "/apreton?clave=dGhlIHNhbXBsZSBub25jZQ==",
+          "metodo": "GET",
+          "status": 200,
+          "re": [
+            "\"aceptar\"\\s*:\\s*\"s3pPLMBiTxaQ9kYGzzhZRbK\\+xOo=\""
+          ]
+        },
+        {
+          "ruta": "/ws",
+          "metodo": "GET",
+          "status": 400,
+          "re": [
+            "\"error\""
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "publicar-y-leer-el-historial",
+      "tipo": "http_servidor",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "binario": "node",
+      "entry": "servidor.js",
+      "args": [
+        "--puerto",
+        "{puerto}"
+      ],
+      "espera": 25,
+      "peticiones": [
+        {
+          "ruta": "/mensaje",
+          "metodo": "POST",
+          "status": 201,
+          "cuerpo": {
+            "sala": "general",
+            "apodo": "probador",
+            "texto": "marca-persistente-42"
+          },
+          "re": [
+            "\"ok\"\\s*:\\s*true",
+            "\"id\"\\s*:"
+          ]
+        },
+        {
+          "ruta": "/historial?sala=general",
+          "metodo": "GET",
+          "status": 200,
+          "re": [
+            "marca-persistente-42",
+            "\"apodo\"\\s*:\\s*\"probador\"",
+            "\"sala\"\\s*:\\s*\"general\""
+          ]
+        },
+        {
+          "ruta": "/salas",
+          "metodo": "GET",
+          "status": 200,
+          "re": [
+            "\"mensajes\"\\s*:\\s*[1-9]"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "websocket-real-en-sus-pruebas",
+      "tipo": "nodo",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entry": "pruebas.js",
+      "timeout": 240,
+      "exit": 0,
+      "stdout_re": [
+        "pruebas:\\s*(\\d+)/\\1\\s*OK",
+        "pruebas:\\s*\\d\\d+/"
+      ]
+    },
+    {
+      "nombre": "salas-y-reloj-virtual",
+      "tipo": "http_servidor",
+      "capa": "funcionalidad",
+      "binario": "node",
+      "entry": "servidor.js",
+      "args": [
+        "--puerto",
+        "{puerto}"
+      ],
+      "espera": 25,
+      "peticiones": [
+        {
+          "ruta": "/sala",
+          "metodo": "POST",
+          "status": 201,
+          "cuerpo": {
+            "nombre": "tecnica"
+          },
+          "re": [
+            "\"ok\"\\s*:\\s*true",
+            "tecnica"
+          ]
+        },
+        {
+          "ruta": "/salas",
+          "metodo": "GET",
+          "status": 200,
+          "re": [
+            "tecnica",
+            "general"
+          ]
+        },
+        {
+          "ruta": "/reloj",
+          "metodo": "POST",
+          "status": 200,
+          "cuerpo": {
+            "avanzar_ms": 600000
+          },
+          "re": [
+            "\"ahora_ms\"\\s*:\\s*[6-9]\\d{5}(?=[,}\\s])",
+            "\"expulsados\"\\s*:"
+          ]
+        },
+        {
+          "ruta": "/estado",
+          "metodo": "GET",
+          "status": 200,
+          "re": [
+            "\"tiempo_ms\"\\s*:\\s*[6-9]\\d{5}(?=[,}\\s])"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "errores-limpios-y-el-servidor-sigue-vivo",
+      "tipo": "http_servidor",
+      "capa": "robustez",
+      "peso": 1.5,
+      "binario": "node",
+      "entry": "servidor.js",
+      "args": [
+        "--puerto",
+        "{puerto}"
+      ],
+      "espera": 25,
+      "peticiones": [
+        {
+          "ruta": "/mensaje",
+          "metodo": "POST",
+          "status": 400,
+          "cuerpo": {
+            "sala": "general",
+            "apodo": "probador"
+          },
+          "re": [
+            "\"error\""
+          ]
+        },
+        {
+          "ruta": "/mensaje",
+          "metodo": "POST",
+          "status": 404,
+          "cuerpo": {
+            "sala": "sala-que-no-existe",
+            "apodo": "p",
+            "texto": "hola"
+          },
+          "re": [
+            "\"error\""
+          ]
+        },
+        {
+          "ruta": "/mensaje",
+          "metodo": "POST",
+          "status": 400,
+          "cuerpo": {
+            "sala": "general",
+            "apodo": "p",
+            "texto": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          "re": [
+            "\"error\""
+          ]
+        },
+        {
+          "ruta": "/historial?sala=sala-que-no-existe",
+          "metodo": "GET",
+          "status": 404,
+          "re": [
+            "\"error\""
+          ]
+        },
+        {
+          "ruta": "/ruta-que-no-existe",
+          "metodo": "GET",
+          "status": 404,
+          "re": [
+            "\"error\""
+          ]
+        },
+        {
+          "ruta": "/estado",
+          "metodo": "GET",
+          "status": 200,
+          "re": [
+            "\"ok\"\\s*:\\s*true"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "el-historial-sobrevive-al-reinicio",
+      "tipo": "http_servidor",
+      "capa": "integridad",
+      "peso": 2.0,
+      "binario": "node",
+      "entry": "servidor.js",
+      "args": [
+        "--puerto",
+        "{puerto}"
+      ],
+      "espera": 25,
+      "peticiones": [
+        {
+          "ruta": "/historial?sala=general",
+          "metodo": "GET",
+          "status": 200,
+          "re": [
+            "marca-persistente-42"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "persistencia-estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "http_servidor",
+        "binario": "node",
+        "entry": "servidor.js",
+        "args": [
+          "--puerto",
+          "{puerto}"
+        ],
+        "espera": 25,
+        "peticiones": [
+          {
+            "ruta": "/estado",
+            "metodo": "GET",
+            "status": 200,
+            "re": [
+              "\"ok\"\\s*:\\s*true"
+            ]
+          },
+          {
+            "ruta": "/historial?sala=general",
+            "metodo": "GET",
+            "status": 200,
+            "re": [
+              "marca-persistente-42"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

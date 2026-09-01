@@ -1,0 +1,161 @@
+{
+  "id": "web-kanban",
+  "familia": "web",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 900,
+  "prompt": "Construye un TABLERO KANBAN completo y usable, en HTML + CSS + JavaScript de navegador puro. Sin librerias, sin CDN, sin npm install, sin pip install y sin ninguna peticion de red: todo tiene que funcionar sirviendo la carpeta de trabajo con un servidor estatico y abriendo index.html. Entrega index.html en la RAIZ del directorio de trabajo actual y el codigo en uno, dos o como mucho TRES ficheros .js propios (nada de scripts remotos, nada de import desde una URL).\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Columnas configurables: crear, renombrar y borrar columnas. El tablero arranca con tres columnas por defecto llamadas Pendiente, En curso y Hecho y SIN NINGUNA TARJETA: nada de tarjetas de ejemplo. Al borrar una columna con tarjetas decide que pasa con ellas y documentalo en el README.\n2. Tarjetas con titulo, descripcion, lista de etiquetas y prioridad (baja, media o alta), con formulario para crearlas, editarlas y borrarlas desde la interfaz.\n3. Arrastrar y soltar tarjetas entre columnas y dentro de la misma columna usando la API de arrastre del navegador (dragstart, dragover, drop), reordenando de verdad por indice. El arrastre debe terminar llamando a la MISMA funcion que la API programatica, para que arrastre e API no puedan divergir.\n4. Busqueda de texto en vivo sobre titulo, descripcion y etiquetas, insensible a mayusculas y acentos.\n5. Filtros combinables por etiqueta y por prioridad, aplicables a la vez que la busqueda.\n6. Deshacer y rehacer con un historial de al menos 50 pasos: toda mutacion (crear, editar, borrar, mover, columnas, importar) entra en el historial, y una mutacion nueva invalida la pila de rehacer.\n7. Persistencia automatica en localStorage bajo la clave kanban.v1, con carga al arrancar; si no hay nada guardado se crea el tablero por defecto.\n8. Exportacion e importacion en JSON con un area de texto para copiar o pegar; importar un JSON invalido NO puede destruir ni corromper el tablero.\n9. Contador de tarjetas por columna y limite opcional de trabajo en curso por columna, con aviso visual cuando se supera.\n10. Interfaz cuidada y robusta: botones alcanzables por teclado, foco visible, y CERO errores en la consola del navegador (los avisos de degradacion van con console.warn, nunca con console.error).\n\nCONTRATO TECNICO OBLIGATORIO (es la interfaz publica del producto y el evaluador automatico depende de ella; respetala exactamente):\n- El punto de entrada es index.html en la raiz y la aplicacion se pinta sola al cargar la pagina.\n- DOM: el tablero vive en el elemento con id tablero. Cada columna es un elemento con atributo data-columna igual a su id, y su titulo se pinta dentro con la clase titulo-columna. Cada tarjeta es un elemento con atributo data-tarjeta igual a su id, con draggable a true, y se pinta DENTRO del elemento de su columna. Ademas deben existir: input id busqueda, select id filtro-prioridad, select id filtro-etiqueta, textarea id json-io y los botones id btn-nueva-columna, btn-nueva-tarjeta, btn-deshacer, btn-rehacer, btn-guardar, btn-exportar y btn-importar. Todos esos controles van escritos LITERALMENTE en index.html; no los crees desde JavaScript.\n- Los ids de columna y de tarjeta que devuelven crearColumna y crearTarjeta son CADENAS (string) no vacias. Expon un objeto global window.KANBAN con estos metodos, todos sincronos:\n    KANBAN.estado() -> {columnas: [{id, titulo, limite, tarjetas: [{id, titulo, descripcion, etiquetas, prioridad}]}]}  (las tarjetas van dentro de su columna y EN ORDEN)\n    KANBAN.crearColumna(titulo) -> id de la columna, o null si el titulo esta vacio\n    KANBAN.renombrarColumna(id, titulo) -> true/false\n    KANBAN.borrarColumna(id) -> true/false\n    KANBAN.crearTarjeta({titulo, descripcion, etiquetas, prioridad, columna}) -> id de la tarjeta, o null si falta el titulo o la columna no existe\n    KANBAN.editarTarjeta(id, cambios) -> true/false\n    KANBAN.borrarTarjeta(id) -> true/false\n    KANBAN.mover(idTarjeta, idColumnaDestino, indice) -> true/false (false si la tarjeta o la columna no existen). Es la funcion que usa tambien el arrastre.\n    KANBAN.buscar(texto) -> array de ids de tarjeta que casan\n    KANBAN.filtrar({texto, etiquetas, prioridad}) -> array de ids que cumplen TODOS los criterios dados\n    KANBAN.deshacer() -> true si deshizo algo, false si no habia nada que deshacer\n    KANBAN.rehacer() -> true/false\n    KANBAN.historial() -> {atras, adelante}\n    KANBAN.guardar() -> true (escribe en localStorage con la clave kanban.v1)\n    KANBAN.cargar() -> true/false (restaura desde localStorage)\n    KANBAN.exportarJSON() -> string con todo el tablero\n    KANBAN.importarJSON(texto) -> true si importo, false si el texto no es un tablero valido (y en ese caso el estado queda INTACTO)\n    KANBAN.reiniciar() -> vuelve al tablero por defecto\n    KANBAN.render() -> repinta el DOM. Ademas, TODA mutacion de la API repinta sola: despues de llamar a mover, el DOM ya refleja el cambio.\n- Escribe tambien un README.md corto: como se sirve, que hace cada boton y que decisiones tomaste.\n\nNo entregues un esqueleto ni una maqueta: cada sistema de la lista tiene que estar implementado. Antes de decir que has terminado, PRUEBA lo que hiciste: sirve la carpeta, abre la pagina, crea y mueve tarjetas, deshace, recarga para comprobar que la persistencia funciona, importa un JSON roto a proposito, mira la consola y CORRIGE todos los fallos que encuentres.",
+  "criterios_exito": [
+    "index.html arranca sin errores de consola y pinta el tablero con al menos tres columnas",
+    "window.KANBAN expone todos los metodos del contrato y el DOM se repinta tras cada mutacion",
+    "mover cambia de verdad la tarjeta de columna, en el estado y en el DOM",
+    "buscar y filtrar devuelven exactamente las tarjetas que cumplen los criterios",
+    "deshacer y rehacer recorren el historial de mutaciones",
+    "exportar e importar hacen un viaje de ida y vuelta sin perder datos",
+    "el tablero sobrevive a una recarga gracias a localStorage",
+    "importar basura o mover a una columna inexistente devuelve false sin romper el estado"
+  ],
+  "criterios_fallo": [
+    "window.KANBAN no existe o le faltan metodos del contrato",
+    "mover devuelve true pero la tarjeta sigue en la columna original o el DOM no cambia",
+    "buscar devuelve todas las tarjetas o ninguna",
+    "deshacer no restaura el estado anterior",
+    "importar un JSON invalido deja el tablero vacio o lanza una excepcion",
+    "errores de JavaScript en la consola al cargar o al operar"
+  ],
+  "artefactos": [
+    {"glob": "index.html", "obligatorio": true, "min_bytes": 600},
+    {"glob": "**/*.js", "obligatorio": true, "min_bytes": 6000},
+    {"glob": "README.md", "obligatorio": false, "min_bytes": 200}
+  ],
+  "pruebas": [
+    {
+      "nombre": "pagina-y-contrato-dom", "tipo": "fichero", "capa": "completitud",
+      "glob": "index.html", "min_bytes": 600,
+      "contiene": ["id=.{0,2}tablero", "id=.{0,2}busqueda", "btn-deshacer", "json-io"],
+      "no_contiene": ["cdnjs", "unpkg", "jsdelivr", "src=.{0,2}https?://"]
+    },
+    {
+      "nombre": "codigo-con-sustancia", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/*.js", "min_bytes": 1200, "min_lineas": 350,
+      "no_contiene": ["TODO: implementar", "not implemented", "sin implementar todavia"]
+    },
+    {
+      "nombre": "sistemas-cableados-en-el-codigo", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/*.js", "min_bytes": 1200,
+      "contiene": ["KANBAN", "localStorage", "exportarJSON", "importarJSON", "deshacer", "dragstart|dragover|drop"]
+    },
+    {
+      "nombre": "arranca-el-tablero-por-defecto", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "entregable": true, "pagina": "index.html", "espera_ms": 1500, "max_errores_consola": 0,
+      "afirmaciones": [
+        {"tipo": "selector", "sel": "#tablero", "min": 1},
+        {"tipo": "selector", "sel": "[data-columna]", "min": 3},
+        {"tipo": "selector", "sel": "#busqueda, #filtro-prioridad, #filtro-etiqueta, #json-io", "min": 4},
+        {"tipo": "selector", "sel": "#btn-nueva-columna, #btn-nueva-tarjeta, #btn-deshacer, #btn-rehacer, #btn-guardar, #btn-exportar, #btn-importar", "min": 7},
+        {"tipo": "js", "nombre": "api_completa", "codigo": "() => { const k = window.KANBAN; if (!k) return false; return ['estado','crearColumna','borrarColumna','crearTarjeta','editarTarjeta','borrarTarjeta','mover','buscar','filtrar','deshacer','rehacer','historial','guardar','cargar','exportarJSON','importarJSON','render'].every(m => typeof k[m] === 'function'); }"},
+        {"tipo": "js", "nombre": "columnas_en_estado", "codigo": "() => (window.KANBAN.estado().columnas || []).length", "min": 3}
+      ]
+    },
+    {
+      "nombre": "crear-y-mover-tarjetas", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "pagina": "index.html", "espera_ms": 1200, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "() => { const cols = window.KANBAN.estado().columnas.map(c => c.id); window.__c = cols; window.__t = window.KANBAN.crearTarjeta({titulo: 'Tarea zafiro', descripcion: 'una descripcion larga de prueba', etiquetas: ['bug'], prioridad: 'alta', columna: cols[0]}); }"},
+        {"tipo": "esperar", "ms": 300},
+        {"tipo": "js", "codigo": "() => { window.__movida = window.KANBAN.mover(window.__t, window.__c[1], 0); }"},
+        {"tipo": "esperar", "ms": 400}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "tarjeta_creada", "codigo": "() => typeof window.__t === 'string' && window.__t.length > 0"},
+        {"tipo": "js", "nombre": "mover_devuelve_true", "codigo": "() => window.__movida === true"},
+        {"tipo": "js", "nombre": "estado_coherente", "codigo": "() => { const e = window.KANBAN.estado(); const ids = c => (c.tarjetas || []).map(t => t.id); const c0 = e.columnas.find(c => c.id === window.__c[0]); const c1 = e.columnas.find(c => c.id === window.__c[1]); if (!c0 || !c1) return false; return ids(c1).indexOf(window.__t) === 0 && ids(c0).indexOf(window.__t) < 0; }"},
+        {"tipo": "js", "nombre": "dom_refleja_el_movimiento", "codigo": "() => { const el = Array.from(document.querySelectorAll('[data-tarjeta]')).find(n => n.getAttribute('data-tarjeta') === String(window.__t)); if (!el) return false; const col = el.closest('[data-columna]'); return !!col && col.getAttribute('data-columna') === String(window.__c[1]); }"},
+        {"tipo": "js", "nombre": "campos_conservados", "codigo": "() => { const e = window.KANBAN.estado(); let t = null; for (const c of e.columnas) for (const x of (c.tarjetas || [])) if (x.id === window.__t) t = x; return !!t && t.titulo === 'Tarea zafiro' && t.prioridad === 'alta' && (t.etiquetas || []).indexOf('bug') >= 0; }"}
+      ]
+    },
+    {
+      "nombre": "busqueda-y-filtros", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "pagina": "index.html", "espera_ms": 1200, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "() => { const c = window.KANBAN.estado().columnas[0].id; window.__a = window.KANBAN.crearTarjeta({titulo: 'Arreglar zafiro', descripcion: 'falla al guardar', etiquetas: ['bug'], prioridad: 'alta', columna: c}); window.__b = window.KANBAN.crearTarjeta({titulo: 'Escribir documentacion', descripcion: 'manual de uso', etiquetas: ['docs'], prioridad: 'alta', columna: c}); window.__d = window.KANBAN.crearTarjeta({titulo: 'Pintar el logo', descripcion: 'colores nuevos', etiquetas: ['diseno'], prioridad: 'baja', columna: c}); }"},
+        {"tipo": "esperar", "ms": 400}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "busca_una_sola", "codigo": "() => { const r = window.KANBAN.buscar('zafiro'); return Array.isArray(r) && r.indexOf(window.__a) >= 0 && r.indexOf(window.__b) < 0 && r.indexOf(window.__d) < 0; }"},
+        {"tipo": "js", "nombre": "busca_en_descripcion", "codigo": "() => { const r = window.KANBAN.buscar('manual'); return Array.isArray(r) && r.indexOf(window.__b) >= 0 && r.indexOf(window.__a) < 0 && r.indexOf(window.__d) < 0; }"},
+        {"tipo": "js", "nombre": "no_inventa_resultados", "codigo": "() => window.KANBAN.buscar('palabrainexistentexyz').length", "igual": 0},
+        {"tipo": "js", "nombre": "filtra_por_prioridad", "codigo": "() => { const r = window.KANBAN.filtrar({prioridad: 'alta'}); return Array.isArray(r) && r.indexOf(window.__a) >= 0 && r.indexOf(window.__b) >= 0 && r.indexOf(window.__d) < 0; }"},
+        {"tipo": "js", "nombre": "filtra_combinando", "codigo": "() => { const r = window.KANBAN.filtrar({prioridad: 'alta', etiquetas: ['docs']}); return Array.isArray(r) && r.indexOf(window.__b) >= 0 && r.indexOf(window.__a) < 0 && r.indexOf(window.__d) < 0; }"}
+      ]
+    },
+    {
+      "nombre": "deshacer-y-rehacer", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "pagina": "index.html", "espera_ms": 1200, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "() => { const c = window.KANBAN.estado().columnas[0].id; window.__t = window.KANBAN.crearTarjeta({titulo: 'Tarjeta efimera', descripcion: 'se va a borrar', etiquetas: [], prioridad: 'media', columna: c}); window.__total1 = window.KANBAN.estado().columnas.reduce((s, x) => s + x.tarjetas.length, 0); window.KANBAN.borrarTarjeta(window.__t); window.__total2 = window.KANBAN.estado().columnas.reduce((s, x) => s + x.tarjetas.length, 0); }"},
+        {"tipo": "esperar", "ms": 300},
+        {"tipo": "js", "codigo": "() => { window.__des = window.KANBAN.deshacer(); window.__total3 = window.KANBAN.estado().columnas.reduce((s, x) => s + x.tarjetas.length, 0); }"},
+        {"tipo": "esperar", "ms": 300},
+        {"tipo": "js", "codigo": "() => { window.__reh = window.KANBAN.rehacer(); window.__total4 = window.KANBAN.estado().columnas.reduce((s, x) => s + x.tarjetas.length, 0); }"},
+        {"tipo": "esperar", "ms": 300}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "borrado_contado", "codigo": "() => window.__total2 === window.__total1 - 1"},
+        {"tipo": "js", "nombre": "deshacer_restaura", "codigo": "() => window.__des === true && window.__total3 === window.__total1"},
+        {"tipo": "js", "nombre": "rehacer_vuelve_a_borrar", "codigo": "() => window.__reh === true && window.__total4 === window.__total2"},
+        {"tipo": "js", "nombre": "historial_informa", "codigo": "() => { const h = window.KANBAN.historial(); return !!h && typeof h.atras === 'number' && typeof h.adelante === 'number' && h.atras >= 1; }"}
+      ]
+    },
+    {
+      "nombre": "exportar-importar-y-persistencia", "tipo": "web", "capa": "integridad", "peso": 1.5,
+      "pagina": "index.html", "espera_ms": 1200, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "() => { const c = window.KANBAN.estado().columnas[0].id; window.KANBAN.crearTarjeta({titulo: 'Persistente uno', descripcion: 'a', etiquetas: ['x'], prioridad: 'alta', columna: c}); window.KANBAN.crearTarjeta({titulo: 'Persistente dos', descripcion: 'b', etiquetas: ['y'], prioridad: 'baja', columna: c}); const total = window.KANBAN.estado().columnas.reduce((s, x) => s + x.tarjetas.length, 0); localStorage.setItem('__prueba_exp', window.KANBAN.exportarJSON()); localStorage.setItem('__prueba_n', String(total)); }"},
+        {"tipo": "js", "codigo": "() => { const c = window.KANBAN.estado().columnas[0].id; window.KANBAN.crearTarjeta({titulo: 'Tarjeta intrusa', descripcion: 'sobra', etiquetas: [], prioridad: 'media', columna: c}); const ok = window.KANBAN.importarJSON(localStorage.getItem('__prueba_exp')); const total = window.KANBAN.estado().columnas.reduce((s, x) => s + x.tarjetas.length, 0); localStorage.setItem('__prueba_rt', JSON.stringify({ok: ok, total: total})); window.KANBAN.guardar(); }"},
+        {"tipo": "esperar", "ms": 400},
+        {"tipo": "recargar", "ms": 1500},
+        {"tipo": "js", "codigo": "() => { window.__cargado = window.KANBAN.cargar(); }"},
+        {"tipo": "esperar", "ms": 500}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "viaje_de_ida_y_vuelta", "codigo": "() => { const p = JSON.parse(localStorage.getItem('__prueba_rt') || '{}'); const n = Number(localStorage.getItem('__prueba_n') || '-1'); return p.ok === true && p.total === n; }"},
+        {"tipo": "js", "nombre": "sobrevive_a_la_recarga", "codigo": "() => { const n = Number(localStorage.getItem('__prueba_n') || '-1'); const total = window.KANBAN.estado().columnas.reduce((s, x) => s + x.tarjetas.length, 0); return window.__cargado !== false && n > 0 && total >= n; }"},
+        {"tipo": "js", "nombre": "las_tarjetas_siguen_ahi", "codigo": "() => { const e = window.KANBAN.estado(); let vistos = 0; for (const c of e.columnas) for (const t of (c.tarjetas || [])) if (t.titulo === 'Persistente uno' || t.titulo === 'Persistente dos') vistos++; return vistos === 2; }"},
+        {"tipo": "selector", "sel": "[data-tarjeta]", "min": 2}
+      ]
+    },
+    {
+      "nombre": "rechaza-lo-invalido-sin-romperse", "tipo": "web", "capa": "robustez", "peso": 1.5,
+      "pagina": "index.html", "espera_ms": 1200, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "js", "codigo": "() => { const c = window.KANBAN.estado().columnas[0].id; window.__t = window.KANBAN.crearTarjeta({titulo: 'Tarjeta ancla', descripcion: 'no se toca', etiquetas: [], prioridad: 'media', columna: c}); }"},
+        {"tipo": "esperar", "ms": 300}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "mover_a_columna_inexistente", "codigo": "() => window.KANBAN.mover(window.__t, 'columna-que-no-existe', 0) === false"},
+        {"tipo": "js", "nombre": "mover_tarjeta_inexistente", "codigo": "() => { const c = window.KANBAN.estado().columnas[0].id; return window.KANBAN.mover('tarjeta-fantasma', c, 0) === false; }"},
+        {"tipo": "js", "nombre": "tarjeta_sin_titulo_rechazada", "codigo": "() => { const c = window.KANBAN.estado().columnas[0].id; const antes = window.KANBAN.estado().columnas.reduce((s, x) => s + x.tarjetas.length, 0); const r = window.KANBAN.crearTarjeta({titulo: '', descripcion: 'sin titulo', etiquetas: [], prioridad: 'media', columna: c}); const desp = window.KANBAN.estado().columnas.reduce((s, x) => s + x.tarjetas.length, 0); return !r && antes === desp; }"},
+        {"tipo": "js", "nombre": "importar_basura_no_destruye", "codigo": "() => { const antes = JSON.stringify(window.KANBAN.estado()); const r = window.KANBAN.importarJSON('{ esto no es json valido'); const desp = JSON.stringify(window.KANBAN.estado()); return r === false && antes === desp; }"},
+        {"tipo": "js", "nombre": "deshacer_hasta_el_fondo", "codigo": "() => { let n = 0; while (n < 300 && window.KANBAN.deshacer()) n++; return window.KANBAN.deshacer() === false && !!window.KANBAN.estado().columnas; }"}
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas", "tipo": "dos_pasadas", "capa": "regresion",
+      "prueba": {
+        "tipo": "web", "pagina": "index.html", "espera_ms": 1500, "max_errores_consola": 0,
+        "acciones": [
+          {"tipo": "js", "codigo": "() => { const c = window.KANBAN.estado().columnas[0].id; window.__t = window.KANBAN.crearTarjeta({titulo: 'Repeticion', descripcion: 'segunda pasada', etiquetas: [], prioridad: 'media', columna: c}); }"},
+          {"tipo": "esperar", "ms": 400}
+        ],
+        "afirmaciones": [
+          {"tipo": "selector", "sel": "#tablero", "min": 1},
+          {"tipo": "selector", "sel": "[data-columna]", "min": 3},
+          {"tipo": "js", "nombre": "api_viva", "codigo": "() => !!(window.KANBAN && typeof window.KANBAN.mover === 'function' && window.__t)"},
+          {"tipo": "js", "nombre": "sigue_pintando", "codigo": "() => document.querySelectorAll('[data-tarjeta]').length", "min": 1}
+        ]
+      }
+    }
+  ]
+}

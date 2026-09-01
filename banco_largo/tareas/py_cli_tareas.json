@@ -1,0 +1,128 @@
+{
+  "id": "py-cli-tareas",
+  "familia": "py-cli",
+  "dificultad": 3,
+  "presupuesto_s": 240,
+  "pasos": 40,
+  "longitud_esperada_lineas": 750,
+  "prompt": "Construye un gestor de tareas COMPLETO para linea de comandos en Python 3, usando UNICAMENTE la libreria estandar (argparse, sqlite3, json, csv, datetime, re, hashlib, unittest). Prohibido de forma explicita: acceso a red, descargas, CDN, pip install, npm install y cualquier dependencia de terceros. Lo unico externo disponible es pytest, que ya esta instalado. Entrega todo en el directorio de trabajo actual.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Persistencia real en SQLite (modulo sqlite3): base de datos en fichero, con tabla de tareas, tabla de etiquetas y tabla de relacion N a N entre ambas, con claves foraneas activadas.\n2. Subcomando add: crea una tarea con titulo, prioridad (alta|media|baja), etiquetas repetibles, fecha de vencimiento en formato YYYY-MM-DD y nota opcional. Valida la prioridad y la fecha ANTES de escribir nada.\n3. Subcomando list: lista tareas con filtros por estado (pendiente|hecha|todas), por prioridad y por etiqueta, y con orden configurable (--orden id|vence|prioridad|titulo).\n4. Subcomando done: marca una tarea como hecha, y con --deshacer la devuelve a pendiente.\n5. Subcomando rm: borra una tarea y limpia sus relaciones de etiquetas sin dejar huerfanos.\n6. Subcomando edit: cambia titulo, prioridad, nota, vencimiento y etiquetas de una tarea existente.\n7. Subcomando search: busca texto libre en titulo, nota y etiquetas, sin distinguir mayusculas de minusculas.\n8. Subcomando stats: agrega totales, pendientes, hechas, vencidas y desgloses por prioridad y por etiqueta.\n9. Subcomandos importar y exportar en JSON, capaces de leer de la entrada estandar y de escribir en la salida estandar, conservando etiquetas, estado, notas y fechas.\n10. Migracion de esquema versionada: una tabla de metadatos con la version del esquema y un subcomando migrar que actualiza bases antiguas sin perder datos y que es idempotente (ejecutarlo dos veces no cambia nada ni falla).\n11. Doble salida: tabla legible y alineada por defecto, y JSON con el flag global --json.\n12. Una bateria de tests con pytest escrita por ti (al menos 8 tests reales que ejerciten add, list, done, rm, edit, search, stats, importar/exportar y migrar), que se pueda correr tecleando pytest desde la raiz del entregable. Cuida el sys.path: anade un conftest.py en la raiz si hace falta para que los tests importen el modulo.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo exactamente):\n- El punto de entrada es tareas_cli.py en la raiz del entregable, y se ejecuta como: python tareas_cli.py [opciones globales] SUBCOMANDO [opciones]\n- Opciones GLOBALES, que van SIEMPRE antes del subcomando: --db RUTA (por defecto tareas.db), --reset (recrea el esquema vacio antes de ejecutar el subcomando) y --json (salida en JSON en vez de tabla).\n- add TITULO [--prioridad alta|media|baja] [--etiqueta T (repetible)] [--vence YYYY-MM-DD] [--nota TEXTO]. Con --json imprime el objeto creado con las claves: id, titulo, prioridad, estado, vence, nota, etiquetas. Toda tarea nace en estado pendiente y con prioridad media si no se pide otra. En una base recien creada los id empiezan en 1, y los numeros del JSON se emiten como numeros JSON, nunca como cadenas.\n- list [--estado pendiente|hecha|todas] [--prioridad P] [--etiqueta T] [--orden id|vence|prioridad|titulo]. Con --json imprime un array de objetos con esas mismas claves, en el orden pedido.\n- done ID [--deshacer], rm ID, edit ID [--titulo T] [--prioridad P] [--nota N] [--vence F] [--etiqueta T (repetible)].\n- search TEXTO. Con --json imprime un array de objetos.\n- stats. Con --json imprime EXACTAMENTE este objeto: {\"total\": N, \"pendientes\": N, \"hechas\": N, \"vencidas\": N, \"por_prioridad\": {\"alta\": N, \"media\": N, \"baja\": N}, \"por_etiqueta\": {\"etiqueta\": N}}. Cuenta como vencida toda tarea PENDIENTE cuya fecha de vencimiento sea anterior a hoy; las hechas nunca cuentan como vencidas, y las que no tienen fecha tampoco.\n- importar RUTA, donde RUTA con valor - significa leer de la entrada estandar. Lee un array JSON de objetos con las claves titulo, prioridad, etiquetas, vence (puede ser null), estado (pendiente|hecha) y nota (opcional). Con --json imprime {\"importadas\": N, \"omitidas\": N}.\n- exportar RUTA, donde RUTA con valor - significa escribir en la salida estandar el array JSON completo.\n- migrar. Con --json imprime {\"version_antes\": N, \"version_despues\": N, \"filas\": N}, donde filas es el numero de tareas conservadas tras migrar.\n- CODIGOS DE SALIDA: 0 exito; 2 error de uso o de validacion (prioridad desconocida, fecha mal formada, argumentos incompatibles); 3 tarea no encontrada, y en ese caso el mensaje de error debe contener el texto exacto: tarea no encontrada. Todos los errores se explican con un mensaje legible por stderr y NUNCA con un traceback de Python.\n- Escribe tambien un README.md corto con ejemplos de uso de cada subcomando.\n\nNo entregues un esqueleto ni funciones sin cuerpo. PRUEBA lo que has hecho ANTES de darlo por terminado: crea una base desde cero, ejecuta de verdad cada subcomando, importa un array JSON por la entrada estandar y vuelve a exportarlo, comprueba a mano que stats cuadra, fuerza los errores para ver los codigos de salida, corre pytest, y corrige todos los fallos que encuentres hasta que todo pase.",
+  "criterios_exito": [
+    "tareas_cli.py arranca en una copia limpia y crea la base con --reset sin intervencion",
+    "add valida prioridad y fecha y devuelve el objeto creado en JSON con id 1 en base nueva",
+    "importar lee un array JSON de la entrada estandar y persiste etiquetas y estado",
+    "stats devuelve totales, vencidas y desgloses que cuadran con los datos importados",
+    "list filtra por estado y prioridad y respeta el orden pedido",
+    "search encuentra por etiqueta y por titulo sin distinguir mayusculas",
+    "migrar es idempotente y conserva todas las filas",
+    "los errores salen con codigo 2 o 3 y un mensaje legible, sin traceback",
+    "la bateria de pytest escrita por el agente pasa entera"
+  ],
+  "criterios_fallo": [
+    "el CLI revienta con un traceback ante un id inexistente o una prioridad invalida",
+    "stats devuelve numeros que no cuadran (vencidas cuenta las tareas ya hechas)",
+    "las etiquetas no se persisten o se duplican en la tabla de relacion",
+    "importar o exportar no aceptan la entrada y la salida estandar",
+    "no hay tests, o pytest no encuentra el modulo desde la raiz",
+    "funciones declaradas y vacias, o subcomandos que solo imprimen un mensaje"
+  ],
+  "artefactos": [
+    {"glob": "tareas_cli.py", "obligatorio": true, "min_bytes": 2000},
+    {"glob": "**/test*.py", "obligatorio": true, "min_bytes": 600},
+    {"glob": "README.md", "obligatorio": false, "min_bytes": 200}
+  ],
+  "pruebas": [
+    {
+      "nombre": "cli-presente-con-sustancia", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/tareas_cli.py", "min_bytes": 2000,
+      "contiene": ["argparse", "sqlite3"]
+    },
+    {
+      "nombre": "codigo-escrito-sin-huecos", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/*.py", "min_bytes": 400, "min_lineas": 450,
+      "no_contiene": ["TODO: implementar", "not implemented", "raise NotImplementedError"]
+    },
+    {
+      "nombre": "tests-propios-escritos", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/test*.py", "min_bytes": 600, "min_lineas": 60,
+      "contiene": ["def test_"]
+    },
+    {
+      "nombre": "arranca-en-base-limpia-y-crea-tarea", "tipo": "python", "capa": "funcionalidad",
+      "peso": 2.0, "entregable": true, "entry": "tareas_cli.py", "timeout": 120,
+      "args": ["--db", "bench_a.db", "--reset", "--json", "add", "Preparar informe trimestral",
+               "--prioridad", "alta", "--etiqueta", "trabajo", "--etiqueta", "urgente",
+               "--vence", "2026-09-15", "--nota", "cerrar cifras del Q3"],
+      "exit": 0,
+      "stdout_re": ["\"id\"\\s*:\\s*1", "\"prioridad\"\\s*:\\s*\"alta\"", "\"estado\"\\s*:\\s*\"pendiente\"", "2026-09-15", "urgente"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "importar-array-json-por-stdin", "tipo": "python", "capa": "funcionalidad",
+      "peso": 2.0, "entry": "tareas_cli.py", "timeout": 120,
+      "args": ["--db", "bench_b.db", "--reset", "--json", "importar", "-"],
+      "stdin": "[{\"titulo\":\"Comprar leche\",\"prioridad\":\"baja\",\"etiquetas\":[\"casa\"],\"vence\":\"2099-01-01\",\"estado\":\"pendiente\"},{\"titulo\":\"Pagar el alquiler\",\"prioridad\":\"alta\",\"etiquetas\":[\"casa\",\"dinero\"],\"vence\":\"2020-03-01\",\"estado\":\"pendiente\"},{\"titulo\":\"Enviar factura\",\"prioridad\":\"alta\",\"etiquetas\":[\"trabajo\",\"dinero\"],\"vence\":\"2020-05-10\",\"estado\":\"pendiente\"},{\"titulo\":\"Reservar vuelo\",\"prioridad\":\"media\",\"etiquetas\":[\"viaje\"],\"vence\":\"2099-06-01\",\"estado\":\"pendiente\"},{\"titulo\":\"Renovar el pasaporte\",\"prioridad\":\"media\",\"etiquetas\":[\"viaje\",\"tramites\"],\"vence\":\"2020-01-15\",\"estado\":\"hecha\"},{\"titulo\":\"Llamar al dentista\",\"prioridad\":\"baja\",\"etiquetas\":[\"salud\"],\"vence\":null,\"estado\":\"hecha\"},{\"titulo\":\"Leer el informe\",\"prioridad\":\"alta\",\"etiquetas\":[\"trabajo\"],\"vence\":null,\"estado\":\"hecha\"}]",
+      "exit": 0,
+      "stdout_re": ["\"importadas\"\\s*:\\s*7"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "stats-cuadra-con-lo-importado", "tipo": "python", "capa": "funcionalidad",
+      "peso": 2.0, "entry": "tareas_cli.py", "timeout": 120,
+      "args": ["--db", "bench_b.db", "--json", "stats"],
+      "exit": 0,
+      "stdout_re": ["\"total\"\\s*:\\s*7", "\"pendientes\"\\s*:\\s*4", "\"hechas\"\\s*:\\s*3",
+                    "\"vencidas\"\\s*:\\s*2", "\"alta\"\\s*:\\s*3", "\"por_etiqueta\""],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "list-filtra-y-ordena", "tipo": "python", "capa": "funcionalidad",
+      "entry": "tareas_cli.py", "timeout": 120,
+      "args": ["--db", "bench_b.db", "--json", "list", "--estado", "pendiente",
+               "--prioridad", "alta", "--orden", "vence"],
+      "exit": 0,
+      "stdout_re": ["Pagar el alquiler.*Enviar factura"],
+      "no_stdout_re": ["Comprar leche", "Reservar vuelo", "Llamar al dentista", "Traceback"]
+    },
+    {
+      "nombre": "search-sin-distinguir-mayusculas", "tipo": "python", "capa": "funcionalidad",
+      "entry": "tareas_cli.py", "timeout": 120,
+      "args": ["--db", "bench_b.db", "--json", "search", "DINERO"],
+      "exit": 0,
+      "stdout_re": ["Pagar el alquiler", "Enviar factura"],
+      "no_stdout_re": ["Comprar leche", "Llamar al dentista", "Traceback"]
+    },
+    {
+      "nombre": "id-inexistente-sale-con-3-sin-traceback", "tipo": "python", "capa": "robustez",
+      "peso": 1.5, "entry": "tareas_cli.py", "timeout": 120,
+      "args": ["--db", "bench_b.db", "--json", "done", "9999"],
+      "exit": 3,
+      "stdout_re": ["tarea no encontrada"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "migrar-idempotente-conserva-filas", "tipo": "dos_pasadas", "capa": "integridad",
+      "peso": 1.5,
+      "prueba": {
+        "tipo": "python", "entry": "tareas_cli.py", "timeout": 120,
+        "args": ["--db", "bench_b.db", "--json", "migrar"],
+        "exit": 0,
+        "stdout_re": ["\"filas\"\\s*:\\s*7", "\"version_despues\"\\s*:\\s*[1-9]"],
+        "no_stdout_re": ["Traceback"]
+      }
+    },
+    {
+      "nombre": "estable-en-dos-pasadas", "tipo": "dos_pasadas", "capa": "regresion",
+      "prueba": {
+        "tipo": "python", "entry": "tareas_cli.py", "timeout": 120,
+        "args": ["--db", "bench_b.db", "--json", "stats"],
+        "exit": 0,
+        "stdout_re": ["\"total\"\\s*:\\s*7", "\"pendientes\"\\s*:\\s*4", "\"vencidas\"\\s*:\\s*2"],
+        "no_stdout_re": ["Traceback"]
+      }
+    },
+    {
+      "nombre": "bateria-pytest-del-agente", "tipo": "pytest", "capa": "funcionalidad",
+      "ruta": ".", "min_tests": 8, "timeout": 300
+    }
+  ]
+}

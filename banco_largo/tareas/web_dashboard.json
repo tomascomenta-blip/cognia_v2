@@ -1,0 +1,385 @@
+{
+  "id": "web-dashboard",
+  "familia": "web",
+  "dificultad": 3,
+  "presupuesto_s": 240,
+  "pasos": 40,
+  "longitud_esperada_lineas": 850,
+  "prompt": "Construye un DASHBOARD ANALITICO COMPLETO de una sola pagina en HTML + CSS + JavaScript puro. Entregalo en el directorio de trabajo actual con index.html como punto de entrada y el codigo JavaScript en uno o varios ficheros .js propios (no metas todo el codigo dentro del HTML). PROHIBIDO usar red, CDN, npm install, pip install o cualquier libreria externa (nada de Chart.js, D3, jQuery ni frameworks): solo lo que trae el navegador de serie. Las graficas se dibujan A MANO con SVG generado por ti o con canvas 2D.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Generacion local del conjunto de datos: al menos 300 registros con {fecha, categoria, region, unidades, importe}, fechas repartidas entre 2025-01-01 y 2025-12-31, al menos 5 categorias y 3 regiones. Se generan con un generador pseudoaleatorio propio de SEMILLA FIJA (por ejemplo un LCG de 3 lineas): esta PROHIBIDO usar Math.random y esta prohibido usar la fecha actual para fabricar los datos, porque en cada recarga PANEL.datos tiene que salir EXACTAMENTE igual.\n2. Grafica de BARRAS: importe total por categoria, con ejes, etiquetas y escala calculada a partir del maximo real.\n3. Grafica de LINEAS: importe total por mes a lo largo del rango filtrado, con puntos y rejilla.\n4. Grafica de TARTA: reparto porcentual del importe por categoria, con sectores de angulos proporcionales y leyenda.\n5. Filtros que recalculan TODO: rango de fechas (desde / hasta) y categoria. Al cambiar cualquiera se recalculan las tres graficas, los KPI, la tabla y la paginacion.\n6. Cuatro KPI en cabecera: importe total, numero de operaciones, importe medio por operacion y unidades totales, siempre sobre los datos FILTRADOS.\n7. Tabla de datos ordenable por cualquier columna (clic en la cabecera alterna ascendente / descendente) y paginada de 10 en 10 con botones anterior / siguiente e indicador de pagina.\n8. Exportacion a CSV de lo que se ve filtrado, con cabecera fecha,categoria,region,unidades,importe, coma como separador de campos y punto como separador decimal.\n9. Estado guardado en localStorage: filtros, columna de orden, sentido y pagina; con botones de guardar y de cargar, y un boton de limpiar filtros.\n10. Estados vacios: si el filtro no deja ninguna fila, la tabla se queda sin filas y se muestra un mensaje, sin romper las graficas ni los KPI.\n11. Diseno legible con CSS propio: cabecera, rejilla de tarjetas, tabla con estilo, responsive razonable.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo exactamente):\n- Punto de entrada: index.html. El dashboard se pinta solo al cargar la pagina, sin pulsar nada.\n- IDs del DOM obligatorios: #grafica-barras, #grafica-lineas y #grafica-tarta (cada uno es un <svg> o un <canvas>, o un contenedor que tiene dentro uno de los dos); #kpi-total, #kpi-operaciones, #kpi-media, #kpi-unidades; #tabla-datos (un <table>) cuyo <tbody> tiene id=\"tabla-cuerpo\" y cuyas cabeceras <th> llevan data-campo=\"fecha\", \"categoria\", \"region\", \"unidades\" o \"importe\" y ordenan al hacer clic; #filtro-desde y #filtro-hasta (inputs con value en formato YYYY-MM-DD); #filtro-categoria (un <select> con UNA OPCION POR CADA CATEGORIA cuyo value es exactamente el nombre de la categoria, mas una opcion de value vacio para \"todas\"; asignarle un value y disparar el evento change tiene que recalcularlo todo); #btn-anterior, #btn-siguiente, #pagina-actual, #btn-exportar, #btn-guardar, #btn-cargar, #btn-limpiar.\n- Expon un objeto global window.PANEL siempre actualizado con:\n    window.PANEL.datos          -> array con TODOS los registros (>=300), nunca filtrado\n    window.PANEL.categorias     -> array de nombres de categoria\n    window.PANEL.filtros        -> {desde, hasta, categoria} con los valores vigentes\n    window.PANEL.aplicarFiltros({desde, hasta, categoria}) -> aplica los filtros, repinta TODO y devuelve el numero de filas que quedan\n    window.PANEL.filtrados()    -> array de los registros filtrados Y ordenados (la lista entera, no la pagina)\n    window.PANEL.filas()        -> array de los registros de la pagina actual (como mucho tamPagina)\n    window.PANEL.tamPagina      -> numero de filas por pagina (10)\n    window.PANEL.paginaActual   -> numero de pagina vigente (empieza en 1)\n    window.PANEL.pagina(n)      -> va a la pagina n recortando a [1, ultima] y devuelve la pagina real\n    window.PANEL.ordenar(campo) -> ordena por ese campo alternando sentido y devuelve 'asc' o 'desc'\n    window.PANEL.kpis()         -> {total, operaciones, media, unidades} sobre lo filtrado\n    window.PANEL.serieBarras()  -> [{etiqueta, valor}] importe por categoria de lo filtrado\n    window.PANEL.serieLineas()  -> [{etiqueta, valor}] importe por mes de lo filtrado\n    window.PANEL.serieTarta()   -> [{etiqueta, valor, porcentaje}] reparto por categoria de lo filtrado\n    window.PANEL.exportarCSV()  -> devuelve el CSV de lo filtrado como string (1 linea de cabecera + 1 por fila)\n    window.PANEL.guardar()      -> guarda el estado en localStorage y devuelve true\n    window.PANEL.cargar()       -> restaura el estado de localStorage, repinta y devuelve true\n- Reglas de comportamiento que se comprueban: un rango invertido (desde posterior a hasta) deja 0 filas y no rompe nada; una categoria inexistente deja 0 filas y el tbody sin ningun <tr>; pagina(9999) se recorta a la ultima pagina; los KPI y las series siempre cuadran con filtrados().\n- No debe haber NINGUN error en la consola del navegador.\n- Escribe tambien un README.md corto explicando que hace y como se abre.\n\nNo entregues un esqueleto ni una maqueta: cada sistema de la lista tiene que estar implementado. Antes de decir que has terminado, ABRE tu propio resultado, comprueba filtro a filtro que las graficas y los KPI cambian, que la tabla ordena y pagina, que el CSV sale bien y que la consola esta limpia, y CORRIGE lo que falle.",
+  "criterios_exito": [
+    "index.html abre sin errores de consola y pinta las tres graficas dibujadas a mano",
+    "window.PANEL expone datos, filtros, series, KPI, tabla y exportacion segun el contrato",
+    "cambiar el rango de fechas o la categoria recalcula graficas, KPI, tabla y paginacion",
+    "la tabla ordena por cualquier columna alternando sentido y pagina de 10 en 10",
+    "exportarCSV devuelve una linea por fila filtrada mas la cabecera",
+    "los filtros y el estado sobreviven a guardar, recargar y cargar",
+    "los datos son deterministas: la misma recarga da exactamente los mismos registros"
+  ],
+  "criterios_fallo": [
+    "las graficas estan vacias, son imagenes fijas o usan una libreria externa",
+    "los filtros no recalculan las graficas o los KPI",
+    "kpis() no cuadra con filtrados() o la tabla muestra filas de otra pagina",
+    "usa Math.random y los datos cambian en cada recarga",
+    "un rango invertido, una categoria inexistente o pagina(9999) rompen la pagina",
+    "errores de JavaScript en la consola al cargar o al filtrar"
+  ],
+  "artefactos": [
+    {
+      "glob": "index.html",
+      "obligatorio": true,
+      "min_bytes": 800
+    },
+    {
+      "glob": "*.js",
+      "obligatorio": true,
+      "min_bytes": 6000
+    },
+    {
+      "glob": "*.css",
+      "obligatorio": false,
+      "min_bytes": 300
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "pagina-y-contenedores",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/index.html",
+      "min_bytes": 800,
+      "contiene": [
+        "grafica-barras",
+        "grafica-lineas",
+        "grafica-tarta",
+        "tabla-cuerpo",
+        "filtro-categoria"
+      ]
+    },
+    {
+      "nombre": "codigo-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "min_bytes": 800,
+      "min_lineas": 280,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "Math\\.random\\s*\\(",
+        "cdn\\.",
+        "unpkg",
+        "jsdelivr"
+      ]
+    },
+    {
+      "nombre": "contrato-en-el-codigo",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "contiene": [
+        "aplicarFiltros",
+        "serieBarras",
+        "serieLineas",
+        "serieTarta",
+        "exportarCSV",
+        "localStorage"
+      ]
+    },
+    {
+      "nombre": "arranca-y-pinta-las-tres-graficas",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "pagina": "index.html",
+      "espera_ms": 1500,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "#tabla-cuerpo tr",
+          "min": 1
+        },
+        {
+          "tipo": "selector",
+          "sel": "#filtro-desde",
+          "min": 1
+        },
+        {
+          "tipo": "selector",
+          "sel": "#filtro-categoria",
+          "min": 1
+        },
+        {
+          "tipo": "selector",
+          "sel": "#kpi-total",
+          "min": 1
+        },
+        {
+          "tipo": "js",
+          "nombre": "api",
+          "codigo": "() => !!(window.PANEL && Array.isArray(window.PANEL.datos) && typeof window.PANEL.aplicarFiltros==='function' && typeof window.PANEL.ordenar==='function' && typeof window.PANEL.pagina==='function' && typeof window.PANEL.filtrados==='function' && typeof window.PANEL.filas==='function' && typeof window.PANEL.kpis==='function' && typeof window.PANEL.exportarCSV==='function' && typeof window.PANEL.guardar==='function' && typeof window.PANEL.cargar==='function')"
+        },
+        {
+          "tipo": "js",
+          "nombre": "registros",
+          "codigo": "() => (window.PANEL.datos||[]).length",
+          "min": 300
+        },
+        {
+          "tipo": "js",
+          "nombre": "graficas_dibujadas",
+          "codigo": "() => { const ids=['#grafica-barras','#grafica-lineas','#grafica-tarta']; let peor=999999; for (const id of ids) { const c=document.querySelector(id); if(!c) return 0; let n=c.querySelectorAll('rect,path,line,circle,polygon,polyline,ellipse').length; if(!n){ const cv=(c.tagName.toLowerCase()==='canvas')?c:c.querySelector('canvas'); if(cv){ try { const d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data; const s=new Set(); for(let i=0;i<d.length;i+=64) s.add((d[i]<<16)|(d[i+1]<<8)|d[i+2]); n=s.size; } catch(e){ n=0; } } } if(n<peor) peor=n; } return peor; }",
+          "min": 3
+        },
+        {
+          "tipo": "js",
+          "nombre": "kpi_en_el_dom",
+          "codigo": "() => { const k=window.PANEL.kpis()||{}; const t=(document.querySelector('#kpi-operaciones')||{}).textContent||''; return typeof k.total==='number' && typeof k.operaciones==='number' && t.replace(/[^0-9]/g,'').indexOf(String(window.PANEL.filtrados().length))>=0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "los-filtros-recalculan-todo",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { window.__todos = window.PANEL.datos.length; const s=document.querySelector('#filtro-categoria'); s.value = window.PANEL.categorias[0]; s.dispatchEvent(new Event('change', {bubbles:true})); }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 600
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "select_filtra_de_verdad",
+          "codigo": "() => { const p=window.PANEL; const c=p.categorias[0]; const f=p.filtrados(); return p.filtros.categoria===c && f.length>0 && f.length<window.__todos && f.every(r=>r.categoria===c); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "tarta_de_una_sola_categoria",
+          "codigo": "() => { const t=window.PANEL.serieTarta()||[]; return t.length===1 && t[0].etiqueta===window.PANEL.categorias[0] && t[0].valor>0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "kpi_cuadra_con_lo_filtrado",
+          "codigo": "() => { const p=window.PANEL; const f=p.filtrados(); const suma=f.reduce((a,r)=>a+Number(r.importe),0); const uni=f.reduce((a,r)=>a+Number(r.unidades),0); const k=p.kpis(); return k.operaciones===f.length && Math.abs(k.total-suma)<0.5 && Math.abs(k.unidades-uni)<0.5 && Math.abs(k.media-(suma/f.length))<0.5; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "rango_de_fechas_recorta",
+          "codigo": "() => { const p=window.PANEL; const n=p.aplicarFiltros({desde:'2025-01-01', hasta:'2025-03-31', categoria:''}); const f=p.filtrados(); return n===f.length && f.length>0 && f.length<window.__todos && f.every(r=>r.fecha>='2025-01-01' && r.fecha<='2025-03-31') && (p.serieLineas()||[]).length<=3; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "las_barras_siguen_al_filtro",
+          "codigo": "() => { const p=window.PANEL; const b=p.serieBarras()||[]; const suma=b.reduce((a,x)=>a+Number(x.valor),0); return b.length>=1 && Math.abs(suma-p.kpis().total)<1; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "sigue_dibujando",
+          "codigo": "() => { const ids=['#grafica-barras','#grafica-lineas','#grafica-tarta']; let peor=999999; for (const id of ids) { const c=document.querySelector(id); if(!c) return 0; let n=c.querySelectorAll('rect,path,line,circle,polygon,polyline,ellipse').length; if(!n){ const cv=(c.tagName.toLowerCase()==='canvas')?c:c.querySelector('canvas'); if(cv){ try { const d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data; const s=new Set(); for(let i=0;i<d.length;i+=64) s.add((d[i]<<16)|(d[i+1]<<8)|d[i+2]); n=s.size; } catch(e){ n=0; } } } if(n<peor) peor=n; } return peor; }",
+          "min": 3
+        }
+      ]
+    },
+    {
+      "nombre": "tabla-ordena-y-pagina",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { window.PANEL.aplicarFiltros({desde:'', hasta:'', categoria:''}); window.PANEL.pagina(1); }"
+        },
+        {
+          "tipo": "click",
+          "sel": "#tabla-datos th[data-campo=importe]"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 500
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_clic_ordena",
+          "codigo": "() => { const v=window.PANEL.filtrados().map(r=>Number(r.importe)); let up=true, dn=true; for(let i=1;i<v.length;i++){ if(v[i-1]>v[i]) up=false; if(v[i-1]<v[i]) dn=false; } return v.length>10 && (up||dn); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_segundo_clic_invierte",
+          "codigo": "() => { const p=window.PANEL; const ord=(x)=>{let up=true,dn=true;for(let i=1;i<x.length;i++){if(x[i-1]>x[i])up=false;if(x[i-1]<x[i])dn=false;}return up?'asc':(dn?'desc':'no');}; p.ordenar('importe'); const a=ord(p.filtrados().map(r=>Number(r.importe))); p.ordenar('importe'); const b=ord(p.filtrados().map(r=>Number(r.importe))); return a!=='no' && b!=='no' && a!==b; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "ordena_tambien_por_fecha",
+          "codigo": "() => { const p=window.PANEL; p.ordenar('fecha'); const v=p.filtrados().map(r=>String(r.fecha)); let up=true, dn=true; for(let i=1;i<v.length;i++){ if(v[i-1]>v[i]) up=false; if(v[i-1]<v[i]) dn=false; } return up||dn; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_boton_siguiente_pagina",
+          "codigo": "() => { const p=window.PANEL; p.pagina(1); const a=JSON.stringify(p.filas()[0]||{}); document.querySelector('#btn-siguiente').click(); const b=JSON.stringify(p.filas()[0]||{}); return p.paginaActual===2 && a!==b && p.filas().length<=p.tamPagina && document.querySelectorAll('#tabla-cuerpo tr').length===p.filas().length; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "la_pagina_es_un_trozo_de_lo_filtrado",
+          "codigo": "() => { const p=window.PANEL; p.pagina(3); const t=p.tamPagina; const esperado=p.filtrados().slice((p.paginaActual-1)*t, p.paginaActual*t); return JSON.stringify(esperado)===JSON.stringify(p.filas()); }"
+        }
+      ]
+    },
+    {
+      "nombre": "exportacion-csv-fiel",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "#btn-exportar",
+          "min": 1
+        },
+        {
+          "tipo": "js",
+          "nombre": "csv_completo",
+          "codigo": "() => { const p=window.PANEL; p.aplicarFiltros({desde:'', hasta:'', categoria:''}); const csv=p.exportarCSV(); if(typeof csv!=='string' || csv.length<200) return false; const l=csv.trim().split(/\\r?\\n/); return l.length===p.filtrados().length+1 && /fecha/i.test(l[0]) && /importe/i.test(l[0]); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "csv_sigue_al_filtro",
+          "codigo": "() => { const p=window.PANEL; p.aplicarFiltros({desde:'', hasta:'', categoria:p.categorias[1]}); const l=p.exportarCSV().trim().split(/\\r?\\n/); const cols=l[0].split(',').length; return l.length===p.filtrados().length+1 && cols>=5 && l[1].split(',').length===cols && l[1].indexOf(p.categorias[1])>=0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "aguanta-filtros-imposibles",
+      "tipo": "web",
+      "capa": "robustez",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "rango_invertido",
+          "codigo": "() => { const p=window.PANEL; const n=p.aplicarFiltros({desde:'2025-12-31', hasta:'2025-01-01', categoria:''}); const k=p.kpis(); return n===0 && p.filtrados().length===0 && k.operaciones===0 && k.total===0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "categoria_inexistente",
+          "codigo": "() => { const p=window.PANEL; const n=p.aplicarFiltros({desde:'', hasta:'', categoria:'__no_existe__'}); return n===0 && document.querySelectorAll('#tabla-cuerpo tr').length===0 && (p.serieTarta()||[]).length===0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "pagina_fuera_de_rango",
+          "codigo": "() => { const p=window.PANEL; p.aplicarFiltros({desde:'', hasta:'', categoria:''}); const ult=p.pagina(9999); const filas=p.filas(); const cero=p.pagina(-5); return typeof ult==='number' && ult>=1 && ult===p.paginaActual && filas.length>0 && filas.length<=p.tamPagina && cero===1; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "los_datos_no_se_tocan",
+          "codigo": "() => { const p=window.PANEL; return p.datos.length>=300 && p.datos.every(r=>r && r.fecha && r.categoria && typeof Number(r.importe)==='number'); }"
+        }
+      ]
+    },
+    {
+      "nombre": "estado-persistido-y-datos-deterministas",
+      "tipo": "web",
+      "capa": "integridad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const p=window.PANEL; p.aplicarFiltros({desde:'2025-01-01', hasta:'2025-06-30', categoria:p.categorias[0]}); p.ordenar('importe'); p.pagina(2); p.guardar(); localStorage.setItem('__huella', JSON.stringify(p.datos.slice(0,5))); }"
+        },
+        {
+          "tipo": "recargar",
+          "ms": 1500
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => { window.__cargado = window.PANEL.cargar(); }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 600
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "cargar_devuelve_true",
+          "codigo": "() => window.__cargado === true"
+        },
+        {
+          "tipo": "js",
+          "nombre": "filtros_restaurados",
+          "codigo": "() => { const p=window.PANEL; const f=p.filtros||{}; return f.categoria===p.categorias[0] && f.desde==='2025-01-01' && f.hasta==='2025-06-30' && p.filtrados().every(r=>r.categoria===p.categorias[0]); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "datos_identicos_tras_recargar",
+          "codigo": "() => { const h=localStorage.getItem('__huella'); return !!h && h===JSON.stringify(window.PANEL.datos.slice(0,5)); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "la_vista_se_repinto",
+          "codigo": "() => document.querySelectorAll('#tabla-cuerpo tr').length===window.PANEL.filas().length && window.PANEL.filas().length>0"
+        }
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "web",
+        "pagina": "index.html",
+        "espera_ms": 1500,
+        "max_errores_consola": 0,
+        "afirmaciones": [
+          {
+            "tipo": "js",
+            "nombre": "api_viva",
+            "codigo": "() => !!(window.PANEL && Array.isArray(window.PANEL.datos) && typeof window.PANEL.aplicarFiltros==='function' && typeof window.PANEL.ordenar==='function' && typeof window.PANEL.pagina==='function' && typeof window.PANEL.filtrados==='function' && typeof window.PANEL.filas==='function' && typeof window.PANEL.kpis==='function' && typeof window.PANEL.exportarCSV==='function' && typeof window.PANEL.guardar==='function' && typeof window.PANEL.cargar==='function')"
+          },
+          {
+            "tipo": "js",
+            "nombre": "graficas_vivas",
+            "codigo": "() => { const ids=['#grafica-barras','#grafica-lineas','#grafica-tarta']; let peor=999999; for (const id of ids) { const c=document.querySelector(id); if(!c) return 0; let n=c.querySelectorAll('rect,path,line,circle,polygon,polyline,ellipse').length; if(!n){ const cv=(c.tagName.toLowerCase()==='canvas')?c:c.querySelector('canvas'); if(cv){ try { const d=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data; const s=new Set(); for(let i=0;i<d.length;i+=64) s.add((d[i]<<16)|(d[i+1]<<8)|d[i+2]); n=s.size; } catch(e){ n=0; } } } if(n<peor) peor=n; } return peor; }",
+            "min": 3
+          },
+          {
+            "tipo": "js",
+            "nombre": "filtrar_no_rompe",
+            "codigo": "() => { const p=window.PANEL; const a=p.aplicarFiltros({desde:'', hasta:'', categoria:p.categorias[0]}); const b=p.aplicarFiltros({desde:'', hasta:'', categoria:''}); return a>0 && b>=a && p.kpis().operaciones===b; }"
+          }
+        ]
+      }
+    }
+  ]
+}

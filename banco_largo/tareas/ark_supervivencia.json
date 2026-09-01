@@ -1,0 +1,328 @@
+{
+  "id": "ark-supervivencia",
+  "familia": "juego-canvas",
+  "dificultad": 5,
+  "presupuesto_s": 540,
+  "pasos": 80,
+  "longitud_esperada_lineas": 2200,
+  "prompt": "Construye un prototipo JUGABLE de supervivencia tipo ARK en HTML + JavaScript puro, con vista cenital sobre un unico <canvas> 2D. Sin librerias externas, sin CDN, sin npm install, sin peticiones de red: todo tiene que funcionar abriendo index.html servido desde el propio directorio. Entregalo en el directorio de trabajo actual con index.html como punto de entrada y el codigo en uno o varios ficheros .js propios.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Mundo por biomas generado a partir de una semilla: al menos 3 biomas distintos (por ejemplo bosque, playa y montana) repartidos por un mapa de MUNDO_ANCHO x MUNDO_ALTO pixeles, cada uno con su color y su mezcla de recursos.\n2. Nodos de recurso repartidos por el mundo (arboles, rocas, arbustos, cadaveres) con cantidad finita que se agota al recolectar y se regenera con el tiempo.\n3. Recoleccion: acercarse a un nodo y recolectarlo entrega unidades del item correspondiente; recolectar de lejos o de un nodo vacio no entrega nada.\n4. Inventario con PILAS y con PESO: los items iguales se apilan en una sola entrada, cada item tiene peso unitario y el inventario tiene un peso maximo que crece al subir de nivel; superar el peso maximo rechaza la adicion entera.\n5. Crafteo con recetas: al menos 6 recetas con ingredientes y cantidades; unas se craftean a mano y otras exigen estar cerca de una estacion de trabajo construida (fogata o banco). Sin ingredientes o sin la estacion, el crafteo falla.\n6. Construccion de estructuras: al menos 3 tipos (fogata, muro, cofre) con coste en materiales, colocadas en el mundo; no se puede construir dos veces en la misma casilla ni sin material.\n7. Criaturas salvajes con IA: al menos 3 especies con estadisticas propias; las pacificas huyen del jugador cuando se acerca y las agresivas lo persiguen y le pegan. Se mueven de verdad en cada tick.\n8. Domesticacion por alimentacion: dar comida repetidamente a una criatura sube su barra de domesticacion hasta que queda domesticada y deja de atacar; la criatura domesticada sigue al jugador.\n9. Combate cuerpo a cuerpo (golpe con alcance corto que consume estamina) y a distancia (proyectil que viaja y colisiona). Matar una criatura da experiencia y deja recursos.\n10. Barras de supervivencia: vida, hambre, sed y estamina. Hambre y sed bajan con el tiempo; a cero, la vida empieza a bajar. Comer y beber las recuperan; la estamina se regenera al no esforzarse.\n11. Ciclo dia/noche continuo que oscurece la pantalla de noche y hace mas peligrosas a las criaturas agresivas.\n12. Progresion: la experiencia sube de nivel, cada nivel da puntos de mejora que se gastan en atributos (vida, peso, estamina), y guardado/carga completo en localStorage de jugador, inventario, estructuras, criaturas y hora del mundo.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo exactamente):\n- El punto de entrada es index.html; el juego arranca solo al cargar la pagina, pinta en un unico <canvas> con requestAnimationFrame y no deja NINGUN error en la consola.\n- Los ids de item son exactamente estas cadenas: madera, piedra, fibra, baya, carne. Un nodo de recurso de tipo madera entrega el item madera (tipo del nodo == id del item).\n- Entre las recetas deben existir, con estos ids exactos: hacha_piedra (se craftea A MANO, sin estacion, con madera + piedra + fibra) y carne_asada (exige la estacion fogata).\n- Entre los tipos de estructura debe existir fogata. La partida nueva empieza SIN ninguna estructura construida.\n- Un ciclo completo dia+noche dura como mucho 10 minutos de tiempo SIMULADO, declarado en window.ARK.MS_POR_DIA.\n- Una partida nueva reparte por el mundo al menos 20 nodos de recurso y al menos 5 criaturas vivas.\n- El juego NO guarda solo: SOLO window.ARK.guardar() escribe la partida en localStorage, de modo que recargar la pagina nunca destruye lo guardado.\n- Expon un objeto global window.ARK, siempre actualizado, con AL MENOS esto:\n    window.ARK.MUNDO_ANCHO, window.ARK.MUNDO_ALTO -> numeros (tamano del mundo en pixeles)\n    window.ARK.MS_POR_DIA   -> numero de milisegundos simulados que dura un ciclo dia+noche\n    window.ARK.jugador      -> objeto con x, y, vida, vidaMax, hambre, sed, estamina, nivel, exp, puntos\n    window.ARK.inventario   -> array de {id, cantidad, peso} (una sola entrada por id: las pilas se apilan)\n    window.ARK.pesoMaximo   -> numero, escribible\n    window.ARK.pesoActual() -> numero (peso total del inventario)\n    window.ARK.recursos     -> array de {id, tipo, cantidad, x, y}\n    window.ARK.criaturas    -> array de {id, tipo, x, y, vida, agresiva, domesticada, domesticacion}\n    window.ARK.estructuras  -> array de {tipo, x, y}\n    window.ARK.biomas       -> array de nombres de bioma (3 o mas)\n    window.ARK.biomaEn(x, y)-> nombre del bioma en esa coordenada del mundo\n    window.ARK.recetas      -> array de {id, salida, cantidad, estacion, ingredientes:[{id, cantidad}]} (estacion null = a mano)\n    window.ARK.tiposCriatura-> array con las especies (3 o mas)\n    window.ARK.tiposEstructura -> array de {tipo, coste:[{id, cantidad}]} (3 o mas)\n    window.ARK.hora         -> numero de 0 a 24\n    window.ARK.esDeNoche()  -> true/false\n    window.ARK.nuevaPartida(semilla) -> reinicia el mundo de forma reproducible para esa semilla\n    window.ARK.tick(ms)     -> avanza la simulacion ese numero de milisegundos (para pruebas deterministas)\n    window.ARK.recolectar(idRecurso) -> numero de unidades obtenidas; 0 si esta lejos, vacio o el id no existe\n    window.ARK.anadirItem(idItem, cantidad) -> true si cabe; false SIN anadir nada si superaria pesoMaximo\n    window.ARK.craftear(idReceta) -> true/false (false si faltan ingredientes, falta la estacion o el id no existe)\n    window.ARK.construir(tipo, x, y) -> true/false (false si falta material, la casilla esta ocupada o esta fuera del mundo)\n    window.ARK.atacar(idCriatura) -> dano aplicado; 0 si esta fuera de alcance o el id no existe\n    window.ARK.disparar(x, y) -> true si lanza un proyectil\n    window.ARK.alimentar(idCriatura, idItem) -> true si la criatura acepto la comida\n    window.ARK.ganarExp(n) -> devuelve el nivel resultante\n    window.ARK.gastarPunto(atributo) -> true/false\n    window.ARK.guardar() -> guarda en localStorage y devuelve true\n    window.ARK.cargar()  -> restaura desde localStorage y devuelve true\n- Escribe tambien un README.md corto con los controles y como se ejecuta.\n\nNo entregues un esqueleto ni una demo visual: cada sistema de la lista debe estar implementado. Antes de dar la tarea por terminada, ABRE el juego, prueba a mano cada metodo del contrato desde la consola, comprueba que los valores cambian como deben y CORRIGE todo lo que falle. Una funcion que devuelve siempre true no cuenta como implementada.",
+  "criterios_exito": [
+    "index.html abre sin errores de consola, el canvas se pinta y cambia con el tiempo",
+    "window.ARK expone el mundo, el inventario, las criaturas y todos los metodos del contrato",
+    "el mundo tiene 3 o mas biomas y nodos de recurso recolectables que llenan el inventario apilando y pesando",
+    "el crafteo respeta ingredientes y estacion, y la construccion cobra materiales y rechaza casillas ocupadas",
+    "las criaturas se mueven por IA, reciben dano al atacarlas y se domestican alimentandolas",
+    "hambre y sed bajan con el tiempo, a cero la vida baja, y el ciclo dia/noche alterna",
+    "la experiencia sube de nivel, da puntos y los puntos se gastan en atributos",
+    "guardar y cargar restauran inventario y nivel tras recargar la pagina"
+  ],
+  "criterios_fallo": [
+    "el canvas queda en blanco o estatico",
+    "window.ARK no existe o le faltan propiedades o metodos del contrato",
+    "recolectar, craftear o construir devuelven siempre true sin validar nada",
+    "las criaturas no se mueven ni reaccionan al jugador",
+    "las barras de supervivencia no bajan con tick() o la hora no avanza",
+    "el guardado no sobrevive a la recarga de la pagina",
+    "errores de JavaScript en consola al cargar o al jugar"
+  ],
+  "artefactos": [
+    {
+      "glob": "index.html",
+      "obligatorio": true,
+      "min_bytes": 600
+    },
+    {
+      "glob": "**/*.js",
+      "obligatorio": true,
+      "min_bytes": 1200
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "artefactos-presentes",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "index.html",
+      "min_bytes": 600,
+      "contiene": [
+        "canvas"
+      ]
+    },
+    {
+      "nombre": "codigo-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "min_bytes": 1200,
+      "min_lineas": 700,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "sin implementar"
+      ]
+    },
+    {
+      "nombre": "sistemas-nombrados-en-el-codigo",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "contiene": [
+        "recetas",
+        "inventario",
+        "domestic",
+        "bioma",
+        "estamina",
+        "estructuras",
+        "localStorage",
+        "requestAnimationFrame"
+      ]
+    },
+    {
+      "nombre": "arranca-pinta-y-expone-el-contrato",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "pagina": "index.html",
+      "espera_ms": 1800,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "canvas",
+          "min": 1
+        },
+        {
+          "tipo": "canvas",
+          "min_colores": 5
+        },
+        {
+          "tipo": "js",
+          "nombre": "api_completa",
+          "codigo": "() => { const a = window.ARK; if(!a) return false; const ms = ['tick','nuevaPartida','recolectar','anadirItem','pesoActual','craftear','construir','atacar','disparar','alimentar','ganarExp','gastarPunto','guardar','cargar','esDeNoche','biomaEn']; for (const m of ms) if (typeof a[m] !== 'function') return false; const ps = ['jugador','inventario','recursos','criaturas','estructuras','biomas','recetas','tiposCriatura','tiposEstructura']; for (const p of ps) if (a[p] === undefined || a[p] === null) return false; for (const n of ['pesoMaximo','hora','MS_POR_DIA','MUNDO_ANCHO','MUNDO_ALTO']) if (typeof a[n] !== 'number') return false; return a.MS_POR_DIA <= 600000 && a.MUNDO_ANCHO > 0 && a.MUNDO_ALTO > 0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "mundo-biomas-y-recoleccion-con-pilas-y-peso",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "biomas",
+          "codigo": "() => (window.ARK.biomas || []).length",
+          "min": 3
+        },
+        {
+          "tipo": "js",
+          "nombre": "biomas_en_el_mapa",
+          "codigo": "() => { const a = window.ARK; const s = new Set(); const px = Math.max(1, Math.floor(a.MUNDO_ANCHO / 30)); const py = Math.max(1, Math.floor(a.MUNDO_ALTO / 30)); for (let x = 0; x < a.MUNDO_ANCHO; x += px) for (let y = 0; y < a.MUNDO_ALTO; y += py) s.add(a.biomaEn(x, y)); return s.size; }",
+          "min": 2
+        },
+        {
+          "tipo": "js",
+          "nombre": "recursos_en_el_mundo",
+          "codigo": "() => (window.ARK.recursos || []).length",
+          "min": 8
+        },
+        {
+          "tipo": "js",
+          "nombre": "recolectar_apila_y_pesa",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(15); a.pesoMaximo = 100000; const r = a.recursos[0]; if (!r) return false; a.jugador.x = r.x; a.jugador.y = r.y; const p0 = a.pesoActual(); const g = a.recolectar(r.id); if (!(g > 0)) return false; const it = a.inventario.find(i => i.id === r.tipo); if (!it) return false; const c0 = it.cantidad; a.jugador.x = r.x; a.jugador.y = r.y; a.recolectar(r.id); const it2 = a.inventario.find(i => i.id === r.tipo); const unaSolaPila = a.inventario.filter(i => i.id === r.tipo).length === 1; return a.pesoActual() > p0 && unaSolaPila && it2.cantidad >= c0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "crafteo-con-recetas-y-construccion",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "hay_recetas",
+          "codigo": "() => (window.ARK.recetas || []).length",
+          "min": 6
+        },
+        {
+          "tipo": "js",
+          "nombre": "craftea_a_mano",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(21); a.pesoMaximo = 100000; const r = (a.recetas || []).find(x => x.id === 'hacha_piedra'); if (!r || r.estacion) return false; for (const g of r.ingredientes) a.anadirItem(g.id, g.cantidad * 3); const ok = a.craftear('hacha_piedra'); const tiene = a.inventario.some(i => i.id === r.salida && i.cantidad > 0); const gasto = (a.inventario.find(i => i.id === r.ingredientes[0].id) || {cantidad: 0}).cantidad < r.ingredientes[0].cantidad * 3; return ok === true && tiene && gasto; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "construye_y_rechaza_duplicado",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(21); a.pesoMaximo = 100000; const t = (a.tiposEstructura || [])[0]; if (!t) return false; for (const c of (t.coste || [])) a.anadirItem(c.id, c.cantidad * 20); const n0 = a.estructuras.length; let punto = null; for (let r = 16; r <= 200 && !punto; r += 16) { for (const s of [[r,0],[-r,0],[0,r],[0,-r],[r,r],[-r,-r],[r,-r],[-r,r]]) { const x = a.jugador.x + s[0], y = a.jugador.y + s[1]; if (a.construir(t.tipo, x, y) === true) { punto = {x: x, y: y}; break; } } } if (!punto) return false; const dup = a.construir(t.tipo, punto.x, punto.y); return dup === false && a.estructuras.length === n0 + 1; }"
+        }
+      ]
+    },
+    {
+      "nombre": "supervivencia-y-ciclo-dia-noche",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "hambre_y_sed_bajan",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(3); const h0 = a.jugador.hambre, s0 = a.jugador.sed, hr0 = a.hora; a.tick(60000); return a.jugador.hambre < h0 && a.jugador.sed < s0 && a.hora !== hr0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "sin_comida_baja_la_vida",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(3); a.jugador.hambre = 0; a.jugador.sed = 0; const v0 = a.jugador.vida; a.tick(30000); return a.jugador.vida < v0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "alterna_dia_y_noche",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(3); let noches = 0, dias = 0; for (let i = 0; i < 60; i++) { a.tick(60000); if (a.esDeNoche()) noches++; else dias++; } return noches > 0 && dias > 0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "criaturas-ia-combate-domesticacion-y-progresion",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "especies",
+          "codigo": "() => (window.ARK.tiposCriatura || []).length",
+          "min": 3
+        },
+        {
+          "tipo": "js",
+          "nombre": "las_criaturas_se_mueven",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(5); if (!a.criaturas.length) return false; const antes = a.criaturas.map(c => ({id: c.id, x: c.x, y: c.y})); for (let i = 0; i < 20; i++) a.tick(250); let movidas = 0; for (const p of antes) { const c = a.criaturas.find(k => k.id === p.id); if (!c) { movidas++; continue; } if (Math.abs(c.x - p.x) + Math.abs(c.y - p.y) > 0.5) movidas++; } return movidas > 0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_ataque_hace_dano",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(11); const c = a.criaturas[0]; if (!c) return false; const v0 = c.vida; let total = 0; for (let i = 0; i < 40; i++) { a.jugador.x = c.x; a.jugador.y = c.y; a.jugador.estamina = 100; total += (a.atacar(c.id) || 0); a.tick(300); } const vivo = a.criaturas.find(k => k.id === c.id); return total > 0 && (!vivo || vivo.vida < v0); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "domestica_alimentando",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(7); a.pesoMaximo = 100000; a.anadirItem('baya', 900); a.anadirItem('carne', 900); const c = a.criaturas.find(k => !k.domesticada && !k.agresiva) || a.criaturas.find(k => !k.domesticada); if (!c) return false; for (let i = 0; i < 300; i++) { const v = a.criaturas.find(k => k.id === c.id); if (!v) return false; if (v.domesticada) return true; a.jugador.x = v.x; a.jugador.y = v.y; a.jugador.vida = a.jugador.vidaMax; a.jugador.hambre = 100; a.jugador.sed = 100; a.alimentar(v.id, 'baya'); a.alimentar(v.id, 'carne'); a.tick(400); } const f = a.criaturas.find(k => k.id === c.id); return !!(f && f.domesticada); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "sube_de_nivel_y_gasta_puntos",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(2); const n0 = a.jugador.nivel; a.ganarExp(1000000); if (!(a.jugador.nivel > n0)) return false; if (!(a.jugador.puntos > 0)) return false; const p0 = a.jugador.puntos; const ok = a.gastarPunto('vida'); return ok === true && a.jugador.puntos === p0 - 1; }"
+        }
+      ]
+    },
+    {
+      "nombre": "limites-y-entradas-invalidas",
+      "tipo": "web",
+      "capa": "robustez",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_peso_maximo_frena",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(4); const p0 = a.pesoActual(); const n0 = a.inventario.length; a.pesoMaximo = p0 + 1; const ok = a.anadirItem('piedra', 1000000); return ok === false && a.pesoActual() === p0 && a.inventario.length === n0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "craftear_sin_nada_falla",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(6); a.pesoMaximo = 100000; if (a.craftear('receta_que_no_existe') !== false) return false; const r = (a.recetas || []).find(x => x.id === 'hacha_piedra'); if (!r) return false; const tengo = (id) => (a.inventario.find(i => i.id === id) || {cantidad: 0}).cantidad; const alcanza = () => r.ingredientes.every(g => tengo(g.id) >= g.cantidad); for (let i = 0; i < 200 && alcanza(); i++) if (a.craftear('hacha_piedra') !== true) return false; if (alcanza()) return false; return a.craftear('hacha_piedra') === false; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "sin_estacion_no_hay_receta_de_estacion",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(6); a.pesoMaximo = 100000; const r = (a.recetas || []).find(x => x.id === 'carne_asada'); if (!r || !r.estacion) return false; for (const g of r.ingredientes) a.anadirItem(g.id, g.cantidad * 5); return a.craftear('carne_asada') === false && a.estructuras.length === 0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "recolectar_y_atacar_de_lejos_no_hacen_nada",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(9); const r = a.recursos[0]; const c = a.criaturas[0]; if (!r || !c) return false; a.jugador.x = r.x + 100000; a.jugador.y = r.y + 100000; return a.recolectar(r.id) === 0 && a.recolectar('nodo_inexistente') === 0 && a.atacar(c.id) === 0 && a.atacar('bicho_inexistente') === 0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "sigue_vivo_tras_el_maltrato",
+          "codigo": "() => { const a = window.ARK; a.tick(0); a.tick(50); return isFinite(a.jugador.x) && isFinite(a.jugador.y) && isFinite(a.hora); }"
+        }
+      ]
+    },
+    {
+      "nombre": "guardado-sobrevive-a-la-recarga",
+      "tipo": "web",
+      "capa": "integridad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const a = window.ARK; a.nuevaPartida(1212); a.pesoMaximo = 100000; a.anadirItem('madera', 7); a.anadirItem('piedra', 3); a.ganarExp(1000); a.tick(30000); localStorage.setItem('__esperado_ark', JSON.stringify({madera: (a.inventario.find(i => i.id === 'madera') || {}).cantidad, piedra: (a.inventario.find(i => i.id === 'piedra') || {}).cantidad, nivel: a.jugador.nivel})); a.guardar(); }"
+        },
+        {
+          "tipo": "recargar",
+          "ms": 1800
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => window.ARK.cargar()"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 600
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "restaurado",
+          "codigo": "() => { const e = JSON.parse(localStorage.getItem('__esperado_ark') || 'null'); const a = window.ARK; if (!e) return false; const m = (a.inventario.find(i => i.id === 'madera') || {}).cantidad; const p = (a.inventario.find(i => i.id === 'piedra') || {}).cantidad; return m === e.madera && p === e.piedra && a.jugador.nivel === e.nivel; }"
+        }
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "web",
+        "pagina": "index.html",
+        "espera_ms": 1500,
+        "max_errores_consola": 0,
+        "afirmaciones": [
+          {
+            "tipo": "canvas_cambia",
+            "ms": 1200
+          },
+          {
+            "tipo": "js",
+            "nombre": "api_viva",
+            "codigo": "() => !!(window.ARK && typeof window.ARK.tick === 'function' && Array.isArray(window.ARK.inventario))"
+          }
+        ]
+      }
+    }
+  ]
+}

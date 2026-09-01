@@ -161,9 +161,23 @@ def _hacer(args, tarea: str, progreso) -> int:
         if not args.silencioso:
             print("[cognia] la tarea NO se completo (mira el motivo arriba): "
                   "salgo con codigo 1", file=sys.stderr)
+    # LA TELEMETRIA VIAJA CON EL RESULTADO (2026-08-31). El bucle mide pasos,
+    # tokens, tool calls, cortes y motivo de cierre... y hasta hoy todo eso
+    # moria en stderr como prosa coloreada, asi que medir una tarea larga
+    # obligaba a parsear color desde fuera. Con COGNIA_TELEMETRIA puesto, el
+    # diario se resume aqui y sale DENTRO del JSON, que es donde lo espera
+    # cualquiera que encadene el CLI.
+    _tel_resumen = None
+    try:
+        from cognia.harness import telemetria as _tel_mod
+        if _tel_mod.activa():
+            _tel_resumen = _tel_mod.resumir(_tel_mod.ruta())
+    except Exception as _e_tel:
+        print(f"[cognia] telemetria no resumida: {_e_tel}", file=sys.stderr)
     if args.json:
         json.dump({"tarea": tarea, "respuesta": texto, "segundos": segundos,
-                   "cwd": os.getcwd(), "ok": codigo == 0},
+                   "cwd": os.getcwd(), "ok": codigo == 0,
+                   "telemetria": _tel_resumen},
                   sys.stdout, ensure_ascii=False, indent=2)
         sys.stdout.write("\n")
     else:

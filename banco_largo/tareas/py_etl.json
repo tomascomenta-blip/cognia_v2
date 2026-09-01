@@ -1,0 +1,156 @@
+{
+  "id": "py-etl",
+  "familia": "py-cli",
+  "dificultad": 3,
+  "presupuesto_s": 240,
+  "pasos": 40,
+  "longitud_esperada_lineas": 800,
+  "prompt": "Construye una herramienta ETL COMPLETA en Python 3 usando UNICAMENTE la libreria estandar (argparse, csv, json, re, decimal, datetime, statistics, pathlib, unittest). Prohibido de forma explicita: acceso a red, descargas, CDN, pip install, npm install y cualquier dependencia de terceros; nada de pandas. Lo unico externo disponible es pytest, que ya esta instalado. Entrega todo en el directorio de trabajo actual.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Ingesta de CSV y de JSON: la misma tuberia acepta un CSV con cabecera o un array JSON de objetos, desde un fichero o desde la entrada estandar.\n2. Validacion contra un ESQUEMA DECLARATIVO en JSON: tipos (entero, decimal, texto, fecha, booleano) y restricciones (requerido, unico, min, max, min_long, max_long, patron, valores permitidos). El esquema es un dato, no codigo: cambiarlo no debe obligar a tocar el programa.\n3. Transformaciones encadenables que se aplican EN EL ORDEN en que se piden y ANTES de validar: trim, minusculas:CAMPO, mayusculas:CAMPO, renombrar:VIEJO=NUEVO y defecto:CAMPO=VALOR.\n4. Tolerancia a la basura: una fila invalida NO aborta la corrida. Se descarta, se cuenta y se explica en el informe con su numero de fila, el campo culpable y el motivo; la tuberia sigue con el resto.\n5. Deduplicacion por una o varias claves, conservando la PRIMERA aparicion y contando cuantas se descartaron. Solo se deduplica entre las filas ya validas.\n6. Agregacion: agrupar por un campo y calcular cuenta, suma de un campo y media de un campo.\n7. Emision del resultado en CSV y en JSON a la vez, creando los directorios de salida que falten.\n8. Informe de calidad de datos en JSON, con los contadores, la lista de errores y metricas de completitud, validez y unicidad.\n9. CLI con subcomandos, codigos de salida distintos por clase de error, y un modo --estricto que convierte las filas invalidas en fallo de la corrida.\n10. Idempotencia: correr dos veces la misma tuberia sobre la misma entrada produce ficheros de salida identicos y el mismo informe.\n11. Una bateria de tests con pytest escrita por ti (al menos 8 tests reales que ejerciten validacion, transformaciones, deduplicacion, agregacion, ingesta CSV y JSON, y los codigos de salida), ejecutable tecleando pytest desde la raiz del entregable. Cuida el sys.path: anade un conftest.py en la raiz si hace falta.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo exactamente):\n- El punto de entrada es etl.py en la raiz del entregable: python etl.py SUBCOMANDO [opciones]\n- Subcomando run: --esquema RUTA --entrada RUTA --formato csv|json (por defecto csv) [--salida-csv RUTA] [--salida-json RUTA] --informe RUTA [--dedup CAMPO (repetible)] [--transformacion NOMBRE (repetible)] [--agrupar CAMPO] [--agregar cuenta|suma:CAMPO|media:CAMPO (repetible)] [--estricto]. En --entrada y en --informe el valor - significa entrada estandar y salida estandar respectivamente.\n- Subcomando verificar: mismas opciones de esquema, entrada, formato e informe, pero sin escribir ningun fichero de salida. Sirve para revalidar lo que ya se emitio.\n- El informe es SIEMPRE un JSON con esta forma exacta: {\"filas_leidas\": N, \"filas_validas\": N, \"filas_invalidas\": N, \"duplicados_descartados\": N, \"errores\": [{\"fila\": N, \"campo\": \"...\", \"motivo\": \"...\"}], \"agregados\": {\"VALOR_DEL_GRUPO\": {\"cuenta\": N, \"suma_CAMPO\": X, \"media_CAMPO\": X}}, \"calidad\": {\"completitud\": F, \"validez\": F, \"unicidad\": F}}. El numero de fila empieza en 1 y no cuenta la cabecera. filas_leidas es el total de filas de datos de la entrada; filas_validas es lo que queda DESPUES de validar y de deduplicar.\n- Las claves de agregados son el valor del campo de agrupacion tal y como queda tras las transformaciones; las claves de las metricas son literalmente cuenta, suma_ mas el nombre del campo, y media_ mas el nombre del campo. Todos los valores numericos del informe (contadores, sumas, medias y metricas de calidad) se emiten como numeros JSON, nunca como cadenas.\n- La salida CSV lleva cabecera con los nombres de los campos tal y como quedan tras las transformaciones, y las filas emitidas deben poder revalidarse contra el mismo esquema con el subcomando verificar sin dar ni un solo error.\n- Debes entregar el esquema de ejemplo en esquemas/personas.json con EXACTAMENTE estos campos y restricciones: id entero requerido; nombre texto requerido con min_long 1; edad entero requerido con min 0 y max 130; email texto requerido con patron ^[^@]+@[^@]+[.][a-z][a-z]+$ ; ciudad texto NO requerido; importe decimal requerido con min 0. NO declares unico en el id de este esquema: la unicidad de id se resuelve con --dedup id, de modo que una fila repetida por la clave de deduplicacion cuenta en duplicados_descartados y NUNCA en filas_invalidas.\n- CODIGOS DE SALIDA: 0 corrida terminada (aunque hubiera filas invalidas); 1 solo con --estricto y habiendo filas invalidas; 2 esquema ausente, esquema mal formado, transformacion desconocida o argumentos incompatibles, y el mensaje debe contener la palabra esquema cuando el problema sea del esquema; 3 entrada ilegible. Los errores se explican con un mensaje legible por stderr y NUNCA con un traceback de Python.\n- Escribe tambien un README.md corto con el formato del esquema y ejemplos de uso.\n\nNo entregues un esqueleto ni funciones sin cuerpo. PRUEBA lo que has hecho ANTES de darlo por terminado: pasa un CSV sucio de verdad (filas con tipos malos, campos vacios, claves repetidas) por la entrada estandar, comprueba a mano que los contadores del informe cuadran, repite la corrida y verifica que los ficheros salen identicos, revalida tu propia salida con el subcomando verificar, corre pytest, y corrige todos los fallos hasta que todo pase.",
+  "criterios_exito": [
+    "etl.py corre en una copia limpia leyendo un CSV por la entrada estandar y emite el informe por la salida estandar",
+    "los contadores del informe cuadran: filas_leidas, filas_invalidas, duplicados_descartados y filas_validas",
+    "las filas invalidas no abortan la corrida y se listan con fila, campo y motivo",
+    "la deduplicacion conserva la primera aparicion y cuenta las descartadas",
+    "las transformaciones se aplican en orden y antes de validar (renombrar permite validar columnas con otro nombre)",
+    "la agregacion por grupo devuelve cuenta, suma y media correctas",
+    "la ingesta JSON produce los mismos contadores que la CSV equivalente",
+    "la salida emitida se revalida con el subcomando verificar sin ningun error",
+    "la corrida es idempotente y los codigos de salida distinguen las clases de error"
+  ],
+  "criterios_fallo": [
+    "la herramienta aborta con un traceback ante una fila con un tipo malo",
+    "los contadores no cuadran o filas_validas no descuenta los duplicados",
+    "el esquema esta cableado en el codigo en vez de leerse del JSON",
+    "las transformaciones se aplican despues de validar, o no se aplican en orden",
+    "no acepta la entrada estandar o no acepta el formato JSON",
+    "no hay tests, o pytest no encuentra el modulo desde la raiz"
+  ],
+  "artefactos": [
+    {"glob": "etl.py", "obligatorio": true, "min_bytes": 2000},
+    {"glob": "esquemas/personas.json", "obligatorio": true, "min_bytes": 150},
+    {"glob": "**/test*.py", "obligatorio": true, "min_bytes": 600},
+    {"glob": "README.md", "obligatorio": false, "min_bytes": 200}
+  ],
+  "pruebas": [
+    {
+      "nombre": "etl-presente-con-sustancia", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/etl.py", "min_bytes": 2000,
+      "contiene": ["argparse", "csv"]
+    },
+    {
+      "nombre": "esquema-declarativo-entregado", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/esquemas/personas.json", "min_bytes": 150,
+      "contiene": ["importe", "patron", "requerido"]
+    },
+    {
+      "nombre": "codigo-escrito-sin-huecos", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/*.py", "min_bytes": 400, "min_lineas": 450,
+      "no_contiene": ["TODO: implementar", "not implemented", "raise NotImplementedError",
+                      "import pandas"]
+    },
+    {
+      "nombre": "tests-propios-escritos", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/test*.py", "min_bytes": 600, "min_lineas": 60,
+      "contiene": ["def test_"]
+    },
+    {
+      "nombre": "tuberia-csv-valida-deduplica-y-agrega", "tipo": "python", "capa": "funcionalidad",
+      "peso": 2.0, "entregable": true, "entry": "etl.py", "timeout": 180,
+      "args": ["run", "--esquema", "esquemas/personas.json", "--entrada", "-", "--formato", "csv",
+               "--transformacion", "trim", "--dedup", "id",
+               "--agrupar", "ciudad", "--agregar", "cuenta", "--agregar", "suma:importe",
+               "--agregar", "media:importe",
+               "--salida-csv", "salida/personas.csv", "--salida-json", "salida/personas.json",
+               "--informe", "-"],
+      "stdin": "id,nombre,edad,email,ciudad,importe\n1,  Ana  ,34,ana@example.com,Madrid,120.50\n2,Luis,-3,luis@example.com,Sevilla,80\n3,Marta,29,martaexample.com,Madrid,45.25\n4,Ana,34,ana2@example.com,Madrid,120.50\n1,Otro,50,otro@example.com,Bilbao,10\n5,Nuria,41,nuria@example.com,,200\n6,,22,sinnombre@example.com,Madrid,15\n7,Pau,28,pau@example.com,Sevilla,60.75\n",
+      "exit": 0,
+      "stdout_re": ["\"filas_leidas\"\\s*:\\s*8", "\"filas_invalidas\"\\s*:\\s*3",
+                    "\"duplicados_descartados\"\\s*:\\s*1", "\"filas_validas\"\\s*:\\s*4",
+                    "\"suma_importe\"\\s*:\\s*\"?241", "\"media_importe\"\\s*:\\s*\"?120[.]5",
+                    "\"Madrid\"", "\"Sevilla\"", "\"motivo\""],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "la-salida-emitida-se-revalida-sola", "tipo": "python", "capa": "integridad",
+      "peso": 1.5, "entry": "etl.py", "timeout": 180,
+      "args": ["verificar", "--esquema", "esquemas/personas.json",
+               "--entrada", "salida/personas.csv", "--formato", "csv", "--informe", "-"],
+      "exit": 0,
+      "stdout_re": ["\"filas_leidas\"\\s*:\\s*4", "\"filas_validas\"\\s*:\\s*4",
+                    "\"filas_invalidas\"\\s*:\\s*0"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "ingesta-json-deduplica-y-agrega", "tipo": "python", "capa": "funcionalidad",
+      "peso": 2.0, "entry": "etl.py", "timeout": 180,
+      "args": ["run", "--esquema", "esquemas/personas.json", "--entrada", "-", "--formato", "json",
+               "--dedup", "id", "--agrupar", "ciudad", "--agregar", "cuenta",
+               "--agregar", "suma:importe", "--informe", "-"],
+      "stdin": "[{\"id\":10,\"nombre\":\"Iris\",\"edad\":30,\"email\":\"iris@example.com\",\"ciudad\":\"Vigo\",\"importe\":10},{\"id\":11,\"nombre\":\"Jon\",\"edad\":200,\"email\":\"jon@example.com\",\"ciudad\":\"Vigo\",\"importe\":20},{\"id\":12,\"nombre\":\"Kai\",\"edad\":45,\"email\":\"kai@example.com\",\"ciudad\":\"Leon\",\"importe\":30},{\"id\":10,\"nombre\":\"Iris bis\",\"edad\":31,\"email\":\"iris2@example.com\",\"ciudad\":\"Vigo\",\"importe\":40},{\"id\":13,\"nombre\":\"Lia\",\"edad\":22,\"email\":\"lia@example.com\",\"ciudad\":\"Leon\",\"importe\":50.5}]",
+      "exit": 0,
+      "stdout_re": ["\"filas_leidas\"\\s*:\\s*5", "\"filas_invalidas\"\\s*:\\s*1",
+                    "\"duplicados_descartados\"\\s*:\\s*1", "\"filas_validas\"\\s*:\\s*3",
+                    "\"suma_importe\"\\s*:\\s*\"?80[.]5", "\"Leon\""],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "transformaciones-encadenadas-antes-de-validar", "tipo": "python", "capa": "funcionalidad",
+      "peso": 2.0, "entry": "etl.py", "timeout": 180,
+      "args": ["run", "--esquema", "esquemas/personas.json", "--entrada", "-", "--formato", "csv",
+               "--transformacion", "renombrar:correo=email",
+               "--transformacion", "renombrar:ciudad_origen=ciudad",
+               "--transformacion", "trim",
+               "--transformacion", "mayusculas:ciudad",
+               "--agrupar", "ciudad", "--agregar", "cuenta", "--agregar", "suma:importe",
+               "--informe", "-"],
+      "stdin": "id,nombre,edad,correo,ciudad_origen,importe\n20, Rita ,33,rita@example.com,Madrid,100\n21,Sam,28,sam@example.com,Madrid,50.5\n22,Tina,19,tina@example.com,Oviedo,25\n",
+      "exit": 0,
+      "stdout_re": ["\"filas_leidas\"\\s*:\\s*3", "\"filas_invalidas\"\\s*:\\s*0",
+                    "\"filas_validas\"\\s*:\\s*3", "\"MADRID\"", "\"OVIEDO\"",
+                    "\"suma_importe\"\\s*:\\s*\"?150[.]5"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "entrada-toda-invalida-no-aborta", "tipo": "python", "capa": "robustez",
+      "peso": 1.5, "entry": "etl.py", "timeout": 180,
+      "args": ["run", "--esquema", "esquemas/personas.json", "--entrada", "-", "--formato", "csv",
+               "--informe", "-"],
+      "stdin": "id,nombre,edad,email,ciudad,importe\na,,999,nada,Madrid,x\nb,,-1,tampoco,Leon,y\n,Zoe,,,,\n",
+      "exit": 0,
+      "stdout_re": ["\"filas_leidas\"\\s*:\\s*3", "\"filas_validas\"\\s*:\\s*0",
+                    "\"filas_invalidas\"\\s*:\\s*3", "\"motivo\""],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "esquema-inexistente-sale-con-2", "tipo": "python", "capa": "robustez",
+      "peso": 1.5, "entry": "etl.py", "timeout": 120,
+      "args": ["run", "--esquema", "esquemas/no_existe.json", "--entrada", "-",
+               "--formato", "csv", "--informe", "-"],
+      "stdin": "id,nombre,edad,email,ciudad,importe\n1,Ana,34,ana@example.com,Madrid,120.50\n",
+      "exit": 2,
+      "stdout_re": ["esquema"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "tuberia-idempotente-en-dos-pasadas", "tipo": "dos_pasadas", "capa": "regresion",
+      "prueba": {
+        "tipo": "python", "entry": "etl.py", "timeout": 180,
+        "args": ["run", "--esquema", "esquemas/personas.json", "--entrada", "-", "--formato", "csv",
+                 "--transformacion", "trim", "--dedup", "id",
+                 "--agrupar", "ciudad", "--agregar", "cuenta", "--agregar", "suma:importe",
+                 "--agregar", "media:importe",
+                 "--salida-csv", "salida/personas.csv", "--salida-json", "salida/personas.json",
+                 "--informe", "-"],
+        "stdin": "id,nombre,edad,email,ciudad,importe\n1,  Ana  ,34,ana@example.com,Madrid,120.50\n2,Luis,-3,luis@example.com,Sevilla,80\n3,Marta,29,martaexample.com,Madrid,45.25\n4,Ana,34,ana2@example.com,Madrid,120.50\n1,Otro,50,otro@example.com,Bilbao,10\n5,Nuria,41,nuria@example.com,,200\n6,,22,sinnombre@example.com,Madrid,15\n7,Pau,28,pau@example.com,Sevilla,60.75\n",
+        "exit": 0,
+        "stdout_re": ["\"filas_leidas\"\\s*:\\s*8", "\"filas_validas\"\\s*:\\s*4",
+                      "\"duplicados_descartados\"\\s*:\\s*1", "\"suma_importe\"\\s*:\\s*\"?241"],
+        "no_stdout_re": ["Traceback"]
+      }
+    },
+    {
+      "nombre": "bateria-pytest-del-agente", "tipo": "pytest", "capa": "funcionalidad",
+      "ruta": ".", "min_tests": 8, "timeout": 300
+    }
+  ]
+}

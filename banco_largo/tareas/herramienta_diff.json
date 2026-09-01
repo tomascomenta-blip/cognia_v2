@@ -1,0 +1,135 @@
+{
+  "id": "herramienta-diff",
+  "familia": "herramienta",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 1100,
+  "prompt": "Construye una HERRAMIENTA DE DIFERENCIAS Y FUSION con nucleo propio, entregada con DOS interfaces sobre el mismo nucleo: una CLI en Python y una pagina web. Solo biblioteca estandar de Python y JavaScript del navegador: prohibido difflib, prohibido pip install, prohibido npm install, prohibido cualquier CDN y cualquier peticion de red. Entrega todo en la RAIZ del directorio de trabajo actual.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Implementacion PROPIA de la subsecuencia comun mas larga (LCS) sobre listas de lineas: nada de difflib ni de librerias. Tiene que recortar el prefijo y el sufijo comunes antes de la programacion dinamica y no reservar memoria proporcional al producto de los dos ficheros completos, para aguantar ficheros de miles de lineas sin agotar la memoria.\n2. Diff de lineas derivado del LCS: para cada linea, si es igual, anadida o borrada, conservando los numeros de linea de cada lado.\n3. Salida en FORMATO UNIFICADO de verdad: cabeceras con --- y +++, trozos con @@ -inicio,cuenta +inicio,cuenta @@ y lineas prefijadas por espacio, mas o menos, con numero de lineas de contexto configurable (por defecto 3) y agrupacion de cambios cercanos en un solo trozo.\n4. Aplicacion de parches: a partir de un texto y de un parche unificado hay que reconstruir el texto destino EXACTAMENTE, o fallar limpiamente si el parche no encaja.\n5. Fusion a tres bandas (base, mia, tuya): aplica los cambios de los dos lados cuando tocan regiones distintas y marca conflicto cuando tocan la misma region, escribiendo marcadores del estilo <<<<<<< MIA, ======= y >>>>>>> TUYA.\n6. Finales de linea: la herramienta entiende LF, CRLF y CR sueltos. Modo normalizado por defecto (dos ficheros que solo se diferencian en el fin de linea son IGUALES) y modo estricto donde si se diferencian.\n7. Casos limite tratados a proposito: ficheros vacios, ficheros identicos, ficheros sin salto de linea final y ficheros donde uno de los dos esta vacio.\n8. CLI en Python con subcomandos y codigos de salida bien definidos, que nunca imprime un traceback ante una entrada mala.\n9. Modo lote para automatizar sin ficheros temporales: lee un trabajo en JSON por la entrada estandar y escribe el resultado en JSON por la salida estandar.\n10. Pagina web que muestra el diff en DOS COLUMNAS alineadas y resaltadas (igual, anadida, borrada), con dos areas de texto, boton de comparar y un resumen con los contadores. La pagina usa el MISMO nucleo portado a JavaScript, sin duplicar la logica en la interfaz.\n11. Ficheros de ejemplo en el directorio ejemplos/ para poder probar la herramienta al momento.\n12. README.md corto explicando el algoritmo, los subcomandos y los codigos de salida.\n\nCONTRATO TECNICO OBLIGATORIO (es la interfaz publica del producto y el evaluador automatico depende de ella; respetala exactamente):\n- NUCLEO PYTHON en diff_nucleo.py (en la raiz), SIN entrada ni salida, con estas funciones. Donde pone TEXTO se pasa el contenido entero del fichero en UNA SOLA CADENA; donde pone LISTA se pasa una lista de lineas ya normalizadas:\n    normalizar(TEXTO) -> lista de lineas sin los caracteres de fin de linea; el texto vacio da la lista vacia\n    lcs(LISTA_a, LISTA_b) -> lista con la subsecuencia comun mas larga de dos listas de lineas\n    diff_lineas(LISTA_a, LISTA_b) -> lista de tuplas (op, linea) donde op es igual, mas o menos\n    unificado(TEXTO_a, TEXTO_b, nombre_a, nombre_b, contexto=3) -> texto del diff en formato unificado\n    aplicar_parche(TEXTO, parche) -> el texto destino EXACTO, sin anadir ni quitar el salto de linea final\n    fusionar_tres(TEXTO_base, TEXTO_mia, TEXTO_tuya) -> (texto_fusionado, numero_de_conflictos)\n    estadisticas(TEXTO_a, TEXTO_b) -> dict con las claves anadidas, borradas, iguales y lcs, las cuatro NUMEROS enteros (lcs es la LONGITUD de la subsecuencia comun mas larga, no la lista), mas identicos, que es un BOOLEANO\n- CLI en diff_cli.py (en la raiz), que importa diff_nucleo y no reimplementa nada:\n    python diff_cli.py diff A B [--contexto N] [--fin-de-linea normalizado|estricto]\n        imprime el diff unificado; si no hay diferencias imprime exactamente sin diferencias\n    python diff_cli.py fusionar BASE MIA TUYA --salida FICHERO\n        si no hay conflictos imprime FUSION LIMPIA: N cambios; si los hay imprime CONFLICTOS: N y escribe el fichero con los marcadores\n    python diff_cli.py aplicar A PARCHE --salida FICHERO\n    python diff_cli.py lote\n        lee de la entrada estandar un JSON {operacion, a, b, ...} donde a y b son TEXTOS completos y operacion es estadisticas, unificado o fusionar, y escribe el resultado como JSON en una linea por la salida estandar. Para estadisticas el JSON de salida lleva las claves operacion, anadidas, borradas, iguales, lcs e identicos.\n    CODIGOS DE SALIDA: 0 sin diferencias o fusion limpia; 1 hay diferencias; 2 hay conflictos; 3 el parche no aplica; 4 error de uso o fichero inexistente, con un mensaje claro y SIN traceback. El subcomando lote es la EXCEPCION: sale con 0 siempre que la entrada sea un JSON valido, aunque haya diferencias, y con 4 si no lo es.\n- NUCLEO JAVASCRIPT en diff_nucleo.js (en la raiz), con LOS MISMOS TIPOS que el nucleo Python y todo SINCRONO, que expone el objeto global window.DIFF con: normalizar(TEXTO) -> array de lineas (el texto vacio da un array vacio), lcs(ARRAY_a, ARRAY_b) -> array, diffLineas(ARRAY_a, ARRAY_b) -> array de {op, linea}, unificado(TEXTO_a, TEXTO_b, nombreA, nombreB, contexto) -> texto del diff unificado, aplicarParche(TEXTO, parche) -> el texto destino EXACTO, estadisticas(TEXTO_a, TEXTO_b) -> {anadidas, borradas, iguales, lcs, identicos} con los mismos tipos que en Python, y comparar(TEXTO_a, TEXTO_b) que pinta el resultado en las dos columnas y devuelve el mismo objeto de estadisticas.\n- PAGINA index.html (en la raiz): textarea id a, textarea id b, boton id comparar, columnas id col-izq y id col-der, resumen id resumen. Cada linea pintada es un elemento con atributo data-linea y con la clase igual, anadida o borrada. Sin errores en la consola del navegador.\n- FICHEROS DE EJEMPLO, todos en ejemplos/ y con estos nombres exactos: original.txt (12 lineas o mas) y modificado.txt (parte de original.txt con al menos 3 lineas cambiadas, 1 anadida y 1 borrada); base.txt (10 lineas o mas), mia.txt (cambia solo las tres primeras lineas de base.txt) y tuya.txt (cambia solo las tres ultimas), de forma que la fusion sea LIMPIA con al menos 2 cambios; conflicto_mia.txt y conflicto_tuya.txt, que parten de base.txt y cambian la MISMA linea de forma distinta; lf.txt y crlf.txt con el mismo contenido logico de 8 lineas o mas pero uno con finales LF y el otro con finales CRLF de verdad; grande_a.txt y grande_b.txt de 2000 lineas o mas cada uno, iguales salvo 20 lineas cambiadas y 5 insertadas.\n\nNo entregues un esqueleto ni una demo: cada sistema de la lista tiene que estar implementado. Antes de decir que has terminado, PRUEBA lo que hiciste: corre la CLI contra los ficheros de ejemplo, comprueba los codigos de salida uno por uno, comprueba que aplicar el parche que generas reconstruye el fichero destino byte a byte, prueba la fusion limpia y la conflictiva, mide que los ficheros grandes no tardan una eternidad ni se quedan sin memoria, abre la pagina web y mira la consola, y CORRIGE todos los fallos que encuentres.",
+  "criterios_exito": [
+    "diff_nucleo.py implementa el LCS a mano, sin difflib, y lo usan las dos interfaces",
+    "la CLI imprime un diff unificado correcto y devuelve 1 cuando hay diferencias y 0 cuando no",
+    "el modo lote lee JSON por stdin y devuelve contadores exactos por stdout",
+    "la fusion a tres bandas resuelve lo que no choca y devuelve 2 con marcadores cuando choca",
+    "aplicar el parche generado reconstruye el fichero destino exactamente",
+    "dos ficheros que solo se diferencian en el fin de linea salen como iguales en modo normalizado",
+    "la pagina web pinta el diff en dos columnas con las clases del contrato y sin errores de consola",
+    "los ficheros de 2000 lineas se procesan sin traceback ni agotar memoria"
+  ],
+  "criterios_fallo": [
+    "usa difflib o cualquier libreria externa para el algoritmo",
+    "la salida no es formato unificado (faltan las cabeceras o los trozos @@)",
+    "los codigos de salida no distinguen sin diferencias, con diferencias y con conflictos",
+    "aplicar el parche no reconstruye el destino",
+    "la fusion inventa contenido o no detecta el conflicto",
+    "la pagina web reimplementa el diff por su cuenta o no pinta las dos columnas",
+    "traceback, MemoryError o cuelgue con los ficheros grandes"
+  ],
+  "artefactos": [
+    {"glob": "diff_nucleo.py", "obligatorio": true, "min_bytes": 3000},
+    {"glob": "diff_cli.py", "obligatorio": true, "min_bytes": 2000},
+    {"glob": "diff_nucleo.js", "obligatorio": true, "min_bytes": 3000},
+    {"glob": "index.html", "obligatorio": true, "min_bytes": 500},
+    {"glob": "ejemplos/*.txt", "obligatorio": true, "min_bytes": 20},
+    {"glob": "README.md", "obligatorio": false, "min_bytes": 200}
+  ],
+  "pruebas": [
+    {
+      "nombre": "nucleo-python-propio", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/diff_nucleo.py", "min_bytes": 3000, "min_lineas": 120,
+      "contiene": ["def\\s+normalizar", "def\\s+lcs", "def\\s+diff_lineas", "def\\s+unificado", "def\\s+aplicar_parche", "def\\s+fusionar_tres", "def\\s+estadisticas"],
+      "no_contiene": ["import\\s+difflib", "from\\s+difflib", "TODO: implementar", "not implemented", "sin implementar todavia"]
+    },
+    {
+      "nombre": "cli-sobre-el-mismo-nucleo", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/diff_cli.py", "min_bytes": 2000, "min_lineas": 80,
+      "contiene": ["diff_nucleo", "fusionar", "aplicar", "lote"],
+      "no_contiene": ["import\\s+difflib", "from\\s+difflib", "TODO: implementar", "not implemented"]
+    },
+    {
+      "nombre": "la-cli-produce-diff-unificado", "tipo": "python", "capa": "funcionalidad", "peso": 2.0,
+      "entregable": true, "entry": "diff_cli.py",
+      "args": ["diff", "ejemplos/original.txt", "ejemplos/modificado.txt"],
+      "exit": 1, "timeout": 60,
+      "stdout_re": ["--- ", "\\+\\+\\+ ", "@@ -\\d+,?\\d* \\+\\d+,?\\d* @@"],
+      "no_stdout_re": ["Traceback", "sin diferencias"]
+    },
+    {
+      "nombre": "modo-lote-cuenta-bien", "tipo": "python", "capa": "funcionalidad", "peso": 2.0,
+      "entry": "diff_cli.py", "args": ["lote"], "exit": 0, "timeout": 60,
+      "stdin": "{\"operacion\": \"estadisticas\", \"a\": \"uno\\ndos\\ntres\\n\", \"b\": \"uno\\ndos bis\\ntres\\ncuatro\\n\"}",
+      "stdout_re": ["anadidas[^0-9]{0,4}2[^0-9]", "borradas[^0-9]{0,4}1[^0-9]", "iguales[^0-9]{0,4}2[^0-9]", "lcs[^0-9]{0,4}2[^0-9]", "identicos[^a-z0-9]{0,4}false"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "fusion-a-tres-bandas-limpia", "tipo": "python", "capa": "funcionalidad", "peso": 2.0,
+      "entry": "diff_cli.py",
+      "args": ["fusionar", "ejemplos/base.txt", "ejemplos/mia.txt", "ejemplos/tuya.txt", "--salida", "fusion_prueba.txt"],
+      "exit": 0, "timeout": 60,
+      "stdout_re": ["fusion limpia", "cambios"],
+      "no_stdout_re": ["Traceback", "<<<<<<<"]
+    },
+    {
+      "nombre": "la-pagina-compara-en-dos-columnas", "tipo": "web", "capa": "funcionalidad", "peso": 2.0,
+      "entregable": true, "pagina": "index.html", "espera_ms": 1200, "max_errores_consola": 0,
+      "acciones": [
+        {"tipo": "escribir", "sel": "#a", "texto": "uno\ndos\ntres"},
+        {"tipo": "escribir", "sel": "#b", "texto": "uno\ndos bis\ntres\ncuatro"},
+        {"tipo": "click", "sel": "#comparar"},
+        {"tipo": "esperar", "ms": 700}
+      ],
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "nucleo_expuesto", "codigo": "() => { const d = window.DIFF; if (!d) return false; return ['normalizar','lcs','diffLineas','unificado','aplicarParche','estadisticas','comparar'].every(m => typeof d[m] === 'function'); }"},
+        {"tipo": "selector", "sel": "#col-izq [data-linea]", "min": 3},
+        {"tipo": "selector", "sel": "#col-der [data-linea]", "min": 4},
+        {"tipo": "selector", "sel": ".anadida", "min": 1},
+        {"tipo": "selector", "sel": ".borrada", "min": 1},
+        {"tipo": "js", "nombre": "estadisticas_exactas", "codigo": "() => { const e = window.DIFF.estadisticas('uno\\ndos\\ntres', 'uno\\ndos bis\\ntres\\ncuatro'); return !!e && e.anadidas === 2 && e.borradas === 1 && e.iguales === 2 && e.identicos === false; }"},
+        {"tipo": "js", "nombre": "el_resumen_se_pinta", "codigo": "() => { const r = document.querySelector('#resumen'); return !!r && (r.textContent || '').trim().length > 0; }"}
+      ]
+    },
+    {
+      "nombre": "parche-lcs-y-casos-limite", "tipo": "web", "capa": "integridad", "peso": 1.5,
+      "pagina": "index.html", "espera_ms": 1200, "max_errores_consola": 0,
+      "afirmaciones": [
+        {"tipo": "js", "nombre": "lcs_correcto", "codigo": "() => { const r = window.DIFF.lcs(['a','b','c','d'], ['b','x','d']); return Array.isArray(r) && r.join('|') === 'b|d'; }"},
+        {"tipo": "js", "nombre": "normaliza_finales_de_linea", "codigo": "() => { const a = window.DIFF.normalizar('uno\\r\\ndos\\r\\ntres'); const b = window.DIFF.normalizar('uno\\ndos\\ntres'); return a.join('|') === 'uno|dos|tres' && a.join('|') === b.join('|') && window.DIFF.normalizar('').length === 0; }"},
+        {"tipo": "js", "nombre": "ficheros_vacios_e_identicos", "codigo": "() => { const v = window.DIFF.estadisticas('', ''); const u = window.DIFF.estadisticas('', 'a\\nb'); const i = window.DIFF.estadisticas('uno\\ndos', 'uno\\ndos'); return v.identicos === true && i.identicos === true && u.anadidas === 2 && u.borradas === 0 && u.identicos === false; }"},
+        {"tipo": "js", "nombre": "el_parche_reconstruye_el_destino", "codigo": "() => { const a = ['alfa','beta','gamma','delta','epsilon','zeta']; const b = a.slice(); b[1] = 'BETA CAMBIADA'; b.splice(4, 0, 'NUEVA'); b.splice(0, 0, 'CABECERA'); const ta = a.join('\\n'); const tb = b.join('\\n'); const p = window.DIFF.unificado(ta, tb, 'a', 'b', 3); if (typeof p !== 'string' || p.indexOf('@@') < 0) return false; return window.DIFF.aplicarParche(ta, p) === tb; }"},
+        {"tipo": "js", "nombre": "aguanta-mil-doscientas-lineas", "codigo": "() => { const a = []; for (let i = 0; i < 1200; i++) a.push('linea ' + i); const b = a.slice(); for (const i of [10, 300, 700, 1100]) b[i] = 'CAMBIADA ' + i; b.splice(500, 0, 'INSERTADA'); const ta = a.join('\\n'); const tb = b.join('\\n'); const e = window.DIFF.estadisticas(ta, tb); if (!(e.anadidas === 5 && e.borradas === 4 && e.identicos === false)) return false; const p = window.DIFF.unificado(ta, tb, 'a', 'b', 3); return window.DIFF.aplicarParche(ta, p) === tb; }"}
+      ]
+    },
+    {
+      "nombre": "finales-de-linea-distintos-son-iguales", "tipo": "python", "capa": "robustez", "peso": 1.5,
+      "entry": "diff_cli.py", "args": ["diff", "ejemplos/crlf.txt", "ejemplos/lf.txt"],
+      "exit": 0, "timeout": 60,
+      "stdout_re": ["sin diferencias"],
+      "no_stdout_re": ["Traceback", "@@"]
+    },
+    {
+      "nombre": "la-fusion-detecta-el-conflicto", "tipo": "python", "capa": "robustez", "peso": 1.5,
+      "entry": "diff_cli.py",
+      "args": ["fusionar", "ejemplos/base.txt", "ejemplos/conflicto_mia.txt", "ejemplos/conflicto_tuya.txt", "--salida", "conflicto_prueba.txt"],
+      "exit": 2, "timeout": 60,
+      "stdout_re": ["conflictos"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "ficheros-grandes-sin-reventar", "tipo": "python", "capa": "robustez", "peso": 1.5,
+      "entry": "diff_cli.py", "args": ["diff", "ejemplos/grande_a.txt", "ejemplos/grande_b.txt"],
+      "exit": 1, "timeout": 150,
+      "stdout_re": ["@@"],
+      "no_stdout_re": ["Traceback", "MemoryError", "RecursionError"]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas", "tipo": "dos_pasadas", "capa": "regresion",
+      "prueba": {
+        "tipo": "python", "entry": "diff_cli.py",
+        "args": ["diff", "ejemplos/original.txt", "ejemplos/modificado.txt"],
+        "exit": 1, "timeout": 60,
+        "stdout_re": ["@@"],
+        "no_stdout_re": ["Traceback"]
+      }
+    }
+  ]
+}

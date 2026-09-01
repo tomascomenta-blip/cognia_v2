@@ -1,0 +1,252 @@
+{
+  "id": "plataformas-fisicas",
+  "familia": "juego-canvas",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 1100,
+  "prompt": "Construye un juego de plataformas 2D completo y jugable en HTML + JavaScript puro, pintado sobre un unico <canvas>, con su propio motor de fisica escrito a mano. Sin librerias externas, sin motores de fisica, sin CDN, sin npm install ni pip install, sin ninguna peticion de red: todo tiene que funcionar abriendo index.html servido desde el propio directorio. Entregalo en el directorio de trabajo actual con index.html como punto de entrada y el codigo en uno o varios ficheros .js propios.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Fisica propia con paso fijo: gravedad constante, velocidad terminal, aceleracion horizontal y friccion en el suelo (y menos control en el aire). La simulacion avanza en subpasos fijos para que sea determinista.\n2. Salto VARIABLE: soltar la tecla de salto antes de tiempo corta el impulso y el salto sale mas bajo; mantenerla da el salto completo.\n3. Coyote time: el jugador todavia puede saltar durante unos milisegundos despues de dejar de tocar el suelo, y un salto pulsado poco antes de aterrizar se ejecuta al tocar tierra (jump buffer).\n4. Colisiones AABB contra un tilemap: el jugador nunca atraviesa un tile solido, se detiene al chocar de lado, aterriza encima con la velocidad vertical a cero y se golpea la cabeza contra el techo. Resolucion por ejes separados.\n5. Al menos 3 niveles definidos como DATOS (no como codigo suelto): rejilla de tiles, punto de aparicion, meta, enemigos, recogibles y checkpoints. Se cargan por indice.\n6. Enemigos con patrulla: cada enemigo recorre un tramo, invierte su direccion al llegar al borde o a un muro (como mucho cada 8 segundos de simulacion) y hace dano al jugador al tocarlo.\n7. Recogibles repartidos por el nivel que quedan marcados como tomados al pasar por encima y suman al marcador.\n8. Checkpoints: al tocar uno queda activo, y al morir o reiniciar el jugador reaparece en el ultimo checkpoint activo, no al principio.\n9. Cronometro por nivel que avanza con la simulacion, se muestra en pantalla y se reinicia al cargar otro nivel; se guarda el mejor tiempo por nivel en localStorage.\n10. Editor de niveles integrado: se abre con una tecla, permite pintar y borrar tiles con el raton, colocar el spawn, la meta, enemigos y recogibles, y EXPORTA el nivel a JSON e IMPORTA un JSON de nivel, sustituyendo el nivel en curso. Un JSON invalido no debe romper el juego.\n11. Interfaz: vidas, recogibles, cronometro, nivel actual y controles visibles; pausa y reinicio.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo exactamente):\n- El punto de entrada es index.html; el juego arranca solo al cargar la pagina, pinta en un unico <canvas> con requestAnimationFrame y no deja NINGUN error en la consola.\n- El eje Y crece HACIA ABAJO (saltar hace disminuir y). Las coordenadas del jugador, los enemigos y los recogibles son PIXELES del mundo.\n- window.PLAT.jugador.x, y son la esquina SUPERIOR IZQUIERDA de su caja AABB (de ancho x alto pixeles): ese pixel nunca puede quedar dentro de un tile solido.\n- Los tiles de un nivel son un array de cadenas, una por fila, donde '#' es tile solido y '.' o el espacio es aire. Un nivel mide al menos 40 x 15 tiles.\n- Los recogibles NO se borran del array al tomarse: se les pone la marca tomado a true.\n- Cada nivel trae al menos 1 enemigo, al menos 2 recogibles y al menos 1 checkpoint.\n- Expon un objeto global window.PLAT, siempre actualizado, con AL MENOS esto:\n    window.PLAT.TILE       -> tamano del tile en pixeles\n    window.PLAT.GRAVEDAD, window.PLAT.FRICCION, window.PLAT.FUERZA_SALTO -> numeros de la fisica\n    window.PLAT.COYOTE_MS  -> milisegundos de coyote time (mayor que 0)\n    window.PLAT.niveles    -> array de datos de nivel (3 o mas), cada uno {nombre, tiles: [cadenas], spawn:{x,y}, meta:{x,y}, enemigos:[], recogibles:[], checkpoints:[]}\n    window.PLAT.nivelActual-> indice del nivel cargado\n    window.PLAT.jugador    -> {x, y, vx, vy, ancho, alto, enSuelo, vidas}\n    window.PLAT.enemigos   -> array de {x, y, vx, vivo} del nivel cargado\n    window.PLAT.recogibles -> array de {x, y, tomado} del nivel cargado\n    window.PLAT.checkpoints-> array de {x, y} del nivel cargado\n    window.PLAT.checkpointActivo -> {x, y} o null\n    window.PLAT.tiempo     -> milisegundos de cronometro del nivel en curso\n    window.PLAT.cargarNivel(indice) -> true/false (false si el indice no existe). Reinicia SIEMPRE, aunque sea el mismo indice: el cronometro a 0, el acumulador de subpasos y el estado del nivel, de modo que la misma secuencia de tick() tras cargarNivel da siempre el mismo resultado\n    window.PLAT.tick(ms)   -> avanza la simulacion ese numero de milisegundos en subpasos fijos (para pruebas deterministas)\n    window.PLAT.pulsar(accion, abajo) -> fija el estado de entrada; acciones exactas: 'izquierda', 'derecha', 'saltar'\n    window.PLAT.solido(x, y) -> true si el PIXEL (x, y) del mundo cae en un tile solido\n    window.PLAT.reiniciar() -> devuelve al jugador al ultimo checkpoint activo (o al spawn) y reinicia el cronometro\n    window.PLAT.editor.abrir(), window.PLAT.editor.cerrar()\n    window.PLAT.editor.ponerTile(tx, ty, caracter) -> true/false; escribe un tile en coordenadas de REJILLA\n    window.PLAT.editor.exportar() -> cadena JSON con el nivel en curso\n    window.PLAT.editor.importar(cadena) -> true si el JSON es un nivel valido y lo carga; FALSE, sin romper el juego, si no lo es\n- Escribe tambien un README.md corto con los controles, como se ejecuta y como se usa el editor.\n\nNo entregues un esqueleto ni una demo visual: cada sistema de la lista debe estar implementado. Antes de dar la tarea por terminada, ABRE el juego, juegate los tres niveles, prueba el editor exportando e importando, llama a cada metodo del contrato desde la consola comprobando que devuelve lo que promete, y CORRIGE todo lo que falle.",
+  "criterios_exito": [
+    "index.html abre sin errores de consola y el canvas pinta el nivel",
+    "el jugador cae por gravedad, aterriza sobre los tiles y no los atraviesa",
+    "el salto es variable: soltar antes da un salto mas bajo que mantener la tecla",
+    "el coyote time permite saltar justo despues de dejar el suelo",
+    "hay 3 o mas niveles cargables desde datos, todos con tiles, spawn y meta",
+    "los enemigos patrullan e invierten su direccion",
+    "los recogibles se marcan como tomados y los checkpoints cambian el punto de reaparicion",
+    "el editor exporta un nivel a JSON y lo vuelve a importar sin perder los tiles"
+  ],
+  "criterios_fallo": [
+    "el jugador atraviesa el suelo o se queda flotando sin gravedad",
+    "el salto tiene siempre la misma altura (no es variable)",
+    "cargarNivel devuelve true para indices que no existen",
+    "los enemigos no se mueven o nunca cambian de direccion",
+    "importar un JSON invalido devuelve true o rompe el juego",
+    "exportar e importar el mismo nivel cambia los tiles",
+    "errores de JavaScript en consola al cargar o al jugar"
+  ],
+  "artefactos": [
+    {
+      "glob": "index.html",
+      "obligatorio": true,
+      "min_bytes": 500
+    },
+    {
+      "glob": "**/*.js",
+      "obligatorio": true,
+      "min_bytes": 1200
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "artefactos-presentes",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "index.html",
+      "min_bytes": 500,
+      "contiene": [
+        "canvas"
+      ]
+    },
+    {
+      "nombre": "codigo-con-sustancia-y-contrato-nombrado",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "min_bytes": 1200,
+      "min_lineas": 450,
+      "contiene": [
+        "COYOTE_MS",
+        "GRAVEDAD",
+        "checkpoint",
+        "recogibles",
+        "editor",
+        "requestAnimationFrame",
+        "localStorage"
+      ],
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "sin implementar"
+      ]
+    },
+    {
+      "nombre": "arranca-pinta-y-expone-el-contrato",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "pagina": "index.html",
+      "espera_ms": 1500,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "canvas",
+          "min": 1
+        },
+        {
+          "tipo": "canvas",
+          "min_colores": 4
+        },
+        {
+          "tipo": "js",
+          "nombre": "api_completa",
+          "codigo": "() => { const a = window.PLAT; if (!a) return false; for (const m of ['cargarNivel','tick','pulsar','solido','reiniciar']) if (typeof a[m] !== 'function') return false; if (!a.editor) return false; for (const m of ['abrir','cerrar','ponerTile','exportar','importar']) if (typeof a.editor[m] !== 'function') return false; for (const k of ['TILE','GRAVEDAD','FRICCION','FUERZA_SALTO','COYOTE_MS','tiempo','nivelActual']) if (typeof a[k] !== 'number') return false; return a.COYOTE_MS > 0 && a.TILE > 0 && !!a.jugador && Array.isArray(a.niveles) && Array.isArray(a.enemigos) && Array.isArray(a.recogibles) && Array.isArray(a.checkpoints); }"
+        }
+      ]
+    },
+    {
+      "nombre": "gravedad-aterrizaje-y-colision-aabb",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "cae_y_aterriza_sin_hundirse",
+          "codigo": "() => { const a = window.PLAT; if (a.cargarNivel(0) !== true) return false; const y0 = a.jugador.y; for (let i = 0; i < 400; i++) a.tick(16); const y1 = a.jugador.y; for (let i = 0; i < 120; i++) a.tick(16); const quieto = Math.abs(a.jugador.y - y1) < 1.5; const dentro = a.solido(a.jugador.x, a.jugador.y); return a.jugador.enSuelo === true && quieto && dentro === false && Math.abs(a.jugador.vy) < 1 && a.jugador.y >= y0 - 1; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_muro_para_al_jugador",
+          "codigo": "() => { const a = window.PLAT; a.cargarNivel(0); for (let i = 0; i < 400; i++) a.tick(16); a.pulsar('derecha', true); const x0 = a.jugador.x; let choco = false, avanzo = 0; for (let i = 0; i < 600; i++) { a.tick(16); if (a.solido(a.jugador.x, a.jugador.y)) { choco = true; break; } const d = Math.abs(a.jugador.x - x0); if (d > avanzo) avanzo = d; } a.pulsar('derecha', false); return choco === false && avanzo > 1; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_cronometro_avanza",
+          "codigo": "() => { const a = window.PLAT; a.cargarNivel(0); const t0 = a.tiempo; for (let i = 0; i < 60; i++) a.tick(16); const t1 = a.tiempo; a.cargarNivel(0); return t1 > t0 && a.tiempo < t1; }"
+        }
+      ]
+    },
+    {
+      "nombre": "salto-variable-y-coyote-time",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "salto_corto_menor_que_largo",
+          "codigo": "() => { const a = window.PLAT; a.cargarNivel(0); for (let i = 0; i < 400; i++) a.tick(16); if (!a.jugador.enSuelo) return false; const y0 = a.jugador.y; a.pulsar('saltar', true); a.tick(16); a.tick(16); a.pulsar('saltar', false); let corto = a.jugador.y; for (let i = 0; i < 90; i++) { a.tick(16); corto = Math.min(corto, a.jugador.y); } for (let i = 0; i < 200; i++) a.tick(16); if (!a.jugador.enSuelo) return false; const y1 = a.jugador.y; a.pulsar('saltar', true); let largo = a.jugador.y; for (let i = 0; i < 30; i++) { a.tick(16); largo = Math.min(largo, a.jugador.y); } a.pulsar('saltar', false); for (let i = 0; i < 60; i++) { a.tick(16); largo = Math.min(largo, a.jugador.y); } for (let i = 0; i < 200; i++) a.tick(16); const hCorto = y0 - corto, hLargo = y1 - largo; return hCorto > 4 && hLargo > hCorto * 1.2; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "coyote_deja_saltar_en_el_aire",
+          "codigo": "() => { const a = window.PLAT; a.cargarNivel(0); for (let i = 0; i < 400; i++) a.tick(16); if (!a.jugador.enSuelo) return false; a.jugador.enSuelo = false; a.jugador.y -= 6; a.jugador.vy = 0; a.pulsar('saltar', true); a.tick(16); const salto = a.jugador.vy < -0.5; a.pulsar('saltar', false); for (let i = 0; i < 200; i++) a.tick(16); return salto; }"
+        }
+      ]
+    },
+    {
+      "nombre": "niveles-enemigos-recogibles-y-checkpoints",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "tres_niveles_cargables",
+          "codigo": "() => { const a = window.PLAT; if ((a.niveles || []).length < 3) return false; for (let i = 0; i < a.niveles.length; i++) { if (a.cargarNivel(i) !== true) return false; const n = a.niveles[i]; if (!Array.isArray(n.tiles) || n.tiles.length < 15) return false; if (n.tiles[0].length < 40) return false; if (!n.spawn || !n.meta) return false; if (n.tiles.join('').indexOf('#') < 0) return false; } return a.cargarNivel(0) === true; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "los_enemigos_patrullan_y_giran",
+          "codigo": "() => { const a = window.PLAT; a.cargarNivel(0); if (!a.enemigos.length) return false; const x0 = a.enemigos.map(e => e.x); const signos = a.enemigos.map(() => ({})); let movio = false; for (let i = 0; i < 600; i++) { a.tick(16); a.enemigos.forEach((e, k) => { if (k >= x0.length) return; if (Math.abs(e.x - x0[k]) > 2) movio = true; const s = Math.sign(e.vx); if (s !== 0) signos[k][s] = true; }); } const giro = signos.some(s => s['1'] && s['-1']); return movio === true && giro === true; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "los_recogibles_se_marcan",
+          "codigo": "() => { const a = window.PLAT; a.cargarNivel(0); const r = a.recogibles[0]; if (!r) return false; if (r.tomado === true) return false; a.jugador.x = r.x; a.jugador.y = r.y; a.jugador.vx = 0; a.jugador.vy = 0; for (let i = 0; i < 4; i++) a.tick(16); return a.recogibles[0].tomado === true; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_checkpoint_cambia_la_reaparicion",
+          "codigo": "() => { const a = window.PLAT; a.cargarNivel(0); const c = a.checkpoints[0]; if (!c) return false; a.jugador.x = c.x; a.jugador.y = c.y; a.jugador.vx = 0; a.jugador.vy = 0; for (let i = 0; i < 4; i++) a.tick(16); const act = a.checkpointActivo; if (!act) return false; a.jugador.x = act.x + 500; a.jugador.y = act.y + 500; a.reiniciar(); return Math.abs(a.jugador.x - act.x) < 32 && Math.abs(a.jugador.y - act.y) < 64; }"
+        }
+      ]
+    },
+    {
+      "nombre": "entradas-invalidas-no-rompen-el-juego",
+      "tipo": "web",
+      "capa": "robustez",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "importar_basura_devuelve_false",
+          "codigo": "() => { const a = window.PLAT; a.cargarNivel(0); return a.editor.importar('{esto no es json') === false && a.editor.importar('null') === false && a.editor.importar('[]') === false && a.editor.importar(JSON.stringify({nombre: 'vacio'})) === false; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "indices_fuera_de_rango",
+          "codigo": "() => { const a = window.PLAT; return a.cargarNivel(999) === false && a.cargarNivel(-1) === false && a.editor.ponerTile(-5, -5, '#') === false && a.editor.ponerTile(99999, 99999, '#') === false; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "sigue_simulando_despues",
+          "codigo": "() => { const a = window.PLAT; if (a.cargarNivel(0) !== true) return false; a.tick(0); for (let i = 0; i < 120; i++) a.tick(16); const j = a.jugador; return isFinite(j.x) && isFinite(j.y) && isFinite(j.vx) && isFinite(j.vy) && !a.solido(j.x, j.y); }"
+        }
+      ]
+    },
+    {
+      "nombre": "editor-exporta-e-importa-sin-perder-nada",
+      "tipo": "web",
+      "capa": "integridad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "ponerTile_cambia_el_mundo",
+          "codigo": "() => { const a = window.PLAT; a.cargarNivel(0); a.editor.abrir(); if (a.editor.ponerTile(5, 5, '.') !== true) return false; const vacio = a.editor.exportar(); const libre = a.solido(5 * a.TILE + 2, 5 * a.TILE + 2) === false; if (a.editor.ponerTile(5, 5, '#') !== true) return false; const lleno = a.editor.exportar(); const macizo = a.solido(5 * a.TILE + 2, 5 * a.TILE + 2) === true; a.editor.cerrar(); return libre && macizo && typeof vacio === 'string' && vacio.length > 100 && vacio !== lleno; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "ida_y_vuelta_conserva_los_tiles",
+          "codigo": "() => { const a = window.PLAT; a.cargarNivel(1); const s1 = a.editor.exportar(); if (typeof s1 !== 'string' || s1.length < 100) return false; const d1 = JSON.parse(s1); if (!Array.isArray(d1.tiles)) return false; a.cargarNivel(2); const ok = a.editor.importar(s1); const d2 = JSON.parse(a.editor.exportar()); return ok === true && d2.tiles.join('|') === d1.tiles.join('|') && d2.tiles.length === d1.tiles.length; }"
+        }
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "web",
+        "pagina": "index.html",
+        "espera_ms": 1400,
+        "max_errores_consola": 0,
+        "afirmaciones": [
+          {
+            "tipo": "canvas_cambia",
+            "ms": 1200
+          },
+          {
+            "tipo": "js",
+            "nombre": "fisica_determinista",
+            "codigo": "() => { const a = window.PLAT; if (!a) return false; const correr = () => { a.cargarNivel(0); a.pulsar('derecha', true); for (let i = 0; i < 120; i++) a.tick(16); a.pulsar('derecha', false); return Math.round(a.jugador.x * 100) + ':' + Math.round(a.jugador.y * 100); }; return correr() === correr(); }"
+          }
+        ]
+      }
+    }
+  ]
+}

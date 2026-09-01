@@ -1,0 +1,317 @@
+{
+  "id": "motor-3d-voxel",
+  "familia": "3d",
+  "dificultad": 5,
+  "presupuesto_s": 540,
+  "pasos": 80,
+  "longitud_esperada_lineas": 1300,
+  "prompt": "Construye una EXPERIENCIA 3D DE VOXELS (estilo Minecraft) con WebGL PURO, escribiendo tu mismo los shaders y todas las matematicas. PROHIBIDO usar three.js, babylon.js, gl-matrix, regl o cualquier otra libreria; prohibido cualquier CDN, cualquier <script src=\"http...\">, cualquier npm install y cualquier peticion de red. Solo HTML, JavaScript del navegador y GLSL escritos por ti, en ficheros locales del directorio de trabajo actual. El punto de entrada es index.html.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. CONTEXTO WEBGL PROPIO: creacion del contexto, compilacion y enlazado de un programa con vertex shader y fragment shader escritos en GLSL, gestion de buffers, atributos y uniformes, prueba de profundidad y culling de caras traseras.\n2. MATEMATICAS 3D PROPIAS: matrices 4x4 de perspectiva, vista y modelo, multiplicacion de matrices, normalizacion de vectores y construccion de la matriz de camara a partir de yaw y pitch. Sin librerias.\n3. GENERACION PROCEDURAL DEL TERRENO por ruido propio (value noise o Perlin/simplex implementado a mano) sembrado por una semilla, con varias octavas: colinas suaves (la altura entre columnas vecinas no cambia mas de 1 bloque), capas de tierra, piedra y hierba, y al menos 4 tipos de bloque distintos con color propio.\n4. MALLADO DE CHUNKS con ELIMINACION DE CARAS OCULTAS: el mundo se divide en chunks (por ejemplo 16x16 en horizontal), y solo se generan los triangulos de las caras que dan al aire. Al modificar un bloque se marca sucio el chunk (y los vecinos si el bloque esta en el borde) y se vuelve a mallar en el siguiente render.\n5. CAMARA EN PRIMERA PERSONA con raton (pointer lock o arrastre) y teclado WASD, con yaw y pitch limitados.\n6. FISICA DEL JUGADOR: gravedad, salto, y colision AABB contra los bloques solidos: el jugador cae hasta el suelo, se queda encima y NO atraviesa las paredes.\n7. RAYCAST desde la camara (DDA sobre la rejilla de voxels) para saber a que bloque se apunta y cual es la celda adyacente libre, y para PONER y QUITAR bloques con los botones del raton.\n8. PERSISTENCIA de los bloques modificados en localStorage: se guarda la semilla y solo las modificaciones respecto al terreno generado; al cargar se regenera el terreno con esa semilla y se reaplican.\n9. INTERFAZ: mira en el centro, seleccion del tipo de bloque a colocar, y un panel con posicion del jugador, chunks cargados, triangulos dibujados y bloques modificados.\n10. RENDIMIENTO RAZONABLE: buffers reutilizados, un solo draw call por chunk como maximo, y un bucle de render con requestAnimationFrame que no crezca en memoria.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el; es la interfaz publica del producto, respetalo exactamente):\n- index.html es el punto de entrada y arranca solo al cargar la pagina, con un unico <canvas>.\n- TODO el JavaScript y TODO el GLSL van en ficheros .js del directorio de trabajo (como mucho 4, sin\n  subcarpetas): los shaders se escriben como cadenas de texto dentro del .js. index.html solo lleva el\n  <canvas>, la interfaz y sus etiquetas <script src=\"...\"></script> con ruta relativa.\n- El contexto se crea OBLIGATORIAMENTE asi: canvas.getContext('webgl', {preserveDrawingBuffer: true, antialias: false}) (o 'webgl2' con las mismas opciones). El preserveDrawingBuffer es imprescindible para que un evaluador externo pueda leer los pixeles del canvas.\n- Sistema de coordenadas: X y Z horizontales, Y vertical hacia ARRIBA; las coordenadas de bloque son enteros. El mundo generado cubre al menos x y z de 0 a 63, tiene 64 bloques de altura y ninguna columna tiene menos de 8 bloques solidos ni mas de 40. Cada columna es solida y SIN huecos desde y=0 hasta su cima, de modo que alturaSuelo(x, z) siempre cae entre 7 y 39.\n- Expon un objeto global window.VOXEL, siempre actualizado, con AL MENOS esto:\n    VOXEL.gl                  -> el contexto WebGL\n    VOXEL.canvas              -> el elemento <canvas>\n    VOXEL.tipos               -> array de tipos de bloque {id, nombre, color}, con al menos 4 e ids enteros >= 1 (el 0 es el aire)\n    VOXEL.mundo               -> {chunk, altura, ancho, profundo}. Al arrancar (y tras semilla()) se generan y\n                                 mallan TODOS los chunks del mundo (4x4 = 16 chunks de 16x16), no solo los\n                                 cercanos a la camara\n    VOXEL.semilla(n)          -> regenera TODO el mundo de forma determinista con esa semilla (descartando modificaciones) y la devuelve\n    VOXEL.bloque(x, y, z)     -> id del bloque; 0 si es aire o si esta fuera del mundo (nunca lanza)\n    VOXEL.alturaSuelo(x, z)   -> la Y del bloque solido mas alto de esa columna, o -1 si no hay ninguno\n    VOXEL.poner(x, y, z, id)  -> true si coloco el bloque; false si la celda ya estaba ocupada, el id no existe o esta fuera del mundo\n    VOXEL.quitar(x, y, z)     -> true si habia un bloque y lo quito; false si era aire o esta fuera del mundo\n    VOXEL.camara              -> {x, y, z, yaw, pitch} en radianes; pitch NEGATIVO mira hacia abajo, limitado a [-1.55, 1.55]. Se pueden fijar yaw y pitch directamente sobre el objeto y el siguiente render() o raycast() ya los usa. Al arrancar, el jugador aparece de pie sobre el terreno y la camara mira al horizonte (pitch 0), de modo que el primer frame ya dibuja paisaje\n    VOXEL.jugador             -> {x, y, z, vy, enSuelo}; jugador.y es la altura de los PIES\n    VOXEL.teleport(x, y, z)   -> coloca al jugador ahi y actualiza la camara AL INSTANTE (camara.x/z = jugador.x/z, camara.y = jugador.y + 1.6)\n    VOXEL.mover(adelante, lateral, ms) -> mueve al jugador segun la orientacion de la camara durante ms milisegundos, aplicando colision con los bloques\n    VOXEL.saltar()            -> salta si esta en el suelo; devuelve true si salto\n    VOXEL.tick(ms)            -> avanza la fisica del jugador ese tiempo de forma DETERMINISTA\n    VOXEL.raycast(distancia)  -> lanza un rayo desde la camara en la direccion en la que mira y devuelve {golpe: {x, y, z}, adyacente: {x, y, z}, cara} o null si no toca nada. golpe es un bloque SOLIDO y adyacente es la celda de AIRE anterior\n    VOXEL.render()            -> mallado de los chunks sucios y dibujado de un frame AHORA MISMO; devuelve el numero de TRIANGULOS dibujados en ese frame\n    VOXEL.stats()             -> {chunks, triangulos, frames, modificados}. `triangulos` es el TOTAL de triangulos de las mallas de todos los chunks generados (no depende de hacia donde mire la camara); `modificados` es el numero de bloques cambiados respecto al terreno generado\n    VOXEL.guardar()           -> guarda semilla y bloques modificados en localStorage; devuelve true\n    VOXEL.cargar()            -> regenera el mundo con la semilla guardada, reaplica las modificaciones y devuelve true (false si no hay nada guardado)\n    VOXEL.pausar()            -> alterna la pausa y devuelve true si queda PAUSADA. La pausa detiene SOLO el bucle de requestAnimationFrame; render() y tick() siguen funcionando siempre\n- poner() y quitar() marcan el chunk como sucio y el remallado se hace dentro de render(): asi mil modificaciones seguidas no cuestan mil remallados.\n- Todo el azar (ruido, decoracion) sale de un generador pseudoaleatorio propio sembrado con la semilla; nada de Math.random suelto: el mundo tiene que ser reproducible.\n- No debe haber NINGUN error en la consola del navegador, ni al compilar los shaders ni al jugar.\n- Escribe tambien un README.md (minimo 200 bytes) con los controles y como se abre.\n\nNada de red, nada de CDN, nada de dependencias externas: si el fichero no esta en el directorio de trabajo, no existe.\n\nNo entregues un cubo girando ni un esqueleto: tiene que haber terreno, chunks mallados, camara jugable, colision y edicion de bloques. Cuando creas que has terminado, ABRE el resultado, PRUEBALO tu mismo (mira que el terreno se dibuja, camina y salta, pon y quita bloques con el raton, recarga la pagina y comprueba que tus cambios siguen ahi) y CORRIGE lo que falle antes de darlo por bueno.",
+  "criterios_exito": [
+    "index.html abre sin errores de consola y el canvas WebGL pinta terreno (varios colores, miles de triangulos)",
+    "window.VOXEL expone el contexto y todos los metodos del contrato",
+    "el terreno es procedural y determinista: la misma semilla da el mismo relieve y otra semilla da otro",
+    "quitar un bloque enterrado aumenta los triangulos (las caras ocultas no se mallaban)",
+    "raycast desde la camara devuelve un bloque solido y su celda de aire adyacente",
+    "poner y quitar bloques cambia lo que se ve en el canvas",
+    "el jugador cae por gravedad, aterriza encima del terreno y no atraviesa los muros",
+    "los bloques modificados sobreviven a recargar la pagina"
+  ],
+  "criterios_fallo": [
+    "usa three.js, babylon, gl-matrix u otra libreria, o carga algo por red",
+    "el canvas queda negro o vacio, o los shaders no compilan",
+    "window.VOXEL no existe o le faltan metodos del contrato",
+    "el mundo no cambia al poner o quitar bloques por API",
+    "se mallan todas las caras (quitar un bloque enterrado no cambia nada)",
+    "el jugador cae al vacio, se queda flotando o atraviesa los bloques",
+    "las modificaciones se pierden al recargar",
+    "errores de JavaScript o de WebGL en la consola"
+  ],
+  "artefactos": [
+    {
+      "glob": "index.html",
+      "obligatorio": true,
+      "min_bytes": 800
+    },
+    {
+      "glob": "*.js",
+      "obligatorio": true,
+      "min_bytes": 3000
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "artefactos-presentes",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "index.html",
+      "min_bytes": 800,
+      "contiene": [
+        "canvas"
+      ],
+      "no_contiene": [
+        "src\\s*=\\s*[\\\"']https?://",
+        "src\\s*=\\s*[\\\"'][^\\\"']*(?:three|babylon|gl-matrix|regl)[^\\\"']*\\.js"
+      ]
+    },
+    {
+      "nombre": "codigo-con-sustancia-y-sin-librerias",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "min_bytes": 3000,
+      "min_lineas": 600,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "por implementar",
+        "resto del codigo",
+        "new\\s+THREE\\.",
+        "THREE\\.(?:Scene|Mesh|WebGLRenderer|PerspectiveCamera|BufferGeometry)",
+        "BABYLON\\.(?:Engine|Scene|Mesh)",
+        "require\\([\\\"'](?:three|babylonjs|gl-matrix|regl)",
+        "from\\s+[\\\"'](?:three|babylonjs|gl-matrix|regl)"
+      ]
+    },
+    {
+      "nombre": "webgl-y-glsl-propios",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "contiene": [
+        "gl_Position",
+        "gl_FragColor|out\\s+(?:lowp\\s+|mediump\\s+|highp\\s+)?vec4\\s+\\w+",
+        "createShader",
+        "shaderSource",
+        "linkProgram",
+        "drawElements|drawArrays",
+        "preserveDrawingBuffer",
+        "localStorage",
+        "requestAnimationFrame"
+      ]
+    },
+    {
+      "nombre": "arranca-webgl-y-pinta-el-mundo",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "pagina": "index.html",
+      "espera_ms": 2500,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { window.VOXEL.render(); }"
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "canvas",
+          "min": 1
+        },
+        {
+          "tipo": "canvas",
+          "min_colores": 5
+        },
+        {
+          "tipo": "js",
+          "nombre": "api_completa",
+          "codigo": "() => { const V = window.VOXEL; if (!V) return false; const fs = ['semilla','bloque','alturaSuelo','poner','quitar','teleport','mover','saltar','tick','raycast','render','stats','guardar','cargar','pausar']; return fs.every(f => typeof V[f] === 'function') && !!V.gl && !!V.canvas && Array.isArray(V.tipos) && V.tipos.length >= 4 && !!V.camara && !!V.jugador && !!V.mundo; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "hay_mundo_mallado_y_dibujado",
+          "codigo": "() => { const V = window.VOXEL; const d = V.render(); const s = V.stats(); return (typeof d === 'number' && d > 0 && s && typeof s.triangulos === 'number') ? s.triangulos : 0; }",
+          "min": 2000
+        },
+        {
+          "tipo": "js",
+          "nombre": "contexto_legible",
+          "codigo": "() => { const V = window.VOXEL; const a = V.gl.getContextAttributes(); return a.preserveDrawingBuffer === true; }"
+        }
+      ]
+    },
+    {
+      "nombre": "terreno-determinista-y-caras-ocultas",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 2000,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_ruido_es_reproducible",
+          "codigo": "() => { const V = window.VOXEL; if (V.pausar() === false) V.pausar(); const perfil = (s) => { V.semilla(s); const a = []; for (let i = 0; i < 16; i++) a.push(V.alturaSuelo(4 + i * 3, 7 + i * 2)); return a.join(','); }; const p1 = perfil(101), p1b = perfil(101), p2 = perfil(202); if (p1 !== p1b) return false; if (p1 === p2) return false; const alturas = p1.split(',').map(Number); return alturas.every(h => h >= 7 && h <= 39); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "quitar_un_bloque_enterrado_abre_caras",
+          "codigo": "() => { const V = window.VOXEL; V.semilla(101); const x = 21, z = 17; const h = V.alturaSuelo(x, z); if (!(h > 5)) return false; const y = h - 3; if (V.bloque(x, y, z) === 0) return false; V.render(); const t0 = V.stats().triangulos; if (!(t0 > 0)) return false; if (V.quitar(x, y, z) !== true) return false; if (V.bloque(x, y, z) !== 0) return false; V.render(); const t1 = V.stats().triangulos; return t1 > t0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "poner_un_bloque_suelto_anade_caras",
+          "codigo": "() => { const V = window.VOXEL; V.semilla(101); const x = 40, z = 40; const h = V.alturaSuelo(x, z); V.render(); const t0 = V.stats().triangulos; if (V.poner(x, h + 4, z, V.tipos[1].id) !== true) return false; if (V.bloque(x, h + 4, z) !== V.tipos[1].id) return false; V.render(); const t1 = V.stats().triangulos; return t1 >= t0 + 6; }"
+        }
+      ]
+    },
+    {
+      "nombre": "raycast-edita-y-el-mundo-se-ve-distinto",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 2000,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_raycast_apunta_a_un_bloque_solido",
+          "codigo": "() => { const V = window.VOXEL; if (V.pausar() === false) V.pausar(); V.semilla(5); const x = 20, z = 20; const h = V.alturaSuelo(x, z); V.teleport(x + 0.5, h + 3, z + 0.5); V.camara.pitch = -1.2; V.render(); const r = V.raycast(16); if (!r || !r.golpe || !r.adyacente) return false; if (V.bloque(r.golpe.x, r.golpe.y, r.golpe.z) === 0) return false; if (V.bloque(r.adyacente.x, r.adyacente.y, r.adyacente.z) !== 0) return false; if (V.quitar(r.golpe.x, r.golpe.y, r.golpe.z) !== true) return false; return V.bloque(r.golpe.x, r.golpe.y, r.golpe.z) === 0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "los_pixeles_cambian_al_construir",
+          "codigo": "() => { const V = window.VOXEL, g = V.gl, c = V.canvas; if (V.pausar() === false) V.pausar(); V.semilla(5); const x = 20, z = 20; const h = V.alturaSuelo(x, z); V.teleport(x + 0.5, h + 2, z + 0.5); V.camara.pitch = -0.2; const hash = () => { V.render(); const d = new Uint8Array(c.width * c.height * 4); g.readPixels(0, 0, c.width, c.height, g.RGBA, g.UNSIGNED_BYTE, d); let s = 0; for (let i = 0; i < d.length; i += 61) s = (s * 33 + d[i]) >>> 0; return s; }; const a = hash(); let puestos = 0; for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) { if (Math.abs(dx) !== 4 && Math.abs(dz) !== 4) continue; const hh = V.alturaSuelo(x + dx, z + dz); for (let dy = 1; dy <= 5; dy++) if (V.poner(x + dx, hh + dy, z + dz, V.tipos[1].id)) puestos++; } if (puestos < 40) return false; const b = hash(); return a !== b && V.stats().modificados >= puestos; }"
+        }
+      ]
+    },
+    {
+      "nombre": "gravedad-y-aterrizaje-del-jugador",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 2000,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "cae_y_se_para_encima_del_suelo",
+          "codigo": "() => { const V = window.VOXEL; if (V.pausar() === false) V.pausar(); V.semilla(5); const x = 24, z = 24; const h = V.alturaSuelo(x, z); V.teleport(x + 0.5, h + 12, z + 0.5); if (!(V.jugador.y > h + 8)) return false; for (let i = 0; i < 200; i++) V.tick(16); const p = V.jugador; return p.y > h && p.y < h + 3 && p.enSuelo === true && Math.abs(p.x - (x + 0.5)) < 0.6 && Math.abs(p.z - (z + 0.5)) < 0.6; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_salto_despega_y_vuelve",
+          "codigo": "() => { const V = window.VOXEL; if (V.pausar() === false) V.pausar(); V.semilla(5); const x = 24, z = 24; const h = V.alturaSuelo(x, z); V.teleport(x + 0.5, h + 1, z + 0.5); for (let i = 0; i < 60; i++) V.tick(16); if (V.jugador.enSuelo !== true) return false; const y0 = V.jugador.y; if (V.saltar() !== true) return false; for (let i = 0; i < 8; i++) V.tick(16); const subio = V.jugador.y > y0; for (let i = 0; i < 200; i++) V.tick(16); return subio && Math.abs(V.jugador.y - y0) < 0.3 && V.jugador.enSuelo === true; }"
+        }
+      ]
+    },
+    {
+      "nombre": "movimiento-y-colision-contra-muros",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 2000,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "mover_desplaza_al_jugador",
+          "codigo": "() => { const V = window.VOXEL; if (V.pausar() === false) V.pausar(); V.semilla(55); const cx = 34, cz = 34, suelo = 20, ID = V.tipos[0].id; for (let X = cx - 8; X <= cx + 8; X++) for (let Z = cz - 8; Z <= cz + 8; Z++) { for (let Y = suelo + 1; Y < V.mundo.altura; Y++) if (V.bloque(X, Y, Z)) V.quitar(X, Y, Z); for (let Y = 0; Y <= suelo; Y++) if (!V.bloque(X, Y, Z)) V.poner(X, Y, Z, ID); } V.teleport(cx + 0.5, suelo + 1, cz + 0.5); const x0 = V.jugador.x, z0 = V.jugador.z; for (let i = 0; i < 40; i++) { V.mover(1, 0, 16); V.tick(16); } const d = Math.hypot(V.jugador.x - x0, V.jugador.z - z0); return d > 0.5 && V.jugador.y > suelo && V.jugador.y < suelo + 3; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_muro_frena_al_jugador",
+          "codigo": "() => { const V = window.VOXEL; if (V.pausar() === false) V.pausar(); V.semilla(55); const cx = 34, cz = 34, suelo = 20, ID = V.tipos[0].id; for (let X = cx - 6; X <= cx + 6; X++) for (let Z = cz - 6; Z <= cz + 6; Z++) { for (let Y = suelo + 1; Y < V.mundo.altura; Y++) if (V.bloque(X, Y, Z)) V.quitar(X, Y, Z); for (let Y = 0; Y <= suelo; Y++) if (!V.bloque(X, Y, Z)) V.poner(X, Y, Z, ID); } for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) { if (Math.abs(dx) !== 3 && Math.abs(dz) !== 3) continue; for (let dy = 1; dy <= 3; dy++) V.poner(cx + dx, suelo + dy, cz + dz, ID); } V.teleport(cx + 0.5, suelo + 1, cz + 0.5); for (let i = 0; i < 150; i++) { V.mover(1, 0, 16); V.tick(16); } const p = V.jugador; return Math.abs(p.x - (cx + 0.5)) < 3 && Math.abs(p.z - (cz + 0.5)) < 3 && isFinite(p.x) && isFinite(p.z); }"
+        }
+      ]
+    },
+    {
+      "nombre": "aguanta-coordenadas-imposibles",
+      "tipo": "web",
+      "capa": "robustez",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 2000,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "fuera_del_mundo_no_rompe",
+          "codigo": "() => { const V = window.VOXEL; if (V.pausar() === false) V.pausar(); V.semilla(3); return V.bloque(-5, 10, -5) === 0 && V.bloque(999999, 10, 10) === 0 && V.bloque(10, -3, 10) === 0 && V.poner(-5, 10, -5, V.tipos[0].id) === false && V.quitar(-5, 10, -5) === false && V.poner(10, 999999, 10, V.tipos[0].id) === false; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "ids_invalidos_rechazados",
+          "codigo": "() => { const V = window.VOXEL; const x = 30, z = 30; const h = V.alturaSuelo(x, z); return V.poner(x, h + 5, z, 99999) === false && V.poner(x, h + 5, z, 0) === false && V.poner(x, h, z, V.tipos[0].id) === false && V.quitar(x, h + 5, z) === false; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "sigue_dibujando_despues",
+          "codigo": "() => { const V = window.VOXEL; V.render(); return V.stats().triangulos; }",
+          "min": 2000
+        }
+      ]
+    },
+    {
+      "nombre": "las-modificaciones-sobreviven-a-la-recarga",
+      "tipo": "web",
+      "capa": "integridad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 2000,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const V = window.VOXEL; if (V.pausar() === false) V.pausar(); V.semilla(31); const x = 12, z = 12; const h = V.alturaSuelo(x, z); V.quitar(x, h, z); V.poner(x, h + 3, z, V.tipos[1].id); localStorage.setItem('__ref_banco', JSON.stringify({x: x, z: z, h: h, id: V.tipos[1].id})); V.guardar(); }"
+        },
+        {
+          "tipo": "recargar",
+          "ms": 2500
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => { const V = window.VOXEL; if (V.pausar() === false) V.pausar(); V.cargar(); V.render(); }"
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_mundo_editado_vuelve",
+          "codigo": "() => { const V = window.VOXEL; const r = JSON.parse(localStorage.getItem('__ref_banco') || 'null'); if (!r) return false; return V.bloque(r.x, r.h, r.z) === 0 && V.bloque(r.x, r.h + 3, r.z) === r.id && V.stats().modificados >= 2; }"
+        }
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "peso": 1.0,
+      "prueba": {
+        "tipo": "web",
+        "pagina": "index.html",
+        "espera_ms": 2500,
+        "max_errores_consola": 0,
+        "acciones": [
+          {
+            "tipo": "js",
+            "codigo": "() => { window.VOXEL.render(); }"
+          }
+        ],
+        "afirmaciones": [
+          {
+            "tipo": "canvas",
+            "min_colores": 5
+          },
+          {
+            "tipo": "js",
+            "nombre": "sigue_pintando",
+            "codigo": "() => { const V = window.VOXEL; const d = V.render(); return (typeof d === 'number' && d > 0) ? V.stats().triangulos : 0; }",
+            "min": 2000
+          }
+        ]
+      }
+    }
+  ]
+}

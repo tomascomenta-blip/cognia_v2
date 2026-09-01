@@ -1,0 +1,947 @@
+{
+  "id": "py-servidor-api",
+  "familia": "py-servidor",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 1000,
+  "prompt": "Construye una API REST COMPLETA en Python usando SOLO la libreria estandar de Python 3.12: http.server o socketserver para el HTTP, sqlite3 para la persistencia, json, argparse, urllib.parse. Prohibido FastAPI, Flask, Django, bottle, requests, pydantic, SQLAlchemy y cualquier otra dependencia; prohibido pip install, red externa y CDN. Entregala en el directorio de trabajo actual con servidor.py como punto de entrada.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Servidor HTTP propio sobre ThreadingHTTPServer con enrutado por metodo y por patron de ruta (incluyendo parametros de ruta como /api/tareas/{id}), que responde SIEMPRE en JSON con Content-Type application/json y Content-Length correcto.\n2. Persistencia REAL en SQLite: esquema creado al arrancar si falta, claves foraneas activadas, indices, y una capa de almacen separada del HTTP que se pueda usar sin levantar el servidor.\n3. Dos recursos con CRUD completo: proyectos y tareas, con la tarea apuntando opcionalmente a un proyecto.\n4. Validacion de entrada por campo, con mensajes por campo: tipos, obligatoriedad, longitudes y rangos.\n5. Integridad referencial: no se puede crear una tarea con un proyecto que no existe, ni borrar un proyecto que todavia tiene tareas.\n6. Autenticacion por token en cabecera Authorization, con endpoint de login que valida usuario y clave.\n7. Paginacion con total, pagina, tamano de pagina, numero de paginas y numero de elementos devueltos.\n8. Filtrado y ordenacion por parametros de consulta, ascendente y descendente.\n9. Codigos de estado HTTP correctos: 200, 201, 204, 400, 401, 404, 405, 409, 422 y 500, cada uno donde toca.\n10. Manejo de errores en JSON: ninguna traza de Python llega al cliente y ningun error tumba el servidor.\n11. Tests de integracion propios con pytest que ARRANCAN EL SERVIDOR DE VERDAD en un puerto libre, le pegan peticiones con urllib y comprueban cuerpos y codigos de estado.\n12. README.md corto con la tabla de endpoints y ejemplos de uso.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el; respetalo al pie de la letra):\n- Punto de entrada: servidor.py en la raiz. Se arranca con \"python servidor.py --puerto N\" y acepta ademas --db RUTA (por defecto datos.sqlite3), --token CADENA (por defecto secreto123), --usuario (por defecto admin), --clave (por defecto admin123) y --reset (borra y recrea la base al arrancar, dejandola vacia salvo el usuario por defecto). Si no se pasa --puerto se usa la variable de entorno PORT.\n- Al arrancar imprime UNA sola linea y nada mas durante el servicio (no imprimas una linea por peticion: el evaluador captura la salida por una tuberia).\n- servidor.py tiene que ser IMPORTABLE sin arrancar nada: todo el arranque va bajo \"if __name__ == '__main__'\".\n- Autenticacion: cabecera \"Authorization: Bearer <token>\". Sin cabecera o con token malo -> 401 con cuerpo JSON que incluye la clave \"error\". POST /api/login con {\"usuario\": ..., \"clave\": ...} devuelve 200 y {\"token\": \"<el token>\", \"usuario\": \"<usuario>\"} si son correctos, y 401 si no. GET /api/salud NO exige token y devuelve 200 con {\"estado\": \"ok\"}.\n- Recurso proyectos, campos: id (int), nombre (str obligatorio, 1..80, unico) y descripcion (str opcional, por defecto \"\"). Rutas: GET /api/proyectos, POST /api/proyectos (201), GET|PUT|DELETE /api/proyectos/{id} (200/200/204).\n- Recurso tareas, campos: id (int), titulo (str obligatorio, 1..200), hecha (bool, por defecto false), prioridad (int 1..5, por defecto 3) y proyecto_id (int o null, por defecto null; si viene tiene que existir). Rutas: GET /api/tareas, POST /api/tareas (201), GET|PUT|PATCH|DELETE /api/tareas/{id} (200/200/200/204). PUT reemplaza el recurso entero (los campos ausentes vuelven a su valor por defecto) y PATCH cambia solo los campos enviados.\n- Toda respuesta de listado usa este sobre exacto: {\"items\": [...], \"total\": N, \"pagina\": P, \"por_pagina\": K, \"paginas\": M, \"devueltos\": len(items)}. \"total\" es el numero de elementos que casan con el filtro ANTES de paginar; \"paginas\" es el numero total de paginas; \"devueltos\" es cuantos elementos van en \"items\".\n- Parametros de consulta de GET /api/tareas: pagina (por defecto 1), por_pagina (por defecto 20, maximo 100), hecha (true/false), prioridad (int), proyecto_id (int), q (subcadena que tiene que aparecer en el titulo) y orden (id, titulo, prioridad; con un guion delante para descendente, por ejemplo -prioridad). GET /api/proyectos acepta pagina, por_pagina, q y orden. Pedir una pagina posterior a la ultima devuelve 200 con \"items\" vacio y \"devueltos\" 0 (nunca 404), y \"total\" sigue siendo el numero de elementos que casan con el filtro.\n- Codigos de error: cuerpo JSON invalido -> 400; falta el token o es incorrecto -> 401; recurso o ruta que no existe, o id no entero -> 404; metodo no permitido en una ruta que si existe -> 405; nombre de proyecto duplicado o borrado de un proyecto con tareas -> 409; datos que no pasan la validacion -> 422 con {\"error\": ..., \"campos\": {\"<campo>\": \"<motivo>\"}}; crear o actualizar una tarea con un proyecto_id que no existe es un error de VALIDACION: 422 con proyecto_id dentro de \"campos\" (el 409 es solo para el nombre de proyecto duplicado y para borrar un proyecto con tareas).\n- Capa de almacen, en servidor.py y usable sin HTTP:\n  * class Almacen(ruta_bd): crea el esquema si falta.\n  * Metodos: crear_proyecto(datos), listar_proyectos(filtros), obtener_proyecto(id), actualizar_proyecto(id, datos), borrar_proyecto(id), crear_tarea(datos), listar_tareas(filtros), obtener_tarea(id), actualizar_tarea(id, datos), parchear_tarea(id, datos), borrar_tarea(id) y cerrar().\n  * Los crear/actualizar devuelven el recurso como dict (con su id); los listar devuelven el sobre completo descrito arriba; los obtener devuelven dict o None; los borrar devuelven True o False.\n  * class ErrorValidacion(Exception) con .campos (dict campo -> motivo), class ErrorConflicto(Exception).\n- Los tests propios van en tests/, hacen falta AL MENOS 20 funciones de test y tienen que pasar con \"python -m pytest tests -q\" ejecutado desde la raiz del proyecto.\n\nNo entregues un esqueleto ni una maqueta: cada endpoint, cada codigo de estado y cada filtro tienen que funcionar. Antes de dar la tarea por terminada PRUEBA TU PROPIO TRABAJO: arranca el servidor de verdad, pegale peticiones con urllib o con tu propia bateria de pytest, comprueba los codigos de estado uno a uno, verifica que el fichero SQLite se crea y conserva los datos entre arranques, y CORRIGE lo que falle hasta que todo pase de verdad.",
+  "criterios_exito": [
+    "servidor.py arranca con --puerto y --reset y sirve JSON en un puerto libre",
+    "GET /api/salud responde 200 sin token y las rutas protegidas responden 401 sin el",
+    "POST /api/login devuelve el token con las credenciales correctas y 401 con las malas",
+    "el CRUD completo de tareas y proyectos funciona con 201, 200, 204 y 404",
+    "el sobre de listado trae items, total, pagina, por_pagina, paginas y devueltos coherentes",
+    "la paginacion, el filtrado y la ordenacion ascendente y descendente cambian el resultado de verdad",
+    "la validacion devuelve 422 con el detalle por campo y el JSON malo devuelve 400",
+    "la integridad referencial devuelve 409 al borrar un proyecto con tareas y 422 con un proyecto inexistente",
+    "el Almacen persiste en un fichero SQLite real y los datos sobreviven al cierre de la conexion",
+    "la bateria propia de pytest arranca el servidor de verdad y pasa entera"
+  ],
+  "criterios_fallo": [
+    "usa Flask, FastAPI, Django, requests o cualquier dependencia externa",
+    "el servidor no abre el puerto o muere en la primera peticion invalida",
+    "todo devuelve 200, o los errores devuelven HTML o una traza de Python",
+    "la paginacion y el filtrado se ignoran (total y devueltos no cambian)",
+    "no hay fichero SQLite: los datos viven en memoria o en un JSON",
+    "servidor.py arranca el servidor al importarlo",
+    "no valida nada: acepta titulo vacio, prioridad 9 o un proyecto inexistente",
+    "hay stubs, TODO o NotImplementedError en el camino principal"
+  ],
+  "artefactos": [
+    {
+      "glob": "servidor.py",
+      "obligatorio": true,
+      "min_bytes": 8000
+    },
+    {
+      "glob": "tests/*.py",
+      "obligatorio": true,
+      "min_bytes": 2000
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "servidor-solo-con-la-estandar",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "servidor.py",
+      "min_bytes": 6000,
+      "contiene": [
+        "http\\.server|socketserver|BaseHTTPRequestHandler",
+        "sqlite3",
+        "class Almacen",
+        "ErrorValidacion"
+      ],
+      "no_contiene": [
+        "import flask",
+        "from flask",
+        "import fastapi",
+        "from fastapi",
+        "import django",
+        "import requests",
+        "sqlalchemy",
+        "pip install"
+      ]
+    },
+    {
+      "nombre": "codigo-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.py",
+      "min_bytes": 400,
+      "min_lineas": 450,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented"
+      ]
+    },
+    {
+      "nombre": "arranca-salud-login-y-401",
+      "tipo": "http_servidor",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "binario": "python",
+      "entry": "servidor.py",
+      "args": [
+        "--puerto",
+        "{puerto}",
+        "--reset"
+      ],
+      "espera": 30,
+      "peticiones": [
+        {
+          "metodo": "GET",
+          "ruta": "/api/salud",
+          "status": 200,
+          "re": [
+            "\"estado\"\\s*:\\s*\"ok\""
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas",
+          "status": 401,
+          "cabeceras": {
+            "Accept": "application/json"
+          },
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/login",
+          "cuerpo": {
+            "usuario": "admin",
+            "clave": "admin123"
+          },
+          "status": 200,
+          "re": [
+            "\"token\"\\s*:\\s*\"secreto123\""
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/login",
+          "cuerpo": {
+            "usuario": "admin",
+            "clave": "incorrecta"
+          },
+          "status": 401,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"items\"",
+            "\"total\"\\s*:\\s*0",
+            "\"pagina\"",
+            "\"por_pagina\"",
+            "\"paginas\"",
+            "\"devueltos\"\\s*:\\s*0"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/proyectos",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"items\"",
+            "\"total\"\\s*:\\s*0"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "crud-completo-y-codigos-de-estado",
+      "tipo": "http_servidor",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "binario": "python",
+      "entry": "servidor.py",
+      "args": [
+        "--puerto",
+        "{puerto}",
+        "--reset"
+      ],
+      "espera": 30,
+      "peticiones": [
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "Comprar pan",
+            "prioridad": 2
+          },
+          "status": 201,
+          "re": [
+            "\"id\"\\s*:\\s*1",
+            "Comprar pan",
+            "\"prioridad\"\\s*:\\s*2",
+            "\"hecha\"\\s*:\\s*false"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas/1",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "Comprar pan",
+            "\"prioridad\"\\s*:\\s*2"
+          ]
+        },
+        {
+          "metodo": "PUT",
+          "ruta": "/api/tareas/1",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "Comprar pan integral",
+            "hecha": true,
+            "prioridad": 5
+          },
+          "status": 200,
+          "re": [
+            "Comprar pan integral",
+            "\"hecha\"\\s*:\\s*true",
+            "\"prioridad\"\\s*:\\s*5"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas/1",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "Comprar pan integral",
+            "\"hecha\"\\s*:\\s*true",
+            "\"prioridad\"\\s*:\\s*5"
+          ]
+        },
+        {
+          "metodo": "PATCH",
+          "ruta": "/api/tareas/1",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "hecha": false
+          },
+          "status": 200,
+          "re": [
+            "Comprar pan integral",
+            "\"hecha\"\\s*:\\s*false",
+            "\"prioridad\"\\s*:\\s*5"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/proyectos",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "nombre": "Casa"
+          },
+          "status": 201,
+          "re": [
+            "\"id\"\\s*:\\s*1",
+            "Casa"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/proyectos",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "nombre": "Casa"
+          },
+          "status": 409,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "PATCH",
+          "ruta": "/api/tareas/1",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "proyecto_id": 1
+          },
+          "status": 200,
+          "re": [
+            "\"proyecto_id\"\\s*:\\s*1"
+          ]
+        },
+        {
+          "metodo": "DELETE",
+          "ruta": "/api/proyectos/1",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 409,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "DELETE",
+          "ruta": "/api/tareas/1",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 204
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas/1",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "DELETE",
+          "ruta": "/api/tareas/1",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "DELETE",
+          "ruta": "/api/proyectos/1",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 204
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*0",
+            "\"devueltos\"\\s*:\\s*0"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "paginacion-filtrado-y-orden",
+      "tipo": "http_servidor",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "binario": "python",
+      "entry": "servidor.py",
+      "args": [
+        "--puerto",
+        "{puerto}",
+        "--reset"
+      ],
+      "espera": 30,
+      "peticiones": [
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "alfa",
+            "prioridad": 1,
+            "hecha": false
+          },
+          "status": 201,
+          "re": [
+            "alfa"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "beta",
+            "prioridad": 5,
+            "hecha": true
+          },
+          "status": 201,
+          "re": [
+            "beta"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "gamma",
+            "prioridad": 3,
+            "hecha": false
+          },
+          "status": 201,
+          "re": [
+            "gamma"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "delta",
+            "prioridad": 5,
+            "hecha": false
+          },
+          "status": 201,
+          "re": [
+            "delta"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "epsilon",
+            "prioridad": 2,
+            "hecha": false
+          },
+          "status": 201,
+          "re": [
+            "epsilon"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "zeta",
+            "prioridad": 4,
+            "hecha": false
+          },
+          "status": 201,
+          "re": [
+            "zeta"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*6",
+            "\"devueltos\"\\s*:\\s*6",
+            "\"pagina\"\\s*:\\s*1",
+            "\"paginas\"\\s*:\\s*1",
+            "alfa",
+            "zeta"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas?pagina=3&por_pagina=2&orden=id",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*6",
+            "\"paginas\"\\s*:\\s*3",
+            "\"pagina\"\\s*:\\s*3",
+            "\"por_pagina\"\\s*:\\s*2",
+            "\"devueltos\"\\s*:\\s*2",
+            "epsilon",
+            "zeta"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas?pagina=1&por_pagina=2&orden=id",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"devueltos\"\\s*:\\s*2",
+            "alfa",
+            "beta"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas?pagina=9&por_pagina=2",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"devueltos\"\\s*:\\s*0",
+            "\"total\"\\s*:\\s*6"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas?hecha=true",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*1",
+            "\"devueltos\"\\s*:\\s*1",
+            "beta"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas?hecha=false",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*5",
+            "\"devueltos\"\\s*:\\s*5"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas?prioridad=5",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*2",
+            "beta",
+            "delta"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas?q=silon",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*1",
+            "epsilon"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas?orden=prioridad&por_pagina=1&pagina=1",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"devueltos\"\\s*:\\s*1",
+            "\"paginas\"\\s*:\\s*6",
+            "alfa",
+            "\"prioridad\"\\s*:\\s*1"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas?orden=-prioridad&por_pagina=1&pagina=1",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"devueltos\"\\s*:\\s*1",
+            "\"prioridad\"\\s*:\\s*5"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas?prioridad=5&hecha=true",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 200,
+          "re": [
+            "\"total\"\\s*:\\s*1",
+            "beta"
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "errores-401-400-404-405-422-sin-morir",
+      "tipo": "http_servidor",
+      "capa": "robustez",
+      "peso": 1.5,
+      "binario": "python",
+      "entry": "servidor.py",
+      "args": [
+        "--puerto",
+        "{puerto}",
+        "--reset"
+      ],
+      "espera": 30,
+      "peticiones": [
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas",
+          "status": 401,
+          "cabeceras": {
+            "Accept": "application/json"
+          },
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas",
+          "status": 401,
+          "cabeceras": {
+            "Authorization": "Bearer token-falso"
+          },
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas",
+          "status": 401,
+          "cabeceras": {
+            "Authorization": "secreto123"
+          },
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/login",
+          "cuerpo": {
+            "usuario": "admin",
+            "clave": "mala"
+          },
+          "status": 401,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {},
+          "status": 422,
+          "re": [
+            "error",
+            "campos"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": ""
+          },
+          "status": 422,
+          "re": [
+            "campos",
+            "titulo"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "x",
+            "prioridad": 9
+          },
+          "status": 422,
+          "re": [
+            "campos",
+            "prioridad"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "x",
+            "prioridad": "alta"
+          },
+          "status": 422,
+          "re": [
+            "campos",
+            "prioridad"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {
+            "titulo": "x",
+            "proyecto_id": 999
+          },
+          "status": 422,
+          "re": [
+            "campos"
+          ]
+        },
+        {
+          "metodo": "POST",
+          "ruta": "/api/tareas",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": "{esto no es json",
+          "status": 400,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas/abc",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/tareas/4242",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/noexiste",
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          },
+          "status": 404,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "DELETE",
+          "ruta": "/api/salud",
+          "status": 405,
+          "re": [
+            "error"
+          ],
+          "cabeceras": {
+            "Authorization": "Bearer secreto123"
+          }
+        },
+        {
+          "metodo": "PUT",
+          "ruta": "/api/login",
+          "cabeceras": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer secreto123"
+          },
+          "cuerpo": {},
+          "status": 405,
+          "re": [
+            "error"
+          ]
+        },
+        {
+          "metodo": "GET",
+          "ruta": "/api/salud",
+          "status": 200,
+          "re": [
+            "\"estado\"\\s*:\\s*\"ok\""
+          ]
+        }
+      ]
+    },
+    {
+      "nombre": "sqlite-real-persiste-entre-conexiones",
+      "tipo": "python",
+      "capa": "integridad",
+      "peso": 1.5,
+      "args": [
+        "-c",
+        "import os, tempfile, servidor\ncarpeta = tempfile.mkdtemp()\nruta = os.path.join(carpeta, 'banco.sqlite3')\na = servidor.Almacen(ruta)\np = a.crear_proyecto({'nombre': 'Casa'})\nassert isinstance(p, dict) and p['id'] == 1 and p['nombre'] == 'Casa', p\nt = a.crear_tarea({'titulo': 'Fregar', 'prioridad': 4, 'proyecto_id': p['id']})\nassert t['id'] == 1 and t['titulo'] == 'Fregar' and t['prioridad'] == 4, t\nassert t['hecha'] in (False, 0), t['hecha']\ntry:\n    a.crear_tarea({'titulo': ''})\nexcept servidor.ErrorValidacion as e:\n    assert isinstance(e.campos, dict) and e.campos, e.campos\nelse:\n    raise AssertionError('acepto un titulo vacio')\ntry:\n    a.crear_tarea({'titulo': 'huerfana', 'proyecto_id': 999})\nexcept servidor.ErrorValidacion:\n    pass\nelse:\n    raise AssertionError('acepto una tarea con un proyecto inexistente')\ntry:\n    a.borrar_proyecto(1)\nexcept servidor.ErrorConflicto:\n    pass\nelse:\n    raise AssertionError('borro un proyecto que todavia tenia tareas')\na.cerrar()\nb = servidor.Almacen(ruta)\nsobre = b.listar_tareas({})\nfor clave in ('items', 'total', 'pagina', 'por_pagina', 'paginas', 'devueltos'):\n    assert clave in sobre, ('falta la clave %s del sobre' % clave, sorted(sobre))\nassert sobre['total'] == 1 and sobre['devueltos'] == 1, sobre\nassert sobre['items'][0]['titulo'] == 'Fregar', sobre['items'][0]\nassert sobre['items'][0]['proyecto_id'] == 1, sobre['items'][0]\nassert b.obtener_tarea(1)['titulo'] == 'Fregar'\nassert b.obtener_tarea(4242) is None\nassert b.borrar_tarea(1) is True\nassert b.borrar_tarea(1) is False\nassert b.borrar_proyecto(1) is True\nb.cerrar()\nassert os.path.getsize(ruta) > 0, 'el fichero de base de datos esta vacio'\nwith open(ruta, 'rb') as f:\n    cabecera = f.read(15)\nassert cabecera == b'SQLite format 3', ('no es un fichero SQLite real', cabecera)\nprint('OK persistencia sqlite real entre conexiones')\n"
+      ],
+      "timeout": 120,
+      "exit": 0,
+      "stdout_re": [
+        "OK persistencia sqlite real entre conexiones"
+      ]
+    },
+    {
+      "nombre": "tests-de-integracion-propios",
+      "tipo": "pytest",
+      "capa": "funcionalidad",
+      "peso": 1.5,
+      "entregable": true,
+      "ruta": "tests",
+      "min_tests": 15,
+      "timeout": 420
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "http_servidor",
+        "binario": "python",
+        "entry": "servidor.py",
+        "args": [
+          "--puerto",
+          "{puerto}",
+          "--reset"
+        ],
+        "espera": 30,
+        "peticiones": [
+          {
+            "metodo": "GET",
+            "ruta": "/api/salud",
+            "status": 200,
+            "re": [
+              "\"estado\"\\s*:\\s*\"ok\""
+            ]
+          },
+          {
+            "metodo": "POST",
+            "ruta": "/api/tareas",
+            "cabeceras": {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer secreto123"
+            },
+            "cuerpo": {
+              "titulo": "regresion",
+              "prioridad": 3
+            },
+            "status": 201,
+            "re": [
+              "\"id\"\\s*:\\s*1",
+              "regresion"
+            ]
+          },
+          {
+            "metodo": "GET",
+            "ruta": "/api/tareas",
+            "cabeceras": {
+              "Authorization": "Bearer secreto123"
+            },
+            "status": 200,
+            "re": [
+              "\"total\"\\s*:\\s*1",
+              "\"devueltos\"\\s*:\\s*1"
+            ]
+          },
+          {
+            "metodo": "DELETE",
+            "ruta": "/api/tareas/1",
+            "cabeceras": {
+              "Authorization": "Bearer secreto123"
+            },
+            "status": 204
+          }
+        ]
+      }
+    }
+  ]
+}

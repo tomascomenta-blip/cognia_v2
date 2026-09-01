@@ -1,0 +1,465 @@
+{
+  "id": "web-tienda",
+  "familia": "web",
+  "dificultad": 3,
+  "presupuesto_s": 240,
+  "pasos": 40,
+  "longitud_esperada_lineas": 950,
+  "prompt": "Construye una TIENDA ONLINE COMPLETA de una sola pagina en HTML + CSS + JavaScript puro. Entregala en el directorio de trabajo actual con index.html como punto de entrada y el codigo JavaScript en uno o varios ficheros .js propios (no metas todo el codigo dentro del HTML). PROHIBIDO usar red, CDN, npm install, pip install, backend o cualquier libreria externa: solo lo que trae el navegador de serie. No hay imagenes descargadas: si quieres ilustrar los productos, dibujalos con CSS o con SVG en linea.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Catalogo de al menos 24 productos definidos en el codigo con {id, nombre, categoria, precio, stock, descripcion}, al menos 4 categorias, precios entre 5 y 120, al menos un producto por debajo de 20 y stock entre 5 y 40 en TODOS los productos (ninguno a 0, para que se puedan anadir varias unidades del mismo). Los datos son fijos: PROHIBIDO Math.random, el catalogo tiene que ser identico en cada recarga.\n2. Buscador por texto que filtra por nombre y descripcion segun se teclea, sin distinguir mayusculas ni acentos.\n3. Filtro por categoria y por precio maximo, combinables con el buscador.\n4. Ficha de producto: al pulsar una tarjeta se abre el detalle con nombre, categoria, precio, stock, descripcion y boton de anadir al carrito.\n5. Carrito con cantidades: anadir, cambiar cantidad, quitar y vaciar; subtotales por linea y contador de unidades siempre visible.\n6. Reglas de negocio del pedido: envio de 4.95 si el subtotal es menor de 50 y 0 si es 50 o mas; el total nunca puede ser negativo; todo el dinero se redondea a 2 decimales.\n7. Cupones de descuento, uno solo a la vez: AHORRA10 aplica un 10 por ciento sobre el subtotal; MENOS5 descuenta 5 pero solo si el subtotal llega a 20; ENVIOGRATIS pone el envio a 0; CADUCADO se rechaza por caducado; cualquier otro codigo se rechaza y NO cambia el descuento que ya hubiera; el codigo vacio quita el cupon.\n8. Checkout con validacion REAL campo a campo: nombre (obligatorio, al menos 3 letras), email (formato valido), direccion (obligatoria), tarjeta (16 digitos que pasen el algoritmo de LUHN, tolerando espacios y guiones), caducidad en formato MM/AA con mes entre 01 y 12 y que no este vencida respecto a TIENDA.fechaReferencia, y CVV de 3 digitos. Cada error se muestra en su propio hueco de mensaje junto al campo.\n9. Confirmacion del pedido: si la validacion pasa y el carrito no esta vacio, se genera un pedido con numero, lineas, totales y fecha, se vacia el carrito, se guarda en el historial y se muestra un resumen en pantalla.\n10. Persistencia: el carrito y el cupon se guardan SOLOS en localStorage y siguen ahi despues de recargar la pagina, sin pulsar nada; el historial de pedidos tambien.\n11. Diseno de tienda usable con CSS propio: rejilla de productos, panel de carrito, formulario de pago y mensajes de error visibles.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo exactamente):\n- Punto de entrada: index.html, con el catalogo pintado al cargar sin pulsar nada.\n- IDs y clases del DOM obligatorios: #catalogo, que contiene una tarjeta por producto visible con class=\"producto\" y atributo data-id con el id del producto; #buscador (input de texto que filtra al disparar el evento input); #filtro-categoria (select con una opcion por cada categoria mas una de value vacio para todas, que refiltra al disparar el evento change); #filtro-precio; #ficha (detalle del producto); #carrito (la lista de lineas del carrito, donde cada linea es un elemento con class=\"linea\" y atributo data-id con el id del producto), #carrito-unidades, #carrito-total; #cupon (input) y #btn-cupon; #mensaje-cupon; el formulario #checkout con los campos #campo-nombre, #campo-email, #campo-direccion, #campo-tarjeta, #campo-caducidad, #campo-cvv, los huecos de error #error-nombre, #error-email, #error-direccion, #error-tarjeta, #error-caducidad y #error-cvv (todos con class=\"error\") y el boton #btn-pagar; #resumen-pedido para la confirmacion.\n- Expon un objeto global window.TIENDA siempre actualizado con:\n    window.TIENDA.productos      -> array del catalogo completo (>=24), nunca filtrado\n    window.TIENDA.categorias     -> array de categorias\n    window.TIENDA.fechaReferencia-> string 'AAAA-MM' que se usa para juzgar la caducidad de la tarjeta (por defecto '2026-01'); las pruebas la pueden cambiar\n    window.TIENDA.buscar(texto)  -> array de productos que casan\n    window.TIENDA.filtrar({texto, categoria, precioMax}) -> aplica el filtro, repinta #catalogo y devuelve el array visible\n    window.TIENDA.visibles()     -> array de productos que se estan mostrando\n    window.TIENDA.verFicha(id)   -> pinta la ficha y devuelve el producto, o null si el id no existe\n    window.TIENDA.anadir(id, cantidad) -> true si lo anade; false si el id no existe, si la cantidad no es un entero de al menos 1 o si supera el stock\n    window.TIENDA.cambiarCantidad(id, cantidad) -> true/false; con cantidad 0 quita la linea\n    window.TIENDA.quitar(id)     -> true/false (false si esa linea no esta en el carrito)\n    window.TIENDA.vaciar()       -> vacia el carrito y el cupon\n    window.TIENDA.carrito()      -> array de {id, nombre, precio, cantidad, subtotal}\n    window.TIENDA.totales()      -> {unidades, subtotal, descuento, envio, total} redondeado a 2 decimales\n    window.TIENDA.aplicarCupon(codigo) -> {ok, motivo, descuento}\n    window.TIENDA.luhn(numero)   -> true/false sobre el numero de tarjeta (ignorando espacios y guiones)\n    window.TIENDA.validarPedido(datos) -> {ok, errores} donde errores es un objeto con una clave por campo invalido (nombre, email, direccion, tarjeta, caducidad, cvv) y su mensaje\n    window.TIENDA.confirmarPedido(datos) -> {ok, pedido, errores}; si no se le pasa datos, lee el formulario del DOM; falla con ok:false si el carrito esta vacio o si la validacion no pasa; cuando sale bien devuelve el pedido en la clave pedido, con {numero, lineas, totales, fecha}, vacia el carrito, lo mete en el historial y PINTA el resumen dentro de #resumen-pedido (lo pinta la propia funcion, no el manejador del boton, porque las pruebas la llaman directamente)\n    window.TIENDA.ultimoPedido() -> el ultimo pedido confirmado o null\n    window.TIENDA.historial()    -> array de pedidos confirmados, persistido en localStorage\n- Al pulsar #btn-pagar la pagina NO se recarga ni navega a ninguna parte: el envio del formulario se cancela (preventDefault) y todo se resuelve en JavaScript, dejando los mensajes de error visibles en su hueco.\n- Cada error de validacion se escribe como texto dentro de su hueco #error-<campo> y se borra ese texto cuando el campo pasa a ser valido.\n- No debe haber NINGUN error en la consola del navegador.\n- Escribe tambien un README.md corto explicando que hace y como se abre.\n\nNo entregues un esqueleto ni una maqueta: cada sistema de la lista tiene que estar implementado. Antes de decir que has terminado, ABRE tu propio resultado y compra de verdad: busca, filtra, anade, cambia cantidades, prueba los cupones buenos y los malos, intenta pagar con una tarjeta invalida y con una valida, recarga a media compra, y CORRIGE todo lo que falle.",
+  "criterios_exito": [
+    "index.html abre sin errores y pinta un catalogo de al menos 24 productos",
+    "el buscador y los filtros recortan de verdad lo que se ve en #catalogo",
+    "el carrito suma cantidades, subtotales, envio y total con las reglas del enunciado",
+    "los cupones validos descuentan y los invalidos se rechazan sin tocar el descuento vigente",
+    "luhn y validarPedido cazan tarjeta, email, caducidad y campos vacios con un mensaje por campo",
+    "confirmarPedido genera un pedido con numero, vacia el carrito y lo guarda en el historial",
+    "el carrito sobrevive a una recarga sin pulsar nada"
+  ],
+  "criterios_fallo": [
+    "el catalogo esta vacio, es falso o se genera con Math.random",
+    "anadir acepta ids inexistentes, cantidades negativas o mas unidades que el stock",
+    "los totales no cuadran con las lineas del carrito o el total sale negativo",
+    "cualquier codigo de cupon se acepta",
+    "la validacion de tarjeta no aplica Luhn o el formulario paga con datos invalidos",
+    "el carrito se pierde al recargar",
+    "errores de JavaScript en la consola"
+  ],
+  "artefactos": [
+    {
+      "glob": "index.html",
+      "obligatorio": true,
+      "min_bytes": 900
+    },
+    {
+      "glob": "*.js",
+      "obligatorio": true,
+      "min_bytes": 7000
+    },
+    {
+      "glob": "*.css",
+      "obligatorio": false,
+      "min_bytes": 300
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "pagina-y-formulario",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/index.html",
+      "min_bytes": 900,
+      "contiene": [
+        "catalogo",
+        "buscador",
+        "campo-tarjeta",
+        "btn-pagar",
+        "carrito-total"
+      ]
+    },
+    {
+      "nombre": "codigo-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "min_bytes": 800,
+      "min_lineas": 320,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "Math\\.random\\s*\\(",
+        "cdn\\.",
+        "unpkg",
+        "jsdelivr"
+      ]
+    },
+    {
+      "nombre": "contrato-en-el-codigo",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "contiene": [
+        "luhn",
+        "aplicarCupon",
+        "validarPedido",
+        "confirmarPedido",
+        "AHORRA10",
+        "ENVIOGRATIS",
+        "localStorage"
+      ]
+    },
+    {
+      "nombre": "arranca-con-catalogo-y-api",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "pagina": "index.html",
+      "espera_ms": 1500,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "#catalogo .producto",
+          "min": 12
+        },
+        {
+          "tipo": "selector",
+          "sel": "#checkout",
+          "min": 1
+        },
+        {
+          "tipo": "selector",
+          "sel": "#campo-tarjeta",
+          "min": 1
+        },
+        {
+          "tipo": "js",
+          "nombre": "api",
+          "codigo": "() => !!(window.TIENDA && Array.isArray(window.TIENDA.productos) && typeof window.TIENDA.buscar==='function' && typeof window.TIENDA.filtrar==='function' && typeof window.TIENDA.anadir==='function' && typeof window.TIENDA.cambiarCantidad==='function' && typeof window.TIENDA.quitar==='function' && typeof window.TIENDA.vaciar==='function' && typeof window.TIENDA.carrito==='function' && typeof window.TIENDA.totales==='function' && typeof window.TIENDA.aplicarCupon==='function' && typeof window.TIENDA.luhn==='function' && typeof window.TIENDA.validarPedido==='function' && typeof window.TIENDA.confirmarPedido==='function' && typeof window.TIENDA.historial==='function')"
+        },
+        {
+          "tipo": "js",
+          "nombre": "catalogo",
+          "codigo": "() => (window.TIENDA.productos||[]).length",
+          "min": 24
+        },
+        {
+          "tipo": "js",
+          "nombre": "productos_bien_formados",
+          "codigo": "() => { const p=window.TIENDA.productos; const ok=p.every(x=>x && x.id!==undefined && x.nombre && x.categoria && Number(x.precio)>0 && Number(x.stock)>=0); const cats=new Set(p.map(x=>x.categoria)); const barato=p.some(x=>Number(x.precio)<20); return ok && cats.size>=4 && barato && new Set(p.map(x=>String(x.id))).size===p.length; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "las_tarjetas_llevan_data_id",
+          "codigo": "() => { const t=Array.from(document.querySelectorAll('#catalogo .producto')); const ids=new Set(window.TIENDA.productos.map(p=>String(p.id))); return t.length>0 && t.every(e=>ids.has(String(e.getAttribute('data-id')))); }"
+        }
+      ]
+    },
+    {
+      "nombre": "buscador-y-filtros",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { window.__total = window.TIENDA.productos.length; window.__palabra = String(window.TIENDA.productos[0].nombre).split(' ')[0]; const b=document.querySelector('#buscador'); b.value = window.__palabra; b.dispatchEvent(new Event('input', {bubbles:true})); }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 600
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_buscador_recorta_el_dom",
+          "codigo": "() => { const v=window.TIENDA.visibles(); const n=document.querySelectorAll('#catalogo .producto').length; return v.length>0 && v.length<window.__total && n===v.length; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "lo_visible_casa_con_el_texto",
+          "codigo": "() => { const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,''); const p=norm(window.__palabra); const v=window.TIENDA.visibles(); return v.length>0 && v.every(x=>norm((x.nombre||'')+' '+(x.descripcion||'')).indexOf(p)>=0); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "filtro_por_categoria_y_precio",
+          "codigo": "() => { const t=window.TIENDA; const cat=t.categorias[0]; const enCat=t.productos.filter(x=>x.categoria===cat); const tope=Math.max.apply(null, enCat.map(x=>Number(x.precio))); const v=t.filtrar({texto:'', categoria:cat, precioMax:tope}); const n=document.querySelectorAll('#catalogo .producto').length; const okCat = v.length===enCat.length && v.length>0 && v.length<t.productos.length && n===v.length && v.every(x=>x.categoria===cat && Number(x.precio)<=tope); const barato=Math.min.apply(null, t.productos.map(x=>Number(x.precio))); const w=t.filtrar({texto:'', categoria:'', precioMax:barato}); const okPrecio = w.length>0 && w.every(x=>Number(x.precio)<=barato) && document.querySelectorAll('#catalogo .producto').length===w.length; return okCat && okPrecio; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "buscar_no_toca_el_catalogo",
+          "codigo": "() => { const t=window.TIENDA; const r=t.buscar('__nada_de_nada__'); t.filtrar({texto:'', categoria:'', precioMax:9999}); return Array.isArray(r) && r.length===0 && t.productos.length===window.__total && t.visibles().length===window.__total; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "la_ficha_se_abre",
+          "codigo": "() => { const t=window.TIENDA; const p=t.productos[3]; const f=t.verFicha(p.id); const txt=(document.querySelector('#ficha')||{}).textContent||''; return f && String(f.id)===String(p.id) && txt.indexOf(p.nombre)>=0 && t.verFicha('__no_existe__')===null; }"
+        }
+      ]
+    },
+    {
+      "nombre": "carrito-y-totales",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const t=window.TIENDA; t.vaciar(); const a=t.productos[0], b=t.productos[1]; t.anadir(a.id, 2); t.anadir(b.id, 1); t.anadir(a.id, 1); }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 400
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "acumula_cantidades",
+          "codigo": "() => { const t=window.TIENDA; const c=t.carrito(); const a=t.productos[0]; const linea=c.find(l=>String(l.id)===String(a.id)); return c.length===2 && linea && linea.cantidad===3 && Math.abs(linea.subtotal-linea.cantidad*a.precio)<0.02; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "totales_cuadran",
+          "codigo": "() => { const t=window.TIENDA; const c=t.carrito(); const x=t.totales(); const sub=c.reduce((s,l)=>s+l.precio*l.cantidad,0); const uni=c.reduce((s,l)=>s+l.cantidad,0); const envio=sub<50?4.95:0; return Math.abs(x.subtotal-sub)<0.02 && x.unidades===uni && Math.abs(x.envio-envio)<0.02 && Math.abs(x.total-(x.subtotal-x.descuento+x.envio))<0.02; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_dom_del_carrito_sigue_al_estado",
+          "codigo": "() => { const t=window.TIENDA; const x=t.totales(); const u=(document.querySelector('#carrito-unidades')||{}).textContent||''; const tot=(document.querySelector('#carrito-total')||{}).textContent||''; const lineas=document.querySelectorAll('#carrito li, #carrito tr, #carrito .linea').length; return u.replace(/[^0-9]/g,'').indexOf(String(x.unidades))>=0 && tot.replace(/[^0-9]/g,'').indexOf(String(Math.floor(x.total)))>=0 && lineas>=t.carrito().length; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "cambiar_y_quitar",
+          "codigo": "() => { const t=window.TIENDA; const b=t.productos[1]; const ok1=t.cambiarCantidad(b.id, 4)===true && t.carrito().find(l=>String(l.id)===String(b.id)).cantidad===4; const antes=t.carrito().length; const ok2=t.quitar(b.id)===true && t.carrito().length===antes-1; const ok3=t.cambiarCantidad(t.productos[0].id, 0)===true && t.carrito().length===0; const x=t.totales(); return ok1 && ok2 && ok3 && x.subtotal===0 && x.unidades===0 && x.total>=0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "cupones-con-reglas",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const t=window.TIENDA; t.vaciar(); const caro=t.productos.slice().sort((a,b)=>b.precio-a.precio)[0]; t.anadir(caro.id, 1); window.__caro=caro.id; }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 300
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "ahorra10_descuenta_el_diez",
+          "codigo": "() => { const t=window.TIENDA; const a=t.totales(); const r=t.aplicarCupon('AHORRA10'); const b=t.totales(); return r && r.ok===true && Math.abs(b.descuento-a.subtotal*0.10)<0.02 && Math.abs(b.total-(b.subtotal-b.descuento+b.envio))<0.02; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "codigo_invalido_no_toca_el_descuento",
+          "codigo": "() => { const t=window.TIENDA; const antes=t.totales().descuento; const r=t.aplicarCupon('NO_EXISTE_ESTE'); const c=t.aplicarCupon('CADUCADO'); const d=t.totales().descuento; return r && r.ok===false && !!r.motivo && c && c.ok===false && Math.abs(d-antes)<0.001; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "enviogratis_y_umbral_de_envio",
+          "codigo": "() => { const t=window.TIENDA; t.aplicarCupon(''); const barato=t.productos.slice().sort((a,b)=>a.precio-b.precio)[0]; t.vaciar(); t.anadir(barato.id,1); const x=t.totales(); const conEnvio=(x.subtotal<50) ? Math.abs(x.envio-4.95)<0.02 : x.envio===0; const r=t.aplicarCupon('ENVIOGRATIS'); const y=t.totales(); return conEnvio && r.ok===true && y.envio===0 && Math.abs(y.total-(y.subtotal-y.descuento))<0.02; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "menos5_exige_minimo",
+          "codigo": "() => { const t=window.TIENDA; t.vaciar(); t.aplicarCupon(''); const barato=t.productos.slice().sort((a,b)=>a.precio-b.precio)[0]; t.anadir(barato.id,1); const bajo=t.totales().subtotal; const r1=t.aplicarCupon('MENOS5'); for(let i=0;i<t.productos.length && t.totales().subtotal<20;i++){ t.anadir(t.productos[i].id,1); } const r2=t.aplicarCupon('MENOS5'); const x=t.totales(); return (bajo>=20 ? r1.ok===true : r1.ok===false) && x.subtotal>=20 && r2.ok===true && Math.abs(x.descuento-5)<0.02 && x.total>=0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "quitar_el_cupon",
+          "codigo": "() => { const t=window.TIENDA; const r=t.aplicarCupon(''); return t.totales().descuento===0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "checkout-rechaza-datos-malos",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const t=window.TIENDA; t.vaciar(); t.aplicarCupon(''); t.anadir(t.productos[0].id, 1); }"
+        },
+        {
+          "tipo": "escribir",
+          "sel": "#campo-nombre",
+          "texto": "A"
+        },
+        {
+          "tipo": "escribir",
+          "sel": "#campo-email",
+          "texto": "correo-malo"
+        },
+        {
+          "tipo": "escribir",
+          "sel": "#campo-direccion",
+          "texto": ""
+        },
+        {
+          "tipo": "escribir",
+          "sel": "#campo-tarjeta",
+          "texto": "4111111111111112"
+        },
+        {
+          "tipo": "escribir",
+          "sel": "#campo-caducidad",
+          "texto": "13/30"
+        },
+        {
+          "tipo": "escribir",
+          "sel": "#campo-cvv",
+          "texto": "1"
+        },
+        {
+          "tipo": "click",
+          "sel": "#btn-pagar"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 600
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "mensajes_por_campo_en_el_dom",
+          "codigo": "() => { const ids=['#error-email','#error-tarjeta','#error-caducidad','#error-cvv','#error-direccion']; return ids.every(i=>{ const e=document.querySelector(i); return e && /\\S/.test(e.textContent||''); }); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "no_se_confirmo_el_pedido",
+          "codigo": "() => window.TIENDA.carrito().length===1 && !window.TIENDA.ultimoPedido() && (window.TIENDA.historial()||[]).length===0"
+        },
+        {
+          "tipo": "js",
+          "nombre": "luhn_de_verdad",
+          "codigo": "() => { const t=window.TIENDA; return t.luhn('4111111111111111')===true && t.luhn('4111 1111 1111 1111')===true && t.luhn('4111-1111-1111-1111')===true && t.luhn('4111111111111112')===false && t.luhn('1234')===false && t.luhn('abcdefghijklmnop')===false; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "validar_pedido_campo_a_campo",
+          "codigo": "() => { const t=window.TIENDA; t.fechaReferencia='2026-01'; const malo=t.validarPedido({nombre:'', email:'correo-malo', direccion:'', tarjeta:'4111111111111112', caducidad:'13/30', cvv:'1'}); const e=(malo&&malo.errores)||{}; const bueno=t.validarPedido({nombre:'Ana Ruiz', email:'ana@ejemplo.com', direccion:'Calle Mayor 1, Madrid', tarjeta:'4111 1111 1111 1111', caducidad:'12/30', cvv:'123'}); const vencida=t.validarPedido({nombre:'Ana Ruiz', email:'ana@ejemplo.com', direccion:'Calle Mayor 1, Madrid', tarjeta:'4111111111111111', caducidad:'01/20', cvv:'123'}); return malo.ok===false && !!e.nombre && !!e.email && !!e.direccion && !!e.tarjeta && !!e.caducidad && !!e.cvv && bueno.ok===true && Object.keys(bueno.errores||{}).length===0 && vencida.ok===false && !!(vencida.errores||{}).caducidad; }"
+        }
+      ]
+    },
+    {
+      "nombre": "aguanta-el-maltrato",
+      "tipo": "web",
+      "capa": "robustez",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "anadir_rechaza_lo_imposible",
+          "codigo": "() => { const t=window.TIENDA; t.vaciar(); const p=t.productos[0]; return t.anadir('__no_existe__',1)===false && t.anadir(p.id,0)===false && t.anadir(p.id,-3)===false && t.anadir(p.id,1.5)===false && t.anadir(p.id, Number(p.stock)+50)===false && t.carrito().length===0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "quitar_y_cambiar_lo_que_no_esta",
+          "codigo": "() => { const t=window.TIENDA; return t.quitar('__no_existe__')===false && t.cambiarCantidad('__no_existe__', 2)===false && t.carrito().length===0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "no_se_paga_con_el_carrito_vacio",
+          "codigo": "() => { const t=window.TIENDA; t.vaciar(); const r=t.confirmarPedido({nombre:'Ana Ruiz', email:'ana@ejemplo.com', direccion:'Calle Mayor 1', tarjeta:'4111111111111111', caducidad:'12/30', cvv:'123'}); return r && r.ok===false && !t.ultimoPedido(); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_catalogo_sigue_intacto",
+          "codigo": "() => { const t=window.TIENDA; const x=t.totales(); return t.productos.length>=24 && x.total>=0 && x.subtotal===0 && t.productos.every(p=>Number(p.stock)>=0); }"
+        }
+      ]
+    },
+    {
+      "nombre": "compra-completa-que-sobrevive-a-la-recarga",
+      "tipo": "web",
+      "capa": "integridad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const t=window.TIENDA; t.vaciar(); t.anadir(t.productos[2].id, 2); t.aplicarCupon('AHORRA10'); }"
+        },
+        {
+          "tipo": "recargar",
+          "ms": 1500
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => { const t=window.TIENDA; localStorage.setItem('__persistio', JSON.stringify({lineas:t.carrito().length, unidades:t.totales().unidades, desc:t.totales().descuento})); }"
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => { window.TIENDA.fechaReferencia='2026-01'; window.__pago = window.TIENDA.confirmarPedido({nombre:'Ana Ruiz', email:'ana@ejemplo.com', direccion:'Calle Mayor 1, Madrid', tarjeta:'4111 1111 1111 1111', caducidad:'12/30', cvv:'123'}); }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 600
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_carrito_sobrevivio_solo",
+          "codigo": "() => { const g=JSON.parse(localStorage.getItem('__persistio')||'null'); return !!g && g.lineas===1 && g.unidades===2 && g.desc>0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_pedido_se_confirmo",
+          "codigo": "() => { const r=window.__pago||{}; const p=r.pedido||{}; return r.ok===true && !!p.numero && Array.isArray(p.lineas) && p.lineas.length===1 && p.totales && p.totales.total>0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_carrito_queda_vacio_y_hay_historial",
+          "codigo": "() => { const t=window.TIENDA; return t.carrito().length===0 && t.totales().total>=0 && (t.historial()||[]).length>=1 && !!t.ultimoPedido(); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_resumen_se_pinta",
+          "codigo": "() => { const r=document.querySelector('#resumen-pedido'); const n=String(((window.__pago||{}).pedido||{}).numero||''); return !!r && (r.textContent||'').indexOf(n)>=0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "web",
+        "pagina": "index.html",
+        "espera_ms": 1500,
+        "max_errores_consola": 0,
+        "afirmaciones": [
+          {
+            "tipo": "js",
+            "nombre": "api_viva",
+            "codigo": "() => !!(window.TIENDA && Array.isArray(window.TIENDA.productos) && typeof window.TIENDA.buscar==='function' && typeof window.TIENDA.filtrar==='function' && typeof window.TIENDA.anadir==='function' && typeof window.TIENDA.cambiarCantidad==='function' && typeof window.TIENDA.quitar==='function' && typeof window.TIENDA.vaciar==='function' && typeof window.TIENDA.carrito==='function' && typeof window.TIENDA.totales==='function' && typeof window.TIENDA.aplicarCupon==='function' && typeof window.TIENDA.luhn==='function' && typeof window.TIENDA.validarPedido==='function' && typeof window.TIENDA.confirmarPedido==='function' && typeof window.TIENDA.historial==='function')"
+          },
+          {
+            "tipo": "js",
+            "nombre": "catalogo_pintado",
+            "codigo": "() => document.querySelectorAll('#catalogo .producto').length",
+            "min": 12
+          },
+          {
+            "tipo": "js",
+            "nombre": "comprar_no_rompe",
+            "codigo": "() => { const t=window.TIENDA; t.vaciar(); t.anadir(t.productos[0].id,1); const x=t.totales(); t.vaciar(); return x.total>0 && t.totales().total>=0; }"
+          }
+        ]
+      }
+    }
+  ]
+}

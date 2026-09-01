@@ -1,0 +1,331 @@
+{
+  "id": "colonia-simulador",
+  "familia": "simulacion",
+  "dificultad": 5,
+  "presupuesto_s": 540,
+  "pasos": 80,
+  "longitud_esperada_lineas": 1400,
+  "prompt": "Construye un SIMULADOR DE COLONIA (estilo RimWorld / Dwarf Fortress en 2D) COMPLETO y FUNCIONANDO, en HTML + JavaScript puro sobre <canvas>. Sin librerias, sin CDN, sin npm install, sin ninguna peticion de red: solo JavaScript del navegador y ficheros locales. Entregalo en el directorio de trabajo actual, con index.html como punto de entrada y el codigo en uno o varios ficheros .js propios.\n\nSISTEMAS QUE DEBE TENER, todos implementados de verdad y visibles en pantalla:\n1. MAPA POR CELDAS generado proceduralmente con una semilla: terreno (hierba, tierra, roca, agua), obstaculos intransitables y celdas con recurso (arboles = madera, vetas = piedra, matorrales = comida). Todas las celdas transitables deben quedar conectadas entre si (sin islas aisladas).\n2. COLONOS AUTONOMOS: al menos 3 al empezar, cada uno con nombre, posicion, y tres necesidades numericas de 0 a 100 (hambre, descanso, animo) donde 100 es el mejor estado. Hambre y descanso BAJAN con el paso del tiempo; comer sube hambre, dormir sube descanso, y un colono con necesidades muy bajas pierde animo y rinde peor.\n3. SISTEMA DE TRABAJOS con COLA y PRIORIDADES: tipos de trabajo talar, minar, recolectar, construir y fabricar; cada colono tiene una prioridad por tipo de trabajo (0 = nunca, 1..4 = de mas a menos urgente) y toma de la cola el trabajo pendiente mas prioritario que puede alcanzar. Un trabajo se asigna a un solo colono y desaparece de la cola cuando se completa.\n4. PATHFINDING A* REAL sobre la rejilla, respetando obstaculos y edificios: coste de movimiento, heuristica admisible, y devolucion de la ruta completa como lista de celdas contiguas. Si no hay camino, la funcion debe decirlo en vez de inventarse una linea recta.\n5. CONSTRUCCION: al menos 5 tipos de edificio (muro, almacen, cama, mesa de trabajo, cocina) con coste en materiales; se encolan como trabajo de construccion, los colonos van hasta la celda y la levantan; un muro pasa a ser intransitable y recalcula las rutas afectadas.\n6. ALMACEN E INVENTARIO GLOBAL: los recursos recolectados se suman a un almacen global; la interfaz muestra las existencias; construir y fabricar consumen del almacen y fallan si no hay bastante.\n7. PRODUCCION Y CADENAS DE FABRICACION: al menos 3 recetas encadenadas (por ejemplo madera -> tablones, tablones + piedra -> muebles, comida cruda -> comida cocinada), cada una con entradas, salidas y duracion; fabricar consume las entradas y anade las salidas al terminar.\n8. EVENTOS ALEATORIOS deterministas por semilla: al menos 4 tipos (incursion, tormenta, plaga, caravana o cosecha) que afecten al estado de la colonia y queden registrados en un historial visible.\n9. VELOCIDAD DE SIMULACION x1 / x2 / x3 y PAUSA, con botones en la interfaz; en pausa la simulacion no avanza sola.\n10. GUARDADO Y CARGA de la partida completa en localStorage (mapa, colonos con sus necesidades, almacen, edificios, cola de trabajos, contador de tics y semilla), con botones de guardar y cargar.\n11. INTERFAZ: panel con recursos, lista de colonos con sus necesidades y trabajo actual, cola de trabajos, historial de eventos, y seleccion de que construir con el raton sobre el mapa.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el; respetalo al pie de la letra, es la interfaz publica del producto):\n- El punto de entrada es index.html y la simulacion arranca sola al cargar la pagina.\n- TODO el JavaScript vive en ficheros .js del directorio de trabajo (como mucho 4, sin subcarpetas);\n  index.html solo trae el <canvas>, la interfaz y sus etiquetas <script src=\"...\"></script> con ruta relativa.\n- Debe existir un <canvas> donde se pinta el mapa, los colonos y los edificios con requestAnimationFrame.\n- Expon un objeto global window.COLONIA, siempre actualizado, con AL MENOS esto:\n    COLONIA.mapa            -> {ancho, alto} en celdas (al menos 40 x 30)\n    COLONIA.celda(x, y)     -> {tipo, recurso, transitable, edificio} o null si (x,y) esta fuera del mapa.\n                               `recurso` vale EXACTAMENTE 'madera' (arboles), 'piedra' (vetas), 'comida'\n                               (matorrales) o null si esa celda no tiene recurso\n    COLONIA.transitable(x, y) -> booleano\n    COLONIA.bloquear(x, y, valor) -> marca (true) o desmarca (false) una celda como intransitable; devuelve true si cambio\n    COLONIA.ruta(x0, y0, x1, y1) -> ruta A* como array [{x, y}, ...] que EMPIEZA en el origen y TERMINA en el destino, con celdas contiguas (adyacentes en las 4 u 8 direcciones) y todas transitables; devuelve null si no hay camino\n    COLONIA.colonos         -> array de {id, nombre, x, y, hambre, descanso, animo, trabajoActual}\n    COLONIA.prioridad(idColono, tipoTrabajo, valor) -> fija la prioridad y devuelve el valor aplicado\n    COLONIA.trabajos        -> array de trabajos pendientes {id, tipo, x, y, asignadoA}\n    COLONIA.encolar(tipo, x, y) -> encola un trabajo y devuelve su id, o null si es imposible (fuera del mapa, sin recurso alli)\n    COLONIA.almacen         -> objeto plano modificable con al menos {madera, piedra, comida}\n    COLONIA.tiposEdificio   -> array de {id, coste} con al menos 5 entradas; `coste` es {recurso: cantidad}\n                               y solo usa madera, piedra o comida (nunca productos fabricados), con al menos\n                               un recurso de coste mayor que cero\n    COLONIA.construir(tipo, x, y) -> true si la construccion es legal (celda libre y materiales suficientes) y queda encolada; false si no\n    COLONIA.edificios       -> array de edificios ya levantados\n    COLONIA.recetas         -> array de {id, entradas: {...}, salidas: {...}, segundos} con al menos 3 recetas;\n                               `entradas` nunca esta vacio y TODA receta se fabrica en la mesa de trabajo\n                               inicial (ninguna exige otro edificio)\n    COLONIA.fabricar(idReceta) -> true si hay materiales y queda encolada; false si faltan materiales o la receta no existe\n    COLONIA.eventos         -> array con los nombres de los tipos de evento (al menos 4)\n    COLONIA.evento(nombre)  -> dispara ese evento ahora; devuelve true si existe\n    COLONIA.historial       -> array de eventos ocurridos, el ultimo al final\n    COLONIA.velocidad(v)    -> fija la velocidad (1, 2 o 3) y devuelve la velocidad actual; sin argumento solo la devuelve\n    COLONIA.pausar()        -> alterna la pausa y devuelve true si queda PAUSADA. La pausa detiene SOLO el avance automatico por requestAnimationFrame; tick() sigue funcionando siempre\n    COLONIA.tick(ms)        -> avanza la simulacion ese numero de milisegundos de forma DETERMINISTA y devuelve el numero de tics avanzados\n    COLONIA.tics            -> contador de tics simulados\n    COLONIA.semilla(n)      -> regenera el mundo entero (mapa, colonos, almacen, tics a 0) de forma determinista con esa semilla y la devuelve. NO cambia el estado de pausa\n    COLONIA.estado()        -> objeto JSON-serializable con el estado COMPLETO (mapa, colonos, almacen, edificios, trabajos, tics, semilla). Dos partidas con la misma semilla y los mismos tics deben producir exactamente el mismo estado()\n    COLONIA.guardar()       -> guarda estado() en localStorage y devuelve true\n    COLONIA.cargar()        -> restaura el estado completo desde localStorage (incluido el contador de tics) y devuelve true\n- La colonia empieza con un almacen y una mesa de trabajo YA construidos, para que fabricar() funcione desde el primer instante.\n- Al empezar, NINGUN colono tiene una prioridad a 0: los cinco tipos de trabajo estan habilitados (1..4) para\n  todos los colonos, de modo que cualquier trabajo encolado acaba tomandolo alguien.\n- Todo el azar (mapa, eventos, decisiones de los colonos) pasa por un generador pseudoaleatorio propio sembrado con la semilla. Nada de Math.random directo en la simulacion: la simulacion tiene que ser reproducible.\n- No debe haber NINGUN error en la consola del navegador.\n- Escribe tambien un README.md (minimo 200 bytes) explicando como se abre, como se juega y que hace cada boton.\n\nNada de red, nada de CDN, nada de dependencias externas: si el fichero no esta en el directorio de trabajo, no existe.\n\nNo entregues un esqueleto ni una demo visual: cada sistema de la lista tiene que estar implementado. Cuando creas que has terminado, ABRE el resultado, PRUEBALO tu mismo (comprueba el pathfinding, que los colonos recolectan de verdad, que construir cobra materiales, que guardar y cargar restauran la partida y que no hay errores en consola) y CORRIGE lo que falle antes de darlo por bueno.",
+  "criterios_exito": [
+    "index.html abre sin errores de consola y el canvas pinta el mapa, los colonos y los edificios",
+    "window.COLONIA expone el estado y todos los metodos del contrato",
+    "ruta() devuelve un camino A* contiguo por celdas transitables y null cuando el destino esta encerrado",
+    "encolar un trabajo hace que un colono vaya, lo ejecute y el almacen suba",
+    "las necesidades (hambre, descanso) bajan con el paso de los tics",
+    "construir y fabricar consumen materiales y fallan sin ellos",
+    "pausa, velocidad x1/x2/x3 y eventos funcionan de verdad",
+    "guardar y cargar restauran almacen, colonos y contador de tics tras recargar la pagina",
+    "la simulacion es determinista: misma semilla y mismos tics dan el mismo estado()"
+  ],
+  "criterios_fallo": [
+    "el canvas queda en blanco o no cambia",
+    "window.COLONIA no existe o le faltan metodos del contrato",
+    "ruta() devuelve una linea recta que atraviesa obstaculos o nunca devuelve null",
+    "los colonos no se mueven ni completan trabajos y el almacen no cambia",
+    "construir siempre devuelve true (no valida materiales ni la celda)",
+    "cargar() no restaura el estado o rompe la pagina",
+    "el estado depende de Math.random y no se reproduce con la misma semilla",
+    "errores de JavaScript en la consola"
+  ],
+  "artefactos": [
+    {
+      "glob": "index.html",
+      "obligatorio": true,
+      "min_bytes": 800
+    },
+    {
+      "glob": "*.js",
+      "obligatorio": true,
+      "min_bytes": 3000
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "artefactos-presentes",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "index.html",
+      "min_bytes": 800,
+      "contiene": [
+        "canvas"
+      ],
+      "no_contiene": [
+        "src\\s*=\\s*[\\\"']https?://"
+      ]
+    },
+    {
+      "nombre": "codigo-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "min_bytes": 3000,
+      "min_lineas": 600,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "por implementar",
+        "resto del codigo"
+      ]
+    },
+    {
+      "nombre": "los-sistemas-en-el-codigo",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "contiene": [
+        "COLONIA",
+        "hambre",
+        "descanso",
+        "animo",
+        "prioridad",
+        "recetas",
+        "historial",
+        "localStorage",
+        "requestAnimationFrame"
+      ]
+    },
+    {
+      "nombre": "arranca-y-pinta-la-colonia",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "pagina": "index.html",
+      "espera_ms": 1800,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "canvas",
+          "min": 1
+        },
+        {
+          "tipo": "canvas",
+          "min_colores": 5
+        },
+        {
+          "tipo": "js",
+          "nombre": "api_completa",
+          "codigo": "() => { const C = window.COLONIA; if (!C) return false; const fs = ['celda','transitable','bloquear','ruta','prioridad','encolar','construir','fabricar','evento','velocidad','pausar','tick','semilla','estado','guardar','cargar']; return fs.every(f => typeof C[f] === 'function') && !!C.mapa && Array.isArray(C.colonos) && Array.isArray(C.trabajos) && Array.isArray(C.recetas) && Array.isArray(C.tiposEdificio) && !!C.almacen; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "mundo_poblado",
+          "codigo": "() => { const C = window.COLONIA; return (C.mapa.ancho >= 40 && C.mapa.alto >= 30 && C.colonos.length >= 3 && C.recetas.length >= 3 && C.tiposEdificio.length >= 5) ? 1 : 0; }",
+          "min": 1
+        }
+      ]
+    },
+    {
+      "nombre": "pathfinding-a-estrella-real",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "ruta_contigua_y_transitable",
+          "codigo": "() => { const C = window.COLONIA; if (C.pausar() === false) C.pausar(); C.semilla(42); const libres = []; for (let y = 0; y < C.mapa.alto; y++) for (let x = 0; x < C.mapa.ancho; x++) if (C.transitable(x, y)) libres.push({x: x, y: y}); if (libres.length < 40) return false; const a = libres[0], b = libres[libres.length - 1]; const r = C.ruta(a.x, a.y, b.x, b.y); if (!Array.isArray(r) || r.length < 3) return false; if (r[0].x !== a.x || r[0].y !== a.y) return false; const f = r[r.length - 1]; if (f.x !== b.x || f.y !== b.y) return false; for (let i = 1; i < r.length; i++) { const dx = Math.abs(r[i].x - r[i-1].x), dy = Math.abs(r[i].y - r[i-1].y); if (Math.max(dx, dy) !== 1) return false; if (!C.transitable(r[i].x, r[i].y)) return false; } return true; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "ruta_sin_celdas_repetidas_ni_paseos",
+          "codigo": "() => { const C = window.COLONIA; C.semilla(42); const libres = []; for (let y = 0; y < C.mapa.alto; y++) for (let x = 0; x < C.mapa.ancho; x++) if (C.transitable(x, y)) libres.push({x: x, y: y}); const a = libres[0], b = libres[libres.length - 1]; const r = C.ruta(a.x, a.y, b.x, b.y); if (!Array.isArray(r) || r.length < 3) return false; const chebyshev = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y)); if ((r.length - 1) < chebyshev) return false; const vistas = new Set(); for (const c of r) { const k = c.x + ',' + c.y; if (vistas.has(k)) return false; vistas.add(k); } return (r.length - 1) <= chebyshev * 6 + 40; }"
+        }
+      ]
+    },
+    {
+      "nombre": "colonos-necesidades-y-cola-de-trabajos",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "las_necesidades_bajan",
+          "codigo": "() => { const C = window.COLONIA; if (C.pausar() === false) C.pausar(); C.semilla(7); const h0 = C.colonos.map(c => c.hambre); const d0 = C.colonos.map(c => c.descanso); C.tick(120000); const baja = C.colonos.some((c, i) => c.hambre < h0[i]) || C.colonos.some((c, i) => c.descanso < d0[i]); const rango = C.colonos.every(c => c.hambre >= 0 && c.hambre <= 100 && c.descanso >= 0 && c.descanso <= 100 && c.animo >= 0 && c.animo <= 100); return baja && rango; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_trabajo_encolado_se_ejecuta",
+          "codigo": "() => { const C = window.COLONIA; if (C.pausar() === false) C.pausar(); C.semilla(11); const p = C.colonos[0]; let cel = null, mejor = 1e9; for (let y = 0; y < C.mapa.alto; y++) for (let x = 0; x < C.mapa.ancho; x++) { const c = C.celda(x, y); if (c && c.recurso === 'madera') { const d = Math.abs(x - p.x) + Math.abs(y - p.y); if (d < mejor) { mejor = d; cel = {x: x, y: y}; } } } if (!cel) return false; const m0 = C.almacen.madera || 0; const id = C.encolar('talar', cel.x, cel.y); if (id === null || id === undefined || id === false) return false; if (!C.trabajos.some(t => t.id === id)) return false; C.tick(180000); return (C.almacen.madera || 0) > m0 && !C.trabajos.some(t => t.id === id); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "los_colonos_se_mueven",
+          "codigo": "() => { const C = window.COLONIA; C.semilla(11); const p0 = C.colonos.map(c => ({x: c.x, y: c.y})); for (let y = 0; y < C.mapa.alto; y++) for (let x = 0; x < C.mapa.ancho; x++) { const c = C.celda(x, y); if (c && c.recurso) C.encolar(c.recurso === 'madera' ? 'talar' : (c.recurso === 'piedra' ? 'minar' : 'recolectar'), x, y); } C.tick(90000); return C.colonos.some((c, i) => c.x !== p0[i].x || c.y !== p0[i].y); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "las_prioridades_se_fijan",
+          "codigo": "() => { const C = window.COLONIA; const id = C.colonos[0].id; return C.prioridad(id, 'minar', 3) === 3 && C.prioridad(id, 'talar', 0) === 0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "construccion-almacen-y-produccion",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "construir_cobra_y_levanta",
+          "codigo": "() => { const C = window.COLONIA; if (C.pausar() === false) C.pausar(); C.semilla(13); for (const k in C.almacen) C.almacen[k] = 5000; C.almacen.madera = 5000; C.almacen.piedra = 5000; C.almacen.comida = 5000; const tipo = C.tiposEdificio[0].id; const p = C.colonos[0]; let sitio = null, mejor = 1e9; for (let y = 1; y < C.mapa.alto - 1; y++) for (let x = 1; x < C.mapa.ancho - 1; x++) { const c = C.celda(x, y); if (c && c.transitable && !c.edificio && !c.recurso) { const d = Math.abs(x - p.x) + Math.abs(y - p.y); if (d > 1 && d < mejor) { mejor = d; sitio = {x: x, y: y}; } } } if (!sitio) return false; if (C.construir(tipo, sitio.x, sitio.y) !== true) return false; C.tick(180000); const c = C.celda(sitio.x, sitio.y); if (!c.edificio) return false; const n0 = C.edificios.length; if (C.construir(tipo, sitio.x, sitio.y) !== false) return false; return C.edificios.length === n0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "la_receta_consume_y_produce",
+          "codigo": "() => { const C = window.COLONIA; if (C.pausar() === false) C.pausar(); C.semilla(9); const r = C.recetas[0]; if (!r || !r.entradas || !r.salidas) return false; const salida = Object.keys(r.salidas)[0]; for (const k in r.entradas) C.almacen[k] = (C.almacen[k] || 0) + r.entradas[k] * 5; const e0 = {}; for (const k in r.entradas) e0[k] = C.almacen[k]; const s0 = C.almacen[salida] || 0; if (C.fabricar(r.id) !== true) return false; C.tick(240000); const consumio = Object.keys(r.entradas).some(k => C.almacen[k] < e0[k]); return consumio && (C.almacen[salida] || 0) > s0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "velocidad-pausa-y-eventos",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 1.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const C = window.COLONIA; C.velocidad(1); if (C.pausar() === false) C.pausar(); window.__t0 = C.tics; }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 1000
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => { const C = window.COLONIA; window.__t1 = C.tics; if (C.pausar() === true) C.pausar(); }"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 1200
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => { window.__t2 = window.COLONIA.tics; }"
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "la_pausa_detiene_y_reanuda",
+          "codigo": "() => window.__t1 === window.__t0 && window.__t2 > window.__t1"
+        },
+        {
+          "tipo": "js",
+          "nombre": "velocidades_disponibles",
+          "codigo": "() => { const C = window.COLONIA; return C.velocidad(3) === 3 && C.velocidad(2) === 2 && C.velocidad(1) === 1; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "los_eventos_ocurren",
+          "codigo": "() => { const C = window.COLONIA; if (!Array.isArray(C.eventos) || C.eventos.length < 4) return false; const n0 = C.historial.length; return C.evento(C.eventos[0]) === true && C.historial.length > n0; }"
+        }
+      ]
+    },
+    {
+      "nombre": "rechaza-lo-imposible",
+      "tipo": "web",
+      "capa": "robustez",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "sin_camino_devuelve_null",
+          "codigo": "() => { const C = window.COLONIA; if (C.pausar() === false) C.pausar(); C.semilla(17); let cel = null; for (let y = 2; y < C.mapa.alto - 2 && !cel; y++) for (let x = 2; x < C.mapa.ancho - 2 && !cel; x++) { let ok = C.transitable(x, y); for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) if (!C.transitable(x + dx, y + dy)) ok = false; if (ok) cel = {x: x, y: y}; } if (!cel) return false; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) C.bloquear(cel.x + dx, cel.y + dy, true); let lejos = null; for (let y = 0; y < C.mapa.alto && !lejos; y++) for (let x = 0; x < C.mapa.ancho && !lejos; x++) if (C.transitable(x, y) && (Math.abs(x - cel.x) + Math.abs(y - cel.y)) > 6) lejos = {x: x, y: y}; if (!lejos) return false; const r = C.ruta(lejos.x, lejos.y, cel.x, cel.y); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) C.bloquear(cel.x + dx, cel.y + dy, false); return r === null; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "fuera_del_mapa_no_rompe",
+          "codigo": "() => { const C = window.COLONIA; const a = C.celda(-1, -1) === null && C.celda(99999, 99999) === null; const b = C.transitable(-5, 3) === false; const id = C.encolar('talar', -3, -3); const c = (id === null || id === false || id === undefined); return a && b && c; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "sin_materiales_no_construye_ni_fabrica",
+          "codigo": "() => { const C = window.COLONIA; C.semilla(19); for (const k in C.almacen) C.almacen[k] = 0; let sitio = null; for (let y = 1; y < C.mapa.alto - 1 && !sitio; y++) for (let x = 1; x < C.mapa.ancho - 1 && !sitio; x++) { const c = C.celda(x, y); if (c && c.transitable && !c.edificio && !c.recurso) sitio = {x: x, y: y}; } if (!sitio) return false; const caro = C.tiposEdificio.find(t => t.coste && Object.keys(t.coste).some(k => t.coste[k] > 0)) || C.tiposEdificio[0]; const rec = C.recetas.find(r => r.entradas && Object.keys(r.entradas).length > 0) || C.recetas[0]; const noConstruye = C.construir(caro.id, sitio.x, sitio.y) === false; const noFabrica = C.fabricar(rec.id) === false; const noExiste = C.fabricar('receta-que-no-existe-jamas') === false; return noConstruye && noFabrica && noExiste; }"
+        }
+      ]
+    },
+    {
+      "nombre": "la-partida-sobrevive-a-la-recarga",
+      "tipo": "web",
+      "capa": "integridad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const C = window.COLONIA; if (C.pausar() === false) C.pausar(); C.semilla(21); C.tick(30000); C.almacen.piedra = (C.almacen.piedra || 0) + 123; localStorage.setItem('__ref_banco', JSON.stringify({p: C.almacen.piedra, n: C.colonos.length, t: C.tics, e: C.edificios.length})); C.guardar(); }"
+        },
+        {
+          "tipo": "recargar",
+          "ms": 1800
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => { const C = window.COLONIA; C.cargar(); if (C.pausar() === false) C.pausar(); }"
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "estado_restaurado",
+          "codigo": "() => { const C = window.COLONIA; const r = JSON.parse(localStorage.getItem('__ref_banco') || 'null'); if (!r) return false; return C.almacen.piedra === r.p && C.colonos.length === r.n && C.tics === r.t && C.edificios.length === r.e; }"
+        }
+      ]
+    },
+    {
+      "nombre": "estable-y-determinista-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "peso": 1.0,
+      "prueba": {
+        "tipo": "web",
+        "pagina": "index.html",
+        "espera_ms": 1500,
+        "max_errores_consola": 0,
+        "acciones": [
+          {
+            "tipo": "js",
+            "codigo": "() => { const C = window.COLONIA; if (C.pausar() === false) C.pausar(); C.semilla(1234); C.tick(20000); window.__h1 = JSON.stringify(C.estado()); C.semilla(1234); C.tick(20000); window.__h2 = JSON.stringify(C.estado()); }"
+          }
+        ],
+        "afirmaciones": [
+          {
+            "tipo": "canvas",
+            "min_colores": 5
+          },
+          {
+            "tipo": "js",
+            "nombre": "misma_semilla_mismo_estado",
+            "codigo": "() => typeof window.__h1 === 'string' && window.__h1.length > 400 && window.__h1 === window.__h2"
+          }
+        ]
+      }
+    }
+  ]
+}

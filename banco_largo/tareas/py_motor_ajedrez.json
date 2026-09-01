@@ -1,0 +1,261 @@
+{
+  "id": "py-motor-ajedrez",
+  "familia": "py-lib",
+  "dificultad": 5,
+  "presupuesto_s": 540,
+  "pasos": 80,
+  "longitud_esperada_lineas": 1400,
+  "prompt": "Construye un MOTOR DE AJEDREZ completo en Python 3 en el directorio de trabajo actual, usando UNICAMENTE la libreria estandar. Prohibido: red, descargas, CDN, `pip install`, dependencias de terceros. Todo tiene que correr con el interprete pelado.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Representacion del tablero: 64 casillas, piezas, turno, derechos de enroque, casilla de captura al paso, contador de medios movimientos (regla de 50) y numero de jugada completa.\n2. Generacion de TODOS los movimientos pseudo-legales de peon, caballo, alfil, torre, dama y rey, con bloqueos y capturas correctas.\n3. Filtrado a movimientos LEGALES: un movimiento que deja o pone al propio rey en jaque no existe. Clavadas y jaques al descubierto incluidos.\n4. Enroque corto y largo con sus cuatro condiciones: derechos vivos, casillas intermedias vacias, rey no en jaque, y ninguna casilla que cruza el rey atacada. Mover rey o torre pierde el derecho; capturar una torre en su casilla original tambien.\n5. Captura al paso: se genera solo la jugada inmediatamente posterior al avance doble, y la casilla de al paso se pone y se limpia bien en cada jugada.\n6. Coronacion: al llegar a la ultima fila el peon genera CUATRO movimientos distintos (dama, torre, alfil, caballo), tanto avanzando como capturando.\n7. Deteccion de jaque, jaque mate, rey ahogado (tablas), material insuficiente y regla de los 50 movimientos.\n8. Importacion y exportacion FEN completas y exactas: leer una FEN, reconstruir el tablero y volver a escribir la MISMA cadena, con los seis campos.\n9. Busqueda minimax con poda alfa-beta a profundidad configurable, con puntuacion de mate (mas cercano vale mas) y ordenacion basica de movimientos (capturas primero).\n10. Funcion de evaluacion: material con valores clasicos mas tablas de posicion por pieza; devuelve enteros en centipeones desde el punto de vista del bando que mueve o con signo fijo, pero documentado.\n11. Tests de perft en tests/test_perft.py con los valores publicados: posicion inicial 20 / 400 / 8902 / 197281 a profundidades 1..4, y la posicion \"kiwipete\" 48 / 2039 a profundidades 1 y 2.\n12. Un CLI usable a mano, con --ayuda y mensajes de error legibles (nunca un traceback en la cara del usuario).\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo al pie de la letra):\n\nFicheros, con estos nombres exactos:\n    ajedrez/__init__.py     exporta Tablero, perft, buscar_mejor, evaluar\n    ajedrez/tablero.py      representacion + FEN\n    ajedrez/movimientos.py  generacion de movimientos legales (enroque, al paso, coronacion)\n    ajedrez/busqueda.py     minimax + poda alfa-beta + evaluacion\n    ajedrez_cli.py          la interfaz de linea de comandos (punto de entrada)\n    tests/test_perft.py     los tests de perft, escritos para pytest\n    README.md               como se usa\n\nAPI de Python (importable desde el directorio del proyecto):\n    Tablero.desde_fen(fen) -> Tablero\n    t.a_fen() -> str                       (ida y vuelta EXACTA con desde_fen)\n    t.movimientos_legales() -> lista de movimientos, cada uno con .uci() en minusculas\n    t.aplicar(mov) -> Tablero con la jugada hecha\n    t.en_jaque(color=None) -> bool\n    t.es_jaque_mate() -> bool\n    t.es_tablas() -> bool\n    perft(t, n) -> int\n    buscar_mejor(t, profundidad) -> (movimiento, puntuacion)\n    evaluar(t) -> int\n\nCLI, con estas salidas EXACTAS (una linea cada una, en minusculas):\n    python ajedrez_cli.py perft --fen \"<FEN>\" --profundidad <N>\n        imprime:  nodos: <numero de hojas>\n    python ajedrez_cli.py movimientos --fen \"<FEN>\"\n        imprime un movimiento UCI por linea (minusculas; coronacion con la letra de la pieza al final, por ejemplo a7a8q)\n        y como ultima linea:  total: <numero de movimientos legales>\n    python ajedrez_cli.py estado --fen \"<FEN>\"\n        imprime:  estado: normal   |   estado: jaque   |   estado: jaque_mate   |   estado: tablas\n    python ajedrez_cli.py fen --fen \"<FEN>\"\n        lee la FEN, reconstruye el tablero y la vuelve a escribir; imprime:  fen: <FEN>\n    python ajedrez_cli.py aplicar --fen \"<FEN>\" --movimiento <uci>\n        imprime:  fen: <FEN resultante>\n    python ajedrez_cli.py jugar --fen \"<FEN>\" --profundidad <N>\n        busca con minimax + alfa-beta e imprime:  mejor: <uci>\n\nCodigos de salida del CLI: 0 correcto; 2 FEN invalida (mensaje \"error: ...\" y NINGUN traceback); 3 movimiento ilegal o mal escrito; 1 uso incorrecto.\nEl enroque se escribe en UCI como el movimiento del rey dos casillas: e1g1, e1c1, e8g8, e8c8.\n\nLos tests de perft se corren tal cual con `python -m pytest tests` desde el directorio del proyecto, sin ninguna dependencia fuera de pytest y la estandar. tests/test_perft.py tiene AL MENOS DOS funciones `test_*` (al menos una por posicion) y la bateria entera termina en menos de cinco minutos: si tu perft de profundidad 4 no cabe en ese presupuesto, arregla el generador (nada de copiar el tablero entero con deepcopy en cada nodo) en vez de bajar la profundidad.\n\nVERIFICACION ANTES DE ENTREGAR (obligatoria): corre tu propio perft y compara con los valores publicados; comprueba a mano las posiciones de enroque, de captura al paso y de coronacion; comprueba que el mate del loco da jaque_mate y que el rey ahogado da tablas; comprueba la ida y vuelta de FEN en varias posiciones. Si algun numero no cuadra, ARREGLA el generador antes de darlo por terminado: un perft que no cuadra significa que tu generacion de movimientos esta mal, no que el valor publicado lo este. No entregues un esqueleto ni una demo: cada punto de la lista debe estar implementado, ejecutado y corregido por ti.",
+  "criterios_exito": [
+    "perft de la posicion inicial da 20 / 400 / 8902 en profundidades 1, 2 y 3",
+    "la generacion incluye enroque corto y largo (e1g1, e1c1) con sus condiciones",
+    "la coronacion genera las cuatro piezas y la captura al paso aparece cuando toca",
+    "estado distingue normal, jaque, jaque_mate y tablas (ahogado incluido)",
+    "la FEN va y vuelve exacta en los seis campos",
+    "la busqueda alfa-beta encuentra el mate en uno",
+    "el CLI responde con los codigos de salida del contrato y sin tracebacks"
+  ],
+  "criterios_fallo": [
+    "los numeros de perft no coinciden con los publicados",
+    "faltan enroque, captura al paso o coronacion en la generacion",
+    "deja jugar movimientos que dejan al rey en jaque",
+    "confunde jaque mate con rey ahogado",
+    "la FEN exportada no coincide con la importada",
+    "el CLI lanza un traceback ante una FEN invalida"
+  ],
+  "artefactos": [
+    {
+      "glob": "ajedrez_cli.py",
+      "obligatorio": true,
+      "min_bytes": 800
+    },
+    {
+      "glob": "ajedrez/*.py",
+      "obligatorio": true,
+      "min_bytes": 8000
+    },
+    {
+      "glob": "tests/test_perft.py",
+      "obligatorio": true,
+      "min_bytes": 300
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "codigo-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.py",
+      "min_bytes": 1200,
+      "min_lineas": 600,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "raise NotImplementedError"
+      ]
+    },
+    {
+      "nombre": "sistemas-nombrados-en-el-codigo",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "ajedrez/*.py",
+      "min_bytes": 500,
+      "contiene": [
+        "enroque|castl",
+        "al_paso|al paso|passant",
+        "coronac|promoc|promot",
+        "alfa|alpha",
+        "minimax|negamax",
+        "perft|movimientos_legales"
+      ]
+    },
+    {
+      "nombre": "perft-inicial-profundidad-3",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "entry": "ajedrez_cli.py",
+      "timeout": 300,
+      "args": [
+        "perft",
+        "--fen",
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "--profundidad",
+        "3"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "nodos:\\s*8902\\b"
+      ],
+      "no_stdout_re": [
+        "Traceback"
+      ]
+    },
+    {
+      "nombre": "enroque-en-la-generacion",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entry": "ajedrez_cli.py",
+      "timeout": 120,
+      "args": [
+        "movimientos",
+        "--fen",
+        "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "total:\\s*26\\b",
+        "\\be1g1\\b",
+        "\\be1c1\\b"
+      ]
+    },
+    {
+      "nombre": "coronacion-cuatro-piezas",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entry": "ajedrez_cli.py",
+      "timeout": 120,
+      "args": [
+        "movimientos",
+        "--fen",
+        "8/P7/8/8/8/8/7k/K7 w - - 0 1"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "total:\\s*7\\b",
+        "\\ba7a8q\\b",
+        "\\ba7a8r\\b",
+        "\\ba7a8b\\b",
+        "\\ba7a8n\\b"
+      ]
+    },
+    {
+      "nombre": "captura-al-paso",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "entry": "ajedrez_cli.py",
+      "timeout": 120,
+      "args": [
+        "movimientos",
+        "--fen",
+        "8/8/8/3pP3/8/8/k6K/8 w - d6 0 1"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "total:\\s*7\\b",
+        "\\be5d6\\b"
+      ]
+    },
+    {
+      "nombre": "jaque-mate-detectado",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "entry": "ajedrez_cli.py",
+      "timeout": 120,
+      "args": [
+        "estado",
+        "--fen",
+        "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "estado:\\s*jaque_mate"
+      ]
+    },
+    {
+      "nombre": "la-busqueda-encuentra-el-mate-en-uno",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entry": "ajedrez_cli.py",
+      "timeout": 300,
+      "args": [
+        "jugar",
+        "--fen",
+        "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+        "--profundidad",
+        "2"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "mejor:\\s*a1a8\\b"
+      ]
+    },
+    {
+      "nombre": "bateria-perft-del-agente",
+      "tipo": "pytest",
+      "capa": "funcionalidad",
+      "peso": 1.5,
+      "ruta": "tests",
+      "min_tests": 2,
+      "timeout": 600
+    },
+    {
+      "nombre": "fen-invalida-sin-traceback",
+      "tipo": "python",
+      "capa": "robustez",
+      "peso": 1.5,
+      "entry": "ajedrez_cli.py",
+      "timeout": 60,
+      "args": [
+        "estado",
+        "--fen",
+        "esto/no/es/una/fen w - - 0 1"
+      ],
+      "exit": 2,
+      "stdout_re": [
+        "error"
+      ],
+      "no_stdout_re": [
+        "Traceback",
+        "File \\\".*\\\", line \\d+"
+      ]
+    },
+    {
+      "nombre": "fen-ida-y-vuelta-exacta",
+      "tipo": "python",
+      "capa": "integridad",
+      "peso": 1.5,
+      "entry": "ajedrez_cli.py",
+      "timeout": 60,
+      "args": [
+        "fen",
+        "--fen",
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+      ],
+      "exit": 0,
+      "stdout_re": [
+        "fen:\\s*r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R\\sw\\sKQkq\\s-\\s0\\s1"
+      ]
+    },
+    {
+      "nombre": "perft-kiwipete-estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "python",
+        "entry": "ajedrez_cli.py",
+        "timeout": 300,
+        "args": [
+          "perft",
+          "--fen",
+          "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+          "--profundidad",
+          "2"
+        ],
+        "exit": 0,
+        "stdout_re": [
+          "nodos:\\s*2039\\b"
+        ]
+      }
+    }
+  ]
+}

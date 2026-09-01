@@ -1,0 +1,221 @@
+{
+  "id": "py-compilador",
+  "familia": "py-lib",
+  "dificultad": 5,
+  "presupuesto_s": 540,
+  "pasos": 80,
+  "longitud_esperada_lineas": 1800,
+  "prompt": "Construye un COMPILADOR COMPLETO de un mini lenguaje imperativo a un bytecode propio, MAS la maquina virtual de pila que lo ejecuta, en Python y usando SOLO la libreria estandar de Python 3.12. Prohibido: pip install, red, CDN y toda dependencia de terceros (nada de ply, lark, ANTLR, llvmlite ni sympy). Entregalo en el directorio de trabajo actual como un paquete importable llamado minic.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Lexer con seguimiento de linea y columna, palabras clave, identificadores, numeros enteros y reales, cadenas entre comillas dobles, operadores de uno y dos caracteres y comentarios con almohadilla.\n2. Parser descendente recursivo que construye un AST completo del programa (funciones, bloques, sentencias y expresiones) con precedencias correctas.\n3. Analisis semantico con tabla de simbolos por ambito: declaracion antes de uso, prohibicion de redeclarar en el mismo ambito, resolucion de llamadas, comprobacion de aridad y COMPROBACION DE TIPOS completa (aritmetica solo entre numeros, concatenacion solo entre cadenas, condiciones obligatoriamente bool, tipo de retorno coherente con la firma, indices enteros).\n4. Generador de bytecode propio: instrucciones planas con operando, tabla de constantes, tabla de funciones con direccion, aridad y numero de locales, y resolucion de saltos hacia adelante (backpatching).\n5. Maquina virtual de PILA con marcos de llamada explicitos: pila de operandos, pila de marcos, variables locales por marco, llamadas y retornos, y RECURSION funcionando.\n6. Variables locales tipadas, asignacion y expresiones.\n7. Condicionales si/sino y bucles mientras, compilados con saltos reales.\n8. Funciones con parametros, retorno y recursion.\n9. Arreglos: creacion con tamano, lectura y escritura por indice y longitud.\n10. Errores de compilacion utiles con linea y columna del token culpable, y errores de ejecucion controlados (division por cero, indice fuera de rango, desbordamiento de la pila de marcos).\n11. Interfaz de linea de comandos para compilar (listado de bytecode legible) y para ejecutar un fichero fuente.\n12. Bateria de programas de ejemplo en ejemplos/ que se compilan y se ejecutan en los tests, mas tests propios de pytest para lexer, parser, analisis semantico, generador y maquina virtual.\n\nGRAMATICA EXACTA DEL LENGUAJE (es el contrato del lenguaje; no la cambies):\n  programa    := funcion+\n  funcion     := 'fun' IDENT '(' params? ')' ':' tipo bloque\n  params      := IDENT ':' tipo (',' IDENT ':' tipo)*\n  tipo        := 'entero' | 'real' | 'bool' | 'cadena' | 'arreglo' '[' tipo ']'\n  bloque      := '{' sentencia* '}'\n  sentencia   := 'var' IDENT ':' tipo '=' expr ';'\n               | destino '=' expr ';'\n               | 'si' '(' expr ')' bloque ('sino' bloque)?\n               | 'mientras' '(' expr ')' bloque\n               | 'devolver' expr ';'\n               | 'imprimir' '(' expr ')' ';'\n  destino     := IDENT | IDENT '[' expr ']'\n  expr        := o\n  o           := y ('||' y)*\n  y           := igualdad ('&&' igualdad)*\n  igualdad    := comparacion (('==' | '!=') comparacion)*\n  comparacion := suma (('<' | '<=' | '>' | '>=') suma)*\n  suma        := producto (('+' | '-') producto)*\n  producto    := unario (('*' | '/' | '%') unario)*\n  unario      := ('-' | '!') unario | postfijo\n  postfijo    := primario ('[' expr ']')*\n  primario    := NUMERO | CADENA | 'verdadero' | 'falso' | IDENT\n               | IDENT '(' args? ')' | 'longitud' '(' expr ')'\n               | 'nuevo' 'arreglo' '[' tipo ']' '(' expr ')' | '(' expr ')'\n  comentario  := '#' hasta el final de la linea\nSemantica: la ejecucion empieza en la funcion principal, sin parametros. El operador + concatena si los dos operandos son cadena y suma si los dos son numericos; mezclar tipos es error de compilacion. La division entre dos enteros es entera. imprimir escribe la representacion del valor y un salto de linea; los enteros salen sin decimales, los bool salen como verdadero y falso.\n\nPrograma de ejemplo que tiene que compilar y ejecutar tal cual:\n  fun sumar(a: entero, b: entero): entero { devolver a + b; }\n  fun principal(): entero {\n    var total: entero = 0;\n    var i: entero = 0;\n    mientras (i < 5) {\n      si (i % 2 == 0) { total = sumar(total, i); } sino { total = total - 1; }\n      i = i + 1;\n    }\n    imprimir(total);\n    devolver total;\n  }\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el; respetalo al pie de la letra):\n- El paquete se llama minic y vive en minic/ con minic/__init__.py. Desde la raiz del proyecto, \"import minic\" tiene que funcionar sin instalar nada.\n- API publica re-exportada en minic/__init__.py:\n  * tokenizar(fuente) -> lista de tokens con .tipo, .valor, .linea (1-based) y .columna (1-based)\n  * parsear(fuente) -> AST del programa\n  * analizar(ast) -> tabla de simbolos (lanza ErrorCompilacion si el programa no es valido)\n  * generar(ast) -> Programa\n  * compilar(fuente) -> Programa (encadena tokenizar, parsear, analizar y generar)\n  * ejecutar(programa) -> Resultado\n  * correr(fuente) -> Resultado (compilar y ejecutar)\n  * OPCODES: tupla de cadenas con TODOS los nombres de instruccion validos; tiene que incluir al menos CONST, CARGAR, GUARDAR, SUMAR, RESTAR, MULT, DIV, MOD, NEG, IGUAL, DISTINTO, MENOR, MENOR_IGUAL, MAYOR, MAYOR_IGUAL, Y, O, NO, SALTAR, SALTAR_SI_FALSO, LLAMAR, RETORNAR, IMPRIMIR, NUEVO_ARREGLO, IDX_LEER, IDX_ESCRIBIR, LONGITUD y POP.\n  * En la tabla de funciones, locales es el numero TOTAL de ranuras locales del marco, contando los parametros (una funcion de un parametro tiene locales >= 1).\n  * class MaquinaVirtual, que se construye SIN argumentos (MaquinaVirtual()), con ejecutar(programa) -> Resultado y los atributos .pila (pila de operandos) y .marcos (pila de marcos de llamada); ambos son listas, asi que len() funciona sobre ellos.\n  * class ErrorCompilacion(Exception) con .linea (int >= 1), .columna (int >= 1) y .mensaje (str).\n  * class ErrorEjecucion(Exception) con .mensaje (str).\n- Programa (el objeto de bytecode) expone: .instrucciones (lista de tuplas (OPCODE, operando), con el opcode como cadena presente en OPCODES y el operando entero o None), .constantes (lista) y .funciones (dict nombre -> dict con las claves direccion, aridad y locales).\n- Resultado expone: .valor (lo que devolvio principal) y .salida (cadena con todo lo que imprimio el programa, con un salto de linea por cada imprimir).\n- Determinismo: compilar dos veces la misma fuente produce EXACTAMENTE la misma lista de instrucciones.\n- Higiene de la maquina virtual: al terminar una ejecucion normal, .pila y .marcos quedan VACIAS.\n- TODO error del programa fuente se reporta como ErrorCompilacion (nunca SyntaxError, KeyError, AttributeError ni IndexError crudos) y todo error de ejecucion como ErrorEjecucion (nunca ZeroDivisionError, IndexError ni RecursionError crudos). Si falta la funcion principal es ErrorCompilacion. La profundidad maxima de marcos es 1000; al superarla se lanza ErrorEjecucion. No hagas propagacion de constantes a traves de variables: la division por cero y el indice fuera de rango se detectan en EJECUCION, no al compilar.\n- CLI: \"python -m minic correr FICHERO\" compila y ejecuta el fichero, imprime SOLO la salida del programa y termina con codigo 0. \"python -m minic compilar FICHERO\" imprime el listado legible del bytecode (un opcode por linea) y termina con codigo 0. Si el fichero no existe o el programa no compila, imprime el error y termina con codigo 2.\n- Programas de ejemplo obligatorios en ejemplos/, con estas salidas EXACTAS (una linea por valor impreso, sin nada mas):\n  * ejemplos/factorial.mini imprime 3628800 (el factorial de 10, con funcion recursiva)\n  * ejemplos/fibonacci.mini imprime 6765 (fib(20) con fib(0)=0 y fib(1)=1, con funcion recursiva)\n  * ejemplos/primos.mini imprime los primos menores que 30, uno por linea y en orden ascendente: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29\n  * ejemplos/ordenar.mini ordena de menor a mayor con burbuja el arreglo 5, 3, 9, 1, 7 e imprime sus elementos uno por linea: 1, 3, 5, 7, 9\n  * ejemplos/mcd.mini imprime 21 (el maximo comun divisor de 1071 y 462, con el algoritmo de Euclides y el operador %)\n  * ejemplos/cadenas.mini imprime la linea: hola mundo (construida concatenando cadenas)\n- Los tests propios van en tests/, hacen falta AL MENOS 35 funciones de test y tienen que pasar con \"python -m pytest tests -q\" ejecutado desde la raiz del proyecto.\n\nNo entregues un esqueleto ni un prototipo: el lenguaje entero de la gramatica tiene que compilar y ejecutar. Antes de dar la tarea por terminada PRUEBA TU PROPIO TRABAJO: compila y ejecuta los seis ejemplos comparando su salida con la esperada, corre tu bateria de pytest, provoca a proposito los errores de compilacion y de ejecucion para ver los mensajes con linea y columna, y CORRIGE lo que falle hasta que todo pase de verdad.",
+  "criterios_exito": [
+    "import minic funciona desde la raiz y compilar/ejecutar/correr estan en minic/__init__.py",
+    "el lenguaje entero de la gramatica compila: variables, si/sino, mientras, funciones, arreglos, cadenas y bool",
+    "la recursion funciona con marcos de llamada reales en la maquina virtual",
+    "los seis programas de ejemplo dan exactamente la salida especificada",
+    "el bytecode usa solo opcodes de minic.OPCODES y la tabla de funciones trae direccion, aridad y locales",
+    "el analisis semantico caza variables no declaradas, redeclaraciones, aridad mala y tipos incompatibles",
+    "los errores de compilacion traen linea y columna del token culpable",
+    "los errores de ejecucion (division por cero, indice fuera de rango, recursion infinita) salen como ErrorEjecucion",
+    "compilar dos veces la misma fuente da el mismo bytecode y la maquina virtual deja la pila vacia",
+    "python -m minic correr y compilar funcionan sobre los ficheros de ejemplos/"
+  ],
+  "criterios_fallo": [
+    "minic no es importable o el API del contrato no existe",
+    "no hay bytecode de verdad: se interpreta el AST directamente y Programa.instrucciones esta vacio",
+    "la maquina virtual usa la pila de Python (recursion nativa) en vez de marcos explicitos",
+    "no hay comprobacion de tipos: compila 1 + verdadero o si (1)",
+    "se escapan excepciones crudas (SyntaxError, ZeroDivisionError, IndexError, RecursionError)",
+    "los errores no traen linea y columna, o siempre dicen linea 1 columna 1",
+    "faltan ejemplos de ejemplos/ o su salida no coincide con la especificada",
+    "la pila o los marcos quedan sucios al terminar una ejecucion normal",
+    "hay stubs, TODO o NotImplementedError en el camino principal"
+  ],
+  "artefactos": [
+    {
+      "glob": "minic/__init__.py",
+      "obligatorio": true,
+      "min_bytes": 200
+    },
+    {
+      "glob": "minic/*.py",
+      "obligatorio": true,
+      "min_bytes": 15000
+    },
+    {
+      "glob": "ejemplos/*.mini",
+      "obligatorio": true,
+      "min_bytes": 400
+    },
+    {
+      "glob": "tests/*.py",
+      "obligatorio": true,
+      "min_bytes": 3000
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "compilador-con-sustancia",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "minic/*.py",
+      "min_bytes": 300,
+      "min_lineas": 550,
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "import ply",
+        "import lark",
+        "pip install"
+      ]
+    },
+    {
+      "nombre": "api-publica-declarada",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "minic/__init__.py",
+      "min_bytes": 100,
+      "contiene": [
+        "compilar",
+        "ejecutar",
+        "correr",
+        "OPCODES",
+        "MaquinaVirtual",
+        "ErrorCompilacion",
+        "ErrorEjecucion"
+      ]
+    },
+    {
+      "nombre": "programas-de-ejemplo-presentes",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "ejemplos/*.mini",
+      "min_bytes": 40,
+      "contiene": [
+        "fun principal"
+      ]
+    },
+    {
+      "nombre": "cli-corre-el-factorial",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "modulo": "minic",
+      "args": [
+        "correr",
+        "ejemplos/factorial.mini"
+      ],
+      "timeout": 120,
+      "exit": 0,
+      "stdout_re": [
+        "\\b3628800\\b"
+      ]
+    },
+    {
+      "nombre": "el-lenguaje-entero-compila-y-corre",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "args": [
+        "-c",
+        "import minic\ndef val(fuente):\n    return minic.correr(fuente)\nr = val('fun principal(): entero { var a: entero = 2 + 3 * 4; imprimir(a); devolver a; }')\nassert r.valor == 14, r.valor\nassert r.salida.strip() == '14', repr(r.salida)\nr = val('fun principal(): entero { devolver (2 + 3) * 4; }')\nassert r.valor == 20, r.valor\nr = val('fun principal(): entero { devolver 17 / 5; }')\nassert r.valor == 3, ('la division entera esta mal', r.valor)\nr = val('fun principal(): entero { devolver 17 % 5; }')\nassert r.valor == 2, r.valor\nr = val('fun principal(): entero { devolver -3 + 10; }')\nassert r.valor == 7, r.valor\nfuente = ('fun sumar(a: entero, b: entero): entero { devolver a + b; }\\n'\n          'fun principal(): entero {\\n'\n          '  var total: entero = 0;\\n'\n          '  var i: entero = 0;\\n'\n          '  mientras (i < 5) {\\n'\n          '    si (i % 2 == 0) { total = sumar(total, i); } sino { total = total - 1; }\\n'\n          '    i = i + 1;\\n'\n          '  }\\n'\n          '  imprimir(total);\\n'\n          '  devolver total;\\n'\n          '}\\n')\nr = val(fuente)\nassert r.valor == 4, ('bucle+condicional+llamada', r.valor)\nassert r.salida.strip() == '4', repr(r.salida)\nrec = ('fun fact(n: entero): entero { si (n <= 1) { devolver 1; } devolver n * fact(n - 1); }\\n'\n       'fun principal(): entero {\\n'\n       '  var i: entero = 1; var s: entero = 0;\\n'\n       '  mientras (i <= 5) { s = s + fact(i); i = i + 1; }\\n'\n       '  imprimir(s); devolver s;\\n'\n       '}\\n')\nr = val(rec)\nassert r.valor == 153, ('recursion', r.valor)\narr = ('fun principal(): entero {\\n'\n       '  var a: arreglo[entero] = nuevo arreglo[entero](5);\\n'\n       '  var i: entero = 0;\\n'\n       '  mientras (i < longitud(a)) { a[i] = i * i; i = i + 1; }\\n'\n       '  imprimir(a[4]);\\n'\n       '  devolver a[3] + longitud(a);\\n'\n       '}\\n')\nr = val(arr)\nassert r.valor == 14, ('arreglos', r.valor)\nassert r.salida.strip() == '16', repr(r.salida)\nr = val('fun principal(): entero { var s: cadena = \"hola\" + \" \" + \"mundo\"; imprimir(s); devolver 0; }')\nassert r.salida.strip() == 'hola mundo', repr(r.salida)\nr = val('fun principal(): entero { var b: bool = 3 > 2 && 1 < 2; imprimir(b); devolver 0; }')\nassert r.salida.strip() == 'verdadero', repr(r.salida)\nr = val('fun principal(): entero { var b: bool = !(3 > 2) || falso; imprimir(b); devolver 0; }')\nassert r.salida.strip() == 'falso', repr(r.salida)\nr = val('fun principal(): entero { # comentario\\n devolver 42; }')\nassert r.valor == 42, r.valor\nr = val('fun principal(): entero { var i: entero = 0; mientras (i < 3) { imprimir(i); i = i + 1; } devolver i; }')\nassert [l.strip() for l in r.salida.strip().splitlines()] == ['0', '1', '2'], repr(r.salida)\nprint('OK lenguaje: aritmetica, control, funciones, recursion, arreglos, cadenas y bool')\n"
+      ],
+      "timeout": 180,
+      "exit": 0,
+      "stdout_re": [
+        "OK lenguaje"
+      ]
+    },
+    {
+      "nombre": "los-seis-ejemplos-dan-la-salida-exacta",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "args": [
+        "-c",
+        "import os, minic\nesperado = {\n    'factorial.mini': ['3628800'],\n    'fibonacci.mini': ['6765'],\n    'primos.mini': ['2', '3', '5', '7', '11', '13', '17', '19', '23', '29'],\n    'ordenar.mini': ['1', '3', '5', '7', '9'],\n    'mcd.mini': ['21'],\n    'cadenas.mini': ['hola mundo'],\n}\nfor nombre in sorted(esperado):\n    ruta = os.path.join('ejemplos', nombre)\n    assert os.path.exists(ruta), 'falta el ejemplo obligatorio %s' % ruta\n    with open(ruta, encoding='utf-8') as f:\n        fuente = f.read()\n    assert len(fuente) > 40, ('ejemplo vacio', nombre)\n    r = minic.correr(fuente)\n    lineas = [l.strip() for l in r.salida.strip().splitlines() if l.strip()]\n    assert lineas == esperado[nombre], (nombre, lineas, esperado[nombre])\nprint('OK los', len(esperado), 'ejemplos compilan y dan la salida exacta')\n"
+      ],
+      "timeout": 180,
+      "exit": 0,
+      "stdout_re": [
+        "OK los 6 ejemplos"
+      ]
+    },
+    {
+      "nombre": "bytecode-y-maquina-virtual-de-pila",
+      "tipo": "python",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "args": [
+        "-c",
+        "import minic\ndef op_de(i):\n    if isinstance(i, (tuple, list)):\n        return i[0]\n    return getattr(i, 'op', getattr(i, 'nombre', None))\nfuente = ('fun doble(n: entero): entero { devolver n * 2; }\\n'\n          'fun principal(): entero {\\n'\n          '  var a: entero = 0; var i: entero = 0;\\n'\n          '  mientras (i < 3) { a = a + doble(i); i = i + 1; }\\n'\n          '  imprimir(a); devolver a;\\n'\n          '}\\n')\np = minic.compilar(fuente)\nops = [op_de(i) for i in p.instrucciones]\nassert len(ops) >= 20, ('bytecode demasiado corto', len(ops))\nassert all(isinstance(o, str) for o in ops), ops[:5]\nvalidos = set(minic.OPCODES)\nfor req in ('CONST', 'CARGAR', 'GUARDAR', 'SUMAR', 'RESTAR', 'MULT', 'DIV', 'MOD', 'NEG',\n            'IGUAL', 'DISTINTO', 'MENOR', 'MENOR_IGUAL', 'MAYOR', 'MAYOR_IGUAL', 'Y', 'O',\n            'NO', 'SALTAR', 'SALTAR_SI_FALSO', 'LLAMAR', 'RETORNAR', 'IMPRIMIR',\n            'NUEVO_ARREGLO', 'IDX_LEER', 'IDX_ESCRIBIR', 'LONGITUD', 'POP'):\n    assert req in validos, 'falta el opcode %s en minic.OPCODES' % req\nsobrantes = set(ops) - validos\nassert not sobrantes, ('instrucciones fuera de OPCODES', sobrantes)\nfor req in ('LLAMAR', 'RETORNAR', 'SALTAR_SI_FALSO', 'SALTAR', 'IMPRIMIR', 'MULT'):\n    assert req in ops, 'el generador no emitio %s' % req\nassert isinstance(p.funciones, dict) and 'principal' in p.funciones and 'doble' in p.funciones\nd = p.funciones['doble']\nassert d['aridad'] == 1, d\nassert isinstance(d['direccion'], int) and 0 <= d['direccion'] < len(p.instrucciones), d\nassert isinstance(d['locales'], int) and d['locales'] >= 1, d\nassert p.funciones['principal']['aridad'] == 0\nassert isinstance(list(p.constantes), list)\nvm = minic.MaquinaVirtual()\nr = vm.ejecutar(p)\nassert r.valor == 6, ('doble(0)+doble(1)+doble(2) deberia ser 6', r.valor)\nassert r.salida.strip() == '6', repr(r.salida)\nassert len(vm.pila) == 0, ('la pila de operandos quedo sucia', len(vm.pila))\nassert len(vm.marcos) == 0, ('quedaron marcos sin desapilar', len(vm.marcos))\nprint('OK bytecode y maquina virtual de pila:', len(ops), 'instrucciones')\n"
+      ],
+      "timeout": 150,
+      "exit": 0,
+      "stdout_re": [
+        "OK bytecode y maquina virtual de pila"
+      ]
+    },
+    {
+      "nombre": "errores-de-compilacion-y-de-ejecucion",
+      "tipo": "python",
+      "capa": "robustez",
+      "peso": 1.5,
+      "args": [
+        "-c",
+        "import minic\nmalos = [\n    'fun principal(): entero { devolver x; }',\n    'fun principal(): entero { var a: entero = verdadero; devolver a; }',\n    'fun principal(): entero { devolver noexiste(1); }',\n    'fun principal(): entero { var a: entero = 1; var a: entero = 2; devolver a; }',\n    'fun f(a: entero): entero { devolver a; } fun principal(): entero { devolver f(1, 2); }',\n    'fun f(a: entero): entero { devolver a; } fun principal(): entero { devolver f(); }',\n    'fun principal(): entero { devolver 1 + verdadero; }',\n    'fun principal(): entero { devolver \"hola\" + 1; }',\n    'fun principal(): cadena { devolver 1; }',\n    'fun principal(): entero { si (1) { devolver 1; } devolver 0; }',\n    'fun principal(): entero { mientras (7) { } devolver 0; }',\n    'fun principal(): entero { var a: entero = 1 devolver a; }',\n    'fun principal(): entero { devolver 1; ',\n    'fun principal(): entero { devolver 1 + ; }',\n    'fun otra(): entero { devolver 1; }',\n    '',\n    'fun principal(): entero { var a: arreglo[entero] = nuevo arreglo[entero](3); devolver a[\"x\"]; }',\n]\nfor fuente in malos:\n    try:\n        minic.compilar(fuente)\n    except minic.ErrorCompilacion as e:\n        assert isinstance(e.linea, int) and e.linea >= 1, (fuente, e.linea)\n        assert isinstance(e.columna, int) and e.columna >= 1, (fuente, e.columna)\n        assert isinstance(e.mensaje, str) and len(e.mensaje) >= 5, (fuente, e.mensaje)\n        assert len(str(e)) >= 5\n    except Exception as e:\n        raise AssertionError('excepcion CRUDA %s (%r) con %r' % (type(e).__name__, e, fuente))\n    else:\n        raise AssertionError('compilo lo que no debia: %r' % fuente)\nen_ejecucion = [\n    'fun principal(): entero { var a: entero = 1; var b: entero = 0; devolver a / b; }',\n    'fun principal(): entero { var a: entero = 1; var b: entero = 0; devolver a % b; }',\n    'fun principal(): entero { var a: arreglo[entero] = nuevo arreglo[entero](3); devolver a[5]; }',\n    'fun principal(): entero { var a: arreglo[entero] = nuevo arreglo[entero](3); a[9] = 1; devolver 0; }',\n    'fun f(n: entero): entero { devolver f(n + 1); } fun principal(): entero { devolver f(1); }',\n]\nfor fuente in en_ejecucion:\n    p = minic.compilar(fuente)\n    try:\n        minic.ejecutar(p)\n    except minic.ErrorEjecucion as e:\n        assert len(str(e)) >= 5, fuente\n    except Exception as e:\n        raise AssertionError('excepcion CRUDA %s (%r) con %r' % (type(e).__name__, e, fuente))\n    else:\n        raise AssertionError('no fallo en ejecucion: %r' % fuente)\nr = minic.correr('fun principal(): entero { devolver 1 + 1; }')\nassert r.valor == 2, 'el compilador quedo roto tras los errores'\nprint('OK errores:', len(malos), 'de compilacion y', len(en_ejecucion), 'de ejecucion')\n"
+      ],
+      "timeout": 180,
+      "exit": 0,
+      "stdout_re": [
+        "OK errores:"
+      ]
+    },
+    {
+      "nombre": "bytecode-determinista-y-pila-limpia",
+      "tipo": "python",
+      "capa": "integridad",
+      "peso": 1.5,
+      "args": [
+        "-c",
+        "import minic\ndef clave(i):\n    if isinstance(i, (tuple, list)):\n        return tuple(i)\n    return (getattr(i, 'op', None), getattr(i, 'operando', None))\nfuentes = [\n    'fun principal(): entero { devolver 1 + 2 * 3; }',\n    'fun fact(n: entero): entero { si (n <= 1) { devolver 1; } devolver n * fact(n - 1); }\\nfun principal(): entero { imprimir(fact(7)); devolver fact(7); }',\n    'fun principal(): entero { var i: entero = 0; var s: entero = 0; mientras (i < 20) { si (i % 3 == 0) { s = s + i; } sino { s = s - 1; } i = i + 1; } imprimir(s); devolver s; }',\n    'fun principal(): entero { var a: arreglo[entero] = nuevo arreglo[entero](8); var i: entero = 0; mientras (i < longitud(a)) { a[i] = i; i = i + 1; } devolver a[7]; }',\n    'fun principal(): entero { var s: cadena = \"a\" + \"b\"; imprimir(s); devolver 0; }',\n]\nfor fuente in fuentes:\n    p1 = minic.compilar(fuente)\n    p2 = minic.compilar(fuente)\n    a = [clave(i) for i in p1.instrucciones]\n    b = [clave(i) for i in p2.instrucciones]\n    assert a == b, 'compilar dos veces la misma fuente dio bytecode distinto'\n    vm = minic.MaquinaVirtual()\n    r1 = vm.ejecutar(p1)\n    assert len(vm.pila) == 0, ('pila sucia tras ejecutar', len(vm.pila))\n    assert len(vm.marcos) == 0, ('marcos sin desapilar', len(vm.marcos))\n    vm2 = minic.MaquinaVirtual()\n    r2 = vm2.ejecutar(p1)\n    assert r1.valor == r2.valor, ('ejecutar dos veces el mismo programa dio valores distintos', r1.valor, r2.valor)\n    assert r1.salida == r2.salida, 'ejecutar dos veces el mismo programa dio salidas distintas'\nassert minic.correr(fuentes[1]).valor == 5040\nprint('OK determinismo del bytecode e higiene de la maquina virtual')\n"
+      ],
+      "timeout": 180,
+      "exit": 0,
+      "stdout_re": [
+        "OK determinismo del bytecode"
+      ]
+    },
+    {
+      "nombre": "bateria-propia-de-pytest",
+      "tipo": "pytest",
+      "capa": "funcionalidad",
+      "peso": 1.5,
+      "entregable": true,
+      "ruta": "tests",
+      "min_tests": 30,
+      "timeout": 480
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "python",
+        "args": [
+          "-c",
+          "import os, minic\nesperado = {\n    'factorial.mini': ['3628800'],\n    'fibonacci.mini': ['6765'],\n    'primos.mini': ['2', '3', '5', '7', '11', '13', '17', '19', '23', '29'],\n    'ordenar.mini': ['1', '3', '5', '7', '9'],\n    'mcd.mini': ['21'],\n    'cadenas.mini': ['hola mundo'],\n}\nfor nombre in sorted(esperado):\n    ruta = os.path.join('ejemplos', nombre)\n    assert os.path.exists(ruta), 'falta el ejemplo obligatorio %s' % ruta\n    with open(ruta, encoding='utf-8') as f:\n        fuente = f.read()\n    assert len(fuente) > 40, ('ejemplo vacio', nombre)\n    r = minic.correr(fuente)\n    lineas = [l.strip() for l in r.salida.strip().splitlines() if l.strip()]\n    assert lineas == esperado[nombre], (nombre, lineas, esperado[nombre])\nprint('OK los', len(esperado), 'ejemplos compilan y dan la salida exacta')\n"
+        ],
+        "timeout": 180,
+        "exit": 0,
+        "stdout_re": [
+          "OK los 6 ejemplos"
+        ]
+      }
+    }
+  ]
+}

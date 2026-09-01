@@ -1,0 +1,134 @@
+{
+  "id": "py-sim-epidemia",
+  "familia": "simulacion",
+  "dificultad": 3,
+  "presupuesto_s": 240,
+  "pasos": 40,
+  "longitud_esperada_lineas": 700,
+  "prompt": "Construye una SIMULACION DE EPIDEMIA POR AGENTES completa en Python 3, usando UNICAMENTE la libreria estandar (argparse, random, csv, json, hashlib, math, statistics, xml.etree, pathlib, unittest). Prohibido de forma explicita: acceso a red, descargas, CDN, pip install, npm install y cualquier dependencia de terceros; nada de numpy, nada de matplotlib. Lo unico externo disponible es pytest, que ya esta instalado. Entrega todo en el directorio de trabajo actual.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Modelo SEIR por AGENTES (no por ecuaciones): cada individuo tiene estado S, E, I o R y una posicion en una rejilla de ancho por alto celdas.\n2. Contagio local: en cada paso, un susceptible se puede exponer con probabilidad beta por cada infectado que comparta su celda; los expuestos pasan a infectados con probabilidad sigma y los infectados se recuperan con probabilidad gamma.\n3. Movilidad: en cada paso los agentes se desplazan hasta movilidad casillas en la rejilla, con bordes cerrados o toroidales (documenta cual elegiste).\n4. Parametros configurables desde la CLI: semilla, pasos, ancho, alto, poblacion, infectados iniciales, beta, sigma, gamma y movilidad, todos con valores por defecto sensatos.\n5. Reproducibilidad estricta por semilla: toda la aleatoriedad sale de una unica instancia de random.Random construida con la semilla. Prohibido usar el reloj, os.urandom, hash() sobre texto o el random global del modulo. Dos corridas con la misma semilla y los mismos parametros deben producir la MISMA serie temporal, byte a byte.\n6. Series temporales exportadas a CSV: una fila por paso con los cuatro compartimentos.\n7. Graficas SVG escritas a mano: generar el XML del SVG con cadenas de texto, con ejes, una polilinea por compartimento y una leyenda. Nada de librerias de dibujo.\n8. Analisis de sensibilidad sobre un parametro: recorrer una lista de valores, simular con cada uno y comparar el pico y el total de infectados.\n9. Comprobacion de invariantes: un subcomando que relee la serie CSV y verifica que la poblacion se conserva en todos los pasos (S+E+I+R constante) y que el SVG generado es XML bien formado.\n10. Un arnes de replicacion que corre la misma configuracion varias veces desde cero y compara las huellas de las series resultantes.\n11. Una bateria de tests con pytest escrita por ti (al menos 8 tests reales que cubran la conservacion de la poblacion, la reproducibilidad por semilla, que semillas distintas dan series distintas, el efecto de beta, la escritura del CSV y del SVG, y la validacion de parametros), ejecutable tecleando pytest desde la raiz del entregable. Cuida el sys.path: anade un conftest.py en la raiz si hace falta.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo exactamente):\n- El punto de entrada es epidemia.py en la raiz del entregable: python epidemia.py SUBCOMANDO [opciones]\n- TODOS los subcomandos imprimen SIEMPRE su resumen en JSON por la salida estandar; los mensajes de progreso, si los hay, van por la salida de error.\n- simular [--semilla N] [--pasos N] [--ancho N] [--alto N] [--poblacion N] [--infectados-iniciales N] [--beta F] [--sigma F] [--gamma F] [--movilidad N] [--salida-csv RUTA] [--salida-svg RUTA]. Imprime: {\"semilla\": N, \"pasos\": N, \"poblacion\": N, \"pico_infectados\": N, \"paso_pico\": N, \"total_infectados\": N, \"finales\": {\"S\": N, \"E\": N, \"I\": N, \"R\": N}, \"huella\": \"...\"}. total_infectados es cuantos individuos distintos pasaron por el estado I en toda la corrida. huella es el sha256 en hexadecimal minuscula del cuerpo del CSV de la serie (las filas de datos, sin la cabecera), y se calcula igual aunque no se pida --salida-csv y no se escriba ningun fichero.\n- El CSV de la serie tiene la cabecera EXACTA paso,S,E,I,R y una fila por paso desde el 0 hasta el valor de --pasos incluido, es decir pasos+1 filas de datos.\n- El SVG debe crear los directorios que falten, ser XML bien formado, tener un elemento raiz svg con atributo viewBox y contener EXACTAMENTE CUATRO elementos polyline, uno por compartimento S, E, I y R, cada uno con su atributo points.\n- verificar --csv RUTA [--svg RUTA]. Relee los ficheros y imprime: {\"filas\": N, \"poblacion\": N, \"conserva\": true|false, \"svg_valido\": true|false, \"series\": N, \"puntos\": N}. filas es el numero de filas de datos del CSV, poblacion es la suma S+E+I+R de la primera fila, conserva es true solo si esa suma es identica en TODAS las filas, series es el numero de elementos polyline hallados parseando el SVG como XML y puntos el numero de puntos de la primera polilinea. Si no se pasa --svg, svg_valido va en false y series y puntos en 0. Termina con codigo 1 si algun invariante esta roto.\n- replicar --semilla N --veces N [mismos parametros que simular]. Corre la MISMA configuracion desde cero tantas veces como diga --veces y imprime: {\"veces\": N, \"semilla\": N, \"huellas\": [\"...\", \"...\"], \"identicas\": true|false}. Las huellas se calculan igual que en simular y van en el orden de las corridas.\n- sensibilidad --parametro NOMBRE --valores v1,v2,v3 [--semilla N] [mismos parametros que simular] [--salida-csv RUTA]. Imprime: {\"parametro\": \"beta\", \"semilla\": N, \"resultados\": [{\"valor\": V, \"pico_infectados\": N, \"paso_pico\": N, \"total_infectados\": N, \"finales\": {\"S\": N, \"E\": N, \"I\": N, \"R\": N}}]}, con un elemento por valor y EN EL MISMO ORDEN que la lista --valores; valor es el valor numerico usado en esa corrida.\n- CODIGOS DE SALIDA: 0 exito; 1 invariante roto en verificar; 2 parametros invalidos (poblacion menor o igual que cero, infectados iniciales mayores que la poblacion, tasas fuera del rango 0 a 1, rejilla vacia, parametro de sensibilidad desconocido), y en ese caso el mensaje de error debe contener el texto exacto: parametros invalidos. Los errores se explican por la salida de error y NUNCA con un traceback de Python.\n- Escribe tambien un README.md corto con el modelo, los parametros y ejemplos de uso.\n\nNo entregues un esqueleto ni funciones sin cuerpo. PRUEBA lo que has hecho ANTES de darlo por terminado: corre la simulacion de verdad, abre el CSV y comprueba a mano que la poblacion se conserva, abre el SVG y comprueba que dibuja cuatro curvas, corre la misma semilla dos veces y compara las huellas, corre el analisis de sensibilidad, fuerza los parametros invalidos para ver el codigo 2, corre pytest, y corrige todos los fallos hasta que todo pase.",
+  "criterios_exito": [
+    "epidemia.py corre en una copia limpia y escribe la serie CSV y el SVG sin intervencion",
+    "la poblacion se conserva en todos los pasos (S+E+I+R constante)",
+    "el CSV tiene la cabecera exacta y pasos+1 filas de datos",
+    "la misma semilla produce huellas identicas en corridas repetidas desde cero",
+    "el SVG es XML bien formado con cuatro polilineas y ejes",
+    "el analisis de sensibilidad recorre los valores en orden y reporta pico y total por valor",
+    "con beta alto se desata una epidemia real (el pico de infectados es grande, no cero)",
+    "los parametros invalidos salen con codigo 2 y mensaje legible, sin traceback",
+    "la bateria de pytest escrita por el agente pasa entera"
+  ],
+  "criterios_fallo": [
+    "la poblacion no se conserva (agentes que se pierden o se duplican entre compartimentos)",
+    "la simulacion usa el reloj o el random global y no es reproducible por semilla",
+    "el pico de infectados es cero: el contagio no ocurre y la curva es plana",
+    "el SVG no es XML valido, o tiene menos de cuatro polilineas, o se genera con una libreria",
+    "el subcomando verificar no relee de verdad el fichero y devuelve true a ciegas",
+    "no hay tests, o pytest no encuentra el modulo desde la raiz",
+    "traceback de Python ante parametros absurdos"
+  ],
+  "artefactos": [
+    {"glob": "epidemia.py", "obligatorio": true, "min_bytes": 2000},
+    {"glob": "**/test*.py", "obligatorio": true, "min_bytes": 600},
+    {"glob": "README.md", "obligatorio": false, "min_bytes": 200}
+  ],
+  "pruebas": [
+    {
+      "nombre": "simulador-presente-con-sustancia", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/epidemia.py", "min_bytes": 2000,
+      "contiene": ["argparse", "random"]
+    },
+    {
+      "nombre": "codigo-escrito-sin-huecos", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/*.py", "min_bytes": 400, "min_lineas": 400,
+      "no_contiene": ["import numpy", "import matplotlib", "TODO: implementar",
+                      "not implemented", "raise NotImplementedError"]
+    },
+    {
+      "nombre": "tests-propios-escritos", "tipo": "fichero", "capa": "completitud",
+      "glob": "**/test*.py", "min_bytes": 600, "min_lineas": 60,
+      "contiene": ["def test_"]
+    },
+    {
+      "nombre": "simula-en-copia-limpia-y-desata-la-epidemia", "tipo": "python", "capa": "funcionalidad",
+      "peso": 2.0, "entregable": true, "entry": "epidemia.py", "timeout": 240,
+      "args": ["simular", "--semilla", "42", "--pasos", "120", "--ancho", "25", "--alto", "25",
+               "--poblacion", "800", "--infectados-iniciales", "5", "--beta", "0.35",
+               "--sigma", "0.2", "--gamma", "0.1", "--movilidad", "2",
+               "--salida-csv", "salida/serie.csv", "--salida-svg", "salida/curvas.svg"],
+      "exit": 0,
+      "stdout_re": ["\"semilla\"\\s*:\\s*42", "\"pasos\"\\s*:\\s*120", "\"poblacion\"\\s*:\\s*800",
+                    "\"pico_infectados\"\\s*:\\s*[1-9][0-9]",
+                    "\"huella\"\\s*:\\s*\"[0-9a-f]{16,}\"", "\"finales\""],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "la-poblacion-se-conserva-en-toda-la-serie", "tipo": "python", "capa": "funcionalidad",
+      "peso": 2.0, "entry": "epidemia.py", "timeout": 120,
+      "args": ["verificar", "--csv", "salida/serie.csv"],
+      "exit": 0,
+      "stdout_re": ["\"conserva\"\\s*:\\s*true", "\"filas\"\\s*:\\s*121", "\"poblacion\"\\s*:\\s*800"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "el-svg-generado-es-xml-con-cuatro-curvas", "tipo": "python", "capa": "integridad",
+      "peso": 1.5, "entry": "epidemia.py", "timeout": 120,
+      "args": ["verificar", "--csv", "salida/serie.csv", "--svg", "salida/curvas.svg"],
+      "exit": 0,
+      "stdout_re": ["\"svg_valido\"\\s*:\\s*true", "\"series\"\\s*:\\s*4",
+                    "\"puntos\"\\s*:\\s*[1-9]", "\"conserva\"\\s*:\\s*true"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "misma-semilla-mismas-huellas", "tipo": "python", "capa": "funcionalidad",
+      "peso": 2.0, "entry": "epidemia.py", "timeout": 240,
+      "args": ["replicar", "--semilla", "7", "--veces", "3", "--pasos", "60",
+               "--ancho", "30", "--alto", "30", "--poblacion", "400",
+               "--infectados-iniciales", "4", "--beta", "0.3", "--sigma", "0.2",
+               "--gamma", "0.1", "--movilidad", "1"],
+      "exit": 0,
+      "stdout_re": ["\"veces\"\\s*:\\s*3", "\"identicas\"\\s*:\\s*true",
+                    "\"huellas\"\\s*:\\s*\\[\\s*\"([0-9a-f]{16,})\"\\s*,\\s*\"\\1\"\\s*,\\s*\"\\1\"\\s*\\]"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "sensibilidad-recorre-los-valores-en-orden", "tipo": "python", "capa": "funcionalidad",
+      "entry": "epidemia.py", "timeout": 240,
+      "args": ["sensibilidad", "--parametro", "beta", "--valores", "0.05,0.4",
+               "--semilla", "11", "--pasos", "100", "--ancho", "30", "--alto", "30",
+               "--poblacion", "500", "--infectados-iniciales", "5",
+               "--salida-csv", "salida/sensibilidad.csv"],
+      "exit": 0,
+      "stdout_re": ["\"parametro\"\\s*:\\s*\"beta\"", "\"resultados\"",
+                    "\"valor\"\\s*:\\s*\"?0[.]05", "\"valor\"\\s*:\\s*\"?0[.]4",
+                    "\"total_infectados\""],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "parametros-absurdos-salen-con-2", "tipo": "python", "capa": "robustez",
+      "peso": 1.5, "entry": "epidemia.py", "timeout": 120,
+      "args": ["simular", "--semilla", "1", "--pasos", "5", "--poblacion", "10",
+               "--infectados-iniciales", "50"],
+      "exit": 2,
+      "stdout_re": ["parametros invalidos"],
+      "no_stdout_re": ["Traceback"]
+    },
+    {
+      "nombre": "simulacion-estable-en-dos-pasadas", "tipo": "dos_pasadas", "capa": "regresion",
+      "prueba": {
+        "tipo": "python", "entry": "epidemia.py", "timeout": 240,
+        "args": ["simular", "--semilla", "42", "--pasos", "120", "--ancho", "25", "--alto", "25",
+                 "--poblacion", "800", "--infectados-iniciales", "5", "--beta", "0.35",
+                 "--sigma", "0.2", "--gamma", "0.1", "--movilidad", "2",
+                 "--salida-csv", "salida/serie.csv", "--salida-svg", "salida/curvas.svg"],
+        "exit": 0,
+        "stdout_re": ["\"poblacion\"\\s*:\\s*800", "\"pico_infectados\"\\s*:\\s*[1-9][0-9]",
+                      "\"huella\"\\s*:\\s*\"[0-9a-f]{16,}\""],
+        "no_stdout_re": ["Traceback"]
+      }
+    },
+    {
+      "nombre": "bateria-pytest-del-agente", "tipo": "pytest", "capa": "funcionalidad",
+      "ruta": ".", "min_tests": 8, "timeout": 300
+    }
+  ]
+}

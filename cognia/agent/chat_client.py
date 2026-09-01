@@ -1078,6 +1078,20 @@ def completar(mensajes: list, tools: list = None, url: str = "",
         return RespuestaChat(error=f"HTTP {e.code} de {url}: {detalle}",
                              texto="".join(acc["texto"]).strip(),
                              reasoning_content="".join(acc["razon"]),
+                             # LOS PARCIALES SALEN TAMBIEN POR AQUI (2026-09-01).
+                             # El 500 mas comun de este server es "Failed to
+                             # parse tool call arguments as JSON": el turno se
+                             # corto a mitad de los argumentos, o sea a mitad
+                             # del FICHERO que el modelo estaba escribiendo.
+                             # Esos KB ya pasaron por el socket y estaban en
+                             # `acc`, y este return los tiraba: el bucle tiene
+                             # rescate de escrituras parciales (loop.
+                             # _rescatar_escritura) y no podia verlos, asi que
+                             # se pagaba otra generacion entera para volver a
+                             # cortarse en la misma columna. Medido con el banco
+                             # de tareas largas: tres de diez tareas mueren asi.
+                             tool_calls_parciales=_parse_tool_calls(
+                                 [acc["tcs"][i] for i in sorted(acc["tcs"])]),
                              usage=_usage_del_stream(acc),
                              usage_estimado=acc["usage_estimado"],
                              usage_via=acc["usage_via"],
@@ -1090,6 +1104,8 @@ def completar(mensajes: list, tools: list = None, url: str = "",
         return RespuestaChat(error=f"{type(e).__name__}: {e}",
                              texto="".join(acc["texto"]).strip(),
                              reasoning_content="".join(acc["razon"]),
+                             tool_calls_parciales=_parse_tool_calls(
+                                 [acc["tcs"][i] for i in sorted(acc["tcs"])]),
                              usage=_usage_del_stream(acc),
                              usage_estimado=acc["usage_estimado"],
                              usage_via=acc["usage_via"],

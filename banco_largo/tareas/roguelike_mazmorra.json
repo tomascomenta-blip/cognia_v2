@@ -1,0 +1,275 @@
+{
+  "id": "roguelike-mazmorra",
+  "familia": "juego-canvas",
+  "dificultad": 4,
+  "presupuesto_s": 360,
+  "pasos": 60,
+  "longitud_esperada_lineas": 1100,
+  "prompt": "Construye un roguelike POR TURNOS completo y jugable en HTML + JavaScript puro, pintado sobre un unico <canvas> 2D. Sin librerias externas, sin CDN, sin npm install ni pip install, sin ninguna peticion de red: todo tiene que funcionar abriendo index.html servido desde el propio directorio. Entregalo en el directorio de trabajo actual con index.html como punto de entrada y el codigo en uno o varios ficheros .js propios.\n\nSISTEMAS QUE DEBE TENER, todos funcionando de verdad:\n1. Generacion procedural de la mazmorra a partir de una SEMILLA: salas rectangulares unidas por pasillos, todas alcanzables, con muros, suelo y escaleras de bajada. Con la misma semilla el mapa generado debe ser identico byte a byte; con otra semilla debe ser distinto. Usa tu propio generador pseudoaleatorio sembrado, nunca Math.random para el mapa.\n2. Campo de vision del jugador por linea de vista, con radio limitado: las celdas que el jugador no ve no son visibles.\n3. Niebla de guerra: lo ya visto queda recordado y se pinta apagado; lo nunca visto queda a oscuras. Explorar el nivel aumenta el numero de celdas recordadas.\n4. Motor por turnos: cada accion del jugador (moverse, esperar, usar un objeto, atacar) consume un turno y despues actuan todos los enemigos. Nada se mueve solo con el reloj: el juego es determinista.\n5. Enemigos con IA de persecucion: cuando ven al jugador se acercan por el camino mas corto y le atacan al quedar adyacentes; cuando no lo ven, deambulan o esperan. Al menos 3 tipos con vida, ataque y velocidad distintos.\n6. Combate por turnos con estadisticas: moverse contra un enemigo es atacarle; el dano depende del ataque del atacante y la defensa del defensor; al morir el enemigo desaparece y da experiencia. El jugador sube de nivel y mejora sus estadisticas.\n7. Objetos e inventario: al menos 3 tipos (pocion, espada, armadura) repartidos por el nivel; se recogen al estar encima y se usan o equipan desde el inventario. La pocion cura y se consume.\n8. Escaleras y multiples niveles: bajar por las escaleras genera un nivel nuevo, mas profundo y mas dificil, con su propio mapa.\n9. Permadeath: al llegar la vida a cero el personaje muere, la partida guardada se borra y no se puede continuar.\n10. Guardado y carga en localStorage del mapa, la posicion, el nivel de profundidad, las estadisticas y el inventario, de forma que recargar la pagina y cargar devuelva exactamente el mismo estado.\n11. Interfaz: mapa en el canvas, panel con vida, nivel, profundidad, experiencia e inventario, y un registro de mensajes con lo que va pasando.\n\nCONTRATO TECNICO OBLIGATORIO (el evaluador automatico depende de el, respetalo exactamente):\n- El punto de entrada es index.html; el juego arranca solo al cargar la pagina, pinta en un unico <canvas> y no deja NINGUN error en la consola.\n- El mapa se expone como texto: window.ROGUE.mapa.celdas es un ARRAY DE CADENAS, una por fila, de longitud window.ROGUE.mapa.ancho, usando exactamente estos caracteres: '#' muro, '.' suelo, '>' escalera de bajada, '<' escalera de subida.\n- Cada nivel mide al menos 50 x 25 celdas, y el radio del campo de vision del jugador es de como mucho 12 celdas.\n- La generacion debe colocar en cada nivel al menos 2 enemigos y al menos 2 objetos, y al menos uno de los objetos de tipo 'pocion'.\n- Expon un objeto global window.ROGUE, siempre actualizado, con AL MENOS esto:\n    window.ROGUE.semilla   -> numero, la semilla del nivel actual\n    window.ROGUE.nivel     -> numero de profundidad, empieza en 1\n    window.ROGUE.turno     -> numero de turnos consumidos\n    window.ROGUE.muerto    -> true/false\n    window.ROGUE.mapa      -> {ancho, alto, celdas: [cadenas]}\n    window.ROGUE.jugador   -> {x, y, vida, vidaMax, ataque, defensa, nivel, exp, inventario: [{id, tipo}]}\n    window.ROGUE.enemigos  -> array de {id, tipo, x, y, vida, ataque, defensa}\n    window.ROGUE.objetos   -> array de {id, tipo, x, y} (los del suelo del nivel actual)\n    window.ROGUE.tiposEnemigo -> array con los tipos de enemigo (3 o mas)\n    window.ROGUE.tiposObjeto  -> array con los tipos de objeto (3 o mas, incluido 'pocion')\n    window.ROGUE.nuevaPartida(semilla) -> genera la mazmorra desde esa semilla de forma reproducible\n    window.ROGUE.visible(x, y)   -> true si esa celda esta en el campo de vision AHORA\n    window.ROGUE.explorado(x, y) -> true si esa celda ya se vio alguna vez\n    window.ROGUE.mover(dx, dy)   -> intenta moverse o atacar; devuelve true si consumio turno, false si el destino es muro o esta fuera del mapa\n    window.ROGUE.esperar()       -> pasa un turno sin moverse\n    window.ROGUE.recoger()       -> recoge el objeto del suelo bajo el jugador; true/false\n    window.ROGUE.usar(idObjeto)  -> usa o equipa un objeto del inventario; false si el id no esta\n    window.ROGUE.bajar()         -> baja por las escaleras si el jugador esta sobre '>'; true/false\n    window.ROGUE.guardar()       -> guarda en localStorage y devuelve true\n    window.ROGUE.cargar()        -> restaura desde localStorage; devuelve false si no hay partida (o el personaje murio)\n- Si la vida del jugador queda en 0 o menos, el siguiente turno (mover o esperar) pone window.ROGUE.muerto a true y BORRA la partida guardada.\n- El juego NO guarda solo: SOLO window.ROGUE.guardar() escribe en localStorage, de modo que recargar la pagina nunca destruye lo guardado.\n- Escribe tambien un README.md corto con los controles y como se ejecuta.\n\nNo entregues un esqueleto ni una demo visual: cada sistema de la lista debe estar implementado. Antes de dar la tarea por terminada, ABRE el juego, juega unos turnos, llama a cada metodo del contrato desde la consola comprobando que devuelve lo que promete, verifica que dos partidas con la misma semilla dan el mismo mapa, y CORRIGE todo lo que falle.",
+  "criterios_exito": [
+    "index.html abre sin errores de consola y el canvas pinta la mazmorra",
+    "la misma semilla genera el mismo mapa y semillas distintas generan mapas distintos",
+    "el campo de vision limita lo visible y la niebla de guerra recuerda lo explorado",
+    "los enemigos se acercan al jugador y el combate por turnos les quita vida",
+    "las pociones se recogen, se usan y curan",
+    "bajar por las escaleras genera un nivel nuevo y mas profundo",
+    "moverse contra un muro no consume turno y morir borra la partida guardada",
+    "guardar y cargar devuelven el mismo mapa y la misma posicion tras recargar"
+  ],
+  "criterios_fallo": [
+    "el mapa cambia entre dos nuevaPartida con la misma semilla (usa Math.random sin sembrar)",
+    "visible() o explorado() devuelven siempre lo mismo",
+    "los enemigos no se mueven ni persiguen",
+    "mover contra un muro devuelve true o atraviesa la pared",
+    "bajar() no cambia el mapa ni la profundidad",
+    "cargar() devuelve true despues de morir (no hay permadeath)",
+    "errores de JavaScript en consola al cargar o al jugar"
+  ],
+  "artefactos": [
+    {
+      "glob": "index.html",
+      "obligatorio": true,
+      "min_bytes": 500
+    },
+    {
+      "glob": "**/*.js",
+      "obligatorio": true,
+      "min_bytes": 1200
+    },
+    {
+      "glob": "README.md",
+      "obligatorio": false,
+      "min_bytes": 200
+    }
+  ],
+  "pruebas": [
+    {
+      "nombre": "artefactos-presentes",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "index.html",
+      "min_bytes": 500,
+      "contiene": [
+        "canvas"
+      ]
+    },
+    {
+      "nombre": "codigo-con-sustancia-y-contrato-nombrado",
+      "tipo": "fichero",
+      "capa": "completitud",
+      "glob": "**/*.js",
+      "min_bytes": 1200,
+      "min_lineas": 450,
+      "contiene": [
+        "semilla",
+        "explorado",
+        "visible",
+        "bajar",
+        "inventario",
+        "localStorage"
+      ],
+      "no_contiene": [
+        "TODO: implementar",
+        "not implemented",
+        "sin implementar"
+      ]
+    },
+    {
+      "nombre": "arranca-pinta-y-expone-el-contrato",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "entregable": true,
+      "pagina": "index.html",
+      "espera_ms": 1500,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "selector",
+          "sel": "canvas",
+          "min": 1
+        },
+        {
+          "tipo": "canvas",
+          "min_colores": 4
+        },
+        {
+          "tipo": "js",
+          "nombre": "api_completa",
+          "codigo": "() => { const a = window.ROGUE; if (!a) return false; const ms = ['nuevaPartida','visible','explorado','mover','esperar','recoger','usar','bajar','guardar','cargar']; for (const m of ms) if (typeof a[m] !== 'function') return false; if (!a.mapa || !Array.isArray(a.mapa.celdas) || a.mapa.celdas.length < 5) return false; if (!a.jugador || !Array.isArray(a.jugador.inventario)) return false; return Array.isArray(a.enemigos) && Array.isArray(a.objetos) && (a.tiposEnemigo || []).length >= 3 && (a.tiposObjeto || []).length >= 3 && typeof a.nivel === 'number' && typeof a.turno === 'number'; }"
+        }
+      ]
+    },
+    {
+      "nombre": "generacion-reproducible-por-semilla",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "misma_semilla_mismo_mapa",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(1234); const m1 = a.mapa.celdas.join('|'); a.nuevaPartida(9999); const m3 = a.mapa.celdas.join('|'); a.nuevaPartida(1234); const m2 = a.mapa.celdas.join('|'); return m1.length > 200 && m1 === m2 && m1 !== m3; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "el_mapa_es_una_mazmorra",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(1234); const c = a.mapa.celdas; if (c.length !== a.mapa.alto) return false; for (const f of c) if (f.length !== a.mapa.ancho) return false; const t = c.join(''); const muros = (t.match(/#/g) || []).length; const suelo = (t.match(/\\./g) || []).length; const j = a.jugador; return muros > 20 && suelo > 40 && t.indexOf('>') >= 0 && c[j.y][j.x] !== '#'; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "poblado_con_enemigos_y_objetos",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(1234); return a.enemigos.length >= 1 && a.objetos.length >= 2 && a.objetos.some(o => o.tipo === 'pocion'); }"
+        }
+      ]
+    },
+    {
+      "nombre": "campo-de-vision-y-niebla-de-guerra",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "lo_lejano_no_se_ve",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(42); const j = a.jugador; if (!a.visible(j.x, j.y)) return false; let vis = 0, tot = 0, maxd = 0; for (let y = 0; y < a.mapa.alto; y++) for (let x = 0; x < a.mapa.ancho; x++) { tot++; if (a.visible(x, y)) { vis++; const d = Math.max(Math.abs(x - j.x), Math.abs(y - j.y)); if (d > maxd) maxd = d; } } return tot > 100 && vis > 0 && vis < tot && maxd <= 12; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "explorar_recuerda",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(42); const cuenta = (f) => { let n = 0; for (let y = 0; y < a.mapa.alto; y++) for (let x = 0; x < a.mapa.ancho; x++) if (f(x, y)) n++; return n; }; const e0 = cuenta((x, y) => a.explorado(x, y)); if (e0 < 1) return false; const dirs = [[1,0],[0,1],[-1,0],[0,-1]]; for (let i = 0; i < 200; i++) { a.jugador.vida = a.jugador.vidaMax; const d = dirs[Math.floor(i / 25) % 4]; a.mover(d[0], d[1]); } const e1 = cuenta((x, y) => a.explorado(x, y)); const v1 = cuenta((x, y) => a.visible(x, y)); const total = a.mapa.ancho * a.mapa.alto; return v1 > 0 && e1 >= v1 && e1 >= e0 && e1 < total; }"
+        }
+      ]
+    },
+    {
+      "nombre": "turnos-persecucion-combate-y-objetos",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 2.0,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_enemigo_se_acerca",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(2026); const j = a.jugador; const e = a.enemigos[0]; if (!e) return false; let destino = null, mejor = 1e9; for (let y = 0; y < a.mapa.alto; y++) for (let x = 0; x < a.mapa.ancho; x++) { if (a.mapa.celdas[y][x] === '#') continue; if (!a.visible(x, y)) continue; const d = Math.abs(x - j.x) + Math.abs(y - j.y); if (d < 2) continue; const coste = Math.abs(d - 5); if (coste < mejor) { mejor = coste; destino = {x: x, y: y, d: d}; } } if (!destino) return false; e.x = destino.x; e.y = destino.y; const d0 = destino.d; for (let i = 0; i < 20; i++) { a.jugador.vida = a.jugador.vidaMax; a.esperar(); } const e2 = a.enemigos.find(k => k.id === e.id); if (!e2) return true; return (Math.abs(e2.x - a.jugador.x) + Math.abs(e2.y - a.jugador.y)) < d0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "atacar_al_moverse_encima",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(77); const j = a.jugador; const x0 = j.x, y0 = j.y; const e = a.enemigos[0]; if (!e) return false; let d = null; for (const k of [[1,0],[-1,0],[0,1],[0,-1]]) { const x = x0 + k[0], y = y0 + k[1]; const fila = a.mapa.celdas[y]; if (fila && fila[x] && fila[x] !== '#') { d = k; break; } } if (!d) return false; e.x = x0 + d[0]; e.y = y0 + d[1]; const v0 = e.vida; const t0 = a.turno; const ok = a.mover(d[0], d[1]); const e2 = a.enemigos.find(k => k.id === e.id); return ok === true && a.turno > t0 && a.jugador.x === x0 && a.jugador.y === y0 && (!e2 || e2.vida < v0); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "recoger_y_beber_pocion",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(8); const p = a.objetos.find(o => o.tipo === 'pocion'); if (!p) return false; a.jugador.x = p.x; a.jugador.y = p.y; const n0 = a.jugador.inventario.length; if (a.recoger() !== true) return false; if (a.jugador.inventario.length !== n0 + 1) return false; const item = a.jugador.inventario.find(i => i.tipo === 'pocion'); if (!item) return false; a.jugador.vida = 1; const ok = a.usar(item.id); return ok === true && a.jugador.vida > 1 && !a.jugador.inventario.some(i => i.id === item.id); }"
+        }
+      ]
+    },
+    {
+      "nombre": "escaleras-y-niveles-nuevos",
+      "tipo": "web",
+      "capa": "funcionalidad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "bajar_genera_otro_nivel",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(555); const n0 = a.nivel; const m0 = a.mapa.celdas.join('|'); let ex = -1, ey = -1; for (let y = 0; y < a.mapa.alto; y++) { const i = a.mapa.celdas[y].indexOf('>'); if (i >= 0) { ex = i; ey = y; break; } } if (ex < 0) return false; a.jugador.x = ex; a.jugador.y = ey; const ok = a.bajar(); const m1 = a.mapa.celdas.join('|'); return ok === true && a.nivel === n0 + 1 && m1 !== m0 && a.mapa.celdas[a.jugador.y][a.jugador.x] !== '#'; }"
+        }
+      ]
+    },
+    {
+      "nombre": "muros-permadeath-y-entradas-invalidas",
+      "tipo": "web",
+      "capa": "robustez",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "el_muro_bloquea_y_no_gasta_turno",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(31); const c = a.mapa.celdas; let pos = null, dir = null; for (let y = 1; y < a.mapa.alto - 1 && !pos; y++) for (let x = 1; x < a.mapa.ancho - 1 && !pos; x++) { if (c[y][x] === '#') continue; for (const k of [[1,0],[-1,0],[0,1],[0,-1]]) { if (c[y + k[1]][x + k[0]] === '#') { pos = {x: x, y: y}; dir = k; break; } } } if (!pos) return false; a.jugador.x = pos.x; a.jugador.y = pos.y; const t0 = a.turno; const ok = a.mover(dir[0], dir[1]); return ok === false && a.jugador.x === pos.x && a.jugador.y === pos.y && a.turno === t0; }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "ids_inexistentes_devuelven_false",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(31); return a.usar('objeto_que_no_existe') === false && a.bajar() === (a.mapa.celdas[a.jugador.y][a.jugador.x] === '>'); }"
+        },
+        {
+          "tipo": "js",
+          "nombre": "permadeath_borra_la_partida",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(31); if (a.guardar() !== true) return false; a.jugador.vida = 0; a.esperar(); return a.muerto === true && a.cargar() === false; }"
+        }
+      ]
+    },
+    {
+      "nombre": "guardado-sobrevive-a-la-recarga",
+      "tipo": "web",
+      "capa": "integridad",
+      "peso": 1.5,
+      "pagina": "index.html",
+      "espera_ms": 1200,
+      "max_errores_consola": 0,
+      "acciones": [
+        {
+          "tipo": "js",
+          "codigo": "() => { const a = window.ROGUE; a.nuevaPartida(31337); for (let i = 0; i < 6; i++) a.esperar(); localStorage.setItem('__esperado_rogue', JSON.stringify({m: a.mapa.celdas.join('|'), x: a.jugador.x, y: a.jugador.y, n: a.nivel, v: a.jugador.vida})); a.guardar(); }"
+        },
+        {
+          "tipo": "recargar",
+          "ms": 1500
+        },
+        {
+          "tipo": "js",
+          "codigo": "() => window.ROGUE.cargar()"
+        },
+        {
+          "tipo": "esperar",
+          "ms": 500
+        }
+      ],
+      "afirmaciones": [
+        {
+          "tipo": "js",
+          "nombre": "restaurado_identico",
+          "codigo": "() => { const e = JSON.parse(localStorage.getItem('__esperado_rogue') || 'null'); const a = window.ROGUE; if (!e) return false; return a.mapa.celdas.join('|') === e.m && a.jugador.x === e.x && a.jugador.y === e.y && a.nivel === e.n && a.jugador.vida === e.v; }"
+        }
+      ]
+    },
+    {
+      "nombre": "estable-en-dos-pasadas",
+      "tipo": "dos_pasadas",
+      "capa": "regresion",
+      "prueba": {
+        "tipo": "web",
+        "pagina": "index.html",
+        "espera_ms": 1400,
+        "max_errores_consola": 0,
+        "afirmaciones": [
+          {
+            "tipo": "canvas",
+            "min_colores": 4
+          },
+          {
+            "tipo": "js",
+            "nombre": "semilla_estable",
+            "codigo": "() => { const a = window.ROGUE; if (!a) return false; a.nuevaPartida(4242); const m1 = a.mapa.celdas.join('|'); a.nuevaPartida(4242); return m1 === a.mapa.celdas.join('|'); }"
+          }
+        ]
+      }
+    }
+  ]
+}
