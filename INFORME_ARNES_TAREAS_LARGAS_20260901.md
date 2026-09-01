@@ -1,8 +1,9 @@
 # Harness de tareas largas — sesión nocturna 2026-08-31 → 09-01
 
-Corrida acotada por el dueño: de 23:04 a 06:30, con apagado programado. **No se hizo
-todo el encargo**: falta la publicación en PyPI, el benchmark desde la versión instalada
-y varias de las mejoras diagnosticadas. Lo que sí hay está medido de punta a punta.
+Corrida del 2026-08-31 23:04 al 2026-09-01 ~11:50. **No se hizo todo el encargo**: se
+corrieron 10 de las 25 tareas por ronda (las otras 14 están escritas y validadas) y
+quedan mejoras del diagnóstico sin implementar. Lo que sí hay está medido de punta a
+punta, incluida la publicación en PyPI y el benchmark desde la versión instalada.
 
 ---
 
