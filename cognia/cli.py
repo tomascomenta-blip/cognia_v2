@@ -3330,7 +3330,7 @@ _CMD_DESCRIPTIONS = {
     "/exportar":        "Exportar historial (json|md|csv)   <formato> [archivo]",
     "/exportar-stats":  "Ver estadisticas del historial",
     "/modo rapido":     "Toggle: saltar confirmaciones",
-    "/debug":           "Toggle: mostrar logs INFO. `/debug telemetria [on|off|ultimo]` abre el diario del turno (tokens por paso, tool calls con su exit, cortes, motivo de cierre)",
+    "/debug":           "Toggle: mostrar logs INFO. `/debug telemetria [on|off|ultimo]` abre el diario del turno; `/debug lazo [on|off|estado]` controla el lazo corto (cada fichero que el agente escribe se corre en el acto)",
     "/costo":           "Tokens y tiempo de sesión",
     "/vram":            "Que cabe en tu GPU: roles vivos, VRAM medida por rol y la escalera de contexto",
     "/capacidades":     "Que sabe hacer el agente: familias de herramientas, cuales estan encendidas y que las enciende  [familia]",
@@ -14725,6 +14725,63 @@ def _slash_compactar(arg: str = "") -> None:
         avisos=avisos)))
 
 
+def _slash_lazo(arg: str = "") -> None:
+    """`/debug lazo [estado | on | off]`: el LAZO CORTO del agente.
+
+    Cada fichero arrancable que el agente escribe (HTML, Python, JS) se corre en
+    el acto y el error real vuelve pegado al resultado de la tool, en el mismo
+    turno. Ver cognia/harness/lazo_corto.py. on|off persisten en la config
+    ('lazo_corto'); COGNIA_LAZO_CORTO=0 lo apaga ganando a la config.
+    """
+    try:
+        from cognia.harness import lazo_corto as _lz
+    except Exception as exc:
+        _aviso_degradado("lazo_corto", f"modulo no importable: {exc}")
+        _print_line(f"[warn_cl]lazo corto no disponible: {exc}[/warn_cl]")
+        return
+    arg = (arg or "").strip().lower()
+    cfg = _load_config()
+    if arg in ("on", "1", "si"):
+        cfg["lazo_corto"] = "on"
+        _save_config(cfg)
+        os.environ.pop(_lz.ENV, None)
+        _print_line("[ok_cl]lazo corto ON: lo que escribas se corre en el acto[/ok_cl]")
+        return
+    if arg in ("off", "0", "no"):
+        cfg["lazo_corto"] = "off"
+        _save_config(cfg)
+        os.environ[_lz.ENV] = "0"
+        _print_line("[ok_cl]lazo corto OFF[/ok_cl]")
+        return
+    if arg in ("", "estado"):
+        try:
+            import playwright  # noqa: F401
+            nav = "Playwright disponible (HTML se abre en Chromium)"
+        except Exception:
+            nav = "sin Playwright: HTML NO se comprueba (pip install playwright && playwright install chromium)"
+        _print_line(f"lazo corto: {'ON' if _lz.activo() else 'OFF'}"
+                    f"   config={cfg.get('lazo_corto', 'on')}")
+        _print_line(f"  html: {nav}")
+        _print_line(f"  py: compila e importa con timeout de {int(_lz.TIMEOUT_IMPORT_S)}s"
+                    f"   js: node --check")
+        _print_line(f"  intervalo minimo por fichero: {int(_lz.INTERVALO_MIN_S)}s")
+        return
+    _print_line("[warn_cl]uso: /debug lazo [estado | on | off][/warn_cl]")
+
+
+def _aplicar_config_lazo() -> None:
+    """Aplica la config 'lazo_corto' al arrancar (off -> COGNIA_LAZO_CORTO=0).
+    La variable puesta a mano siempre gana."""
+    try:
+        from cognia.harness import lazo_corto as _lz
+        if os.environ.get(_lz.ENV):
+            return
+        if str(_load_config().get("lazo_corto", "on")).strip().lower() in ("off", "0", "no"):
+            os.environ[_lz.ENV] = "0"
+    except Exception as exc:
+        _aviso_degradado("lazo_corto", f"no pude aplicar la config: {exc}")
+
+
 def _aplicar_config_telemetria() -> None:
     """Enciende el diario del turno si la config lo dice.
 
@@ -22780,6 +22837,7 @@ def _repl_sesion():
     # siembran desde la config y se validan (config invalida = grito).
     _aplicar_config_horizonte()
     _aplicar_config_telemetria()
+    _aplicar_config_lazo()
     # ENRUTADO (/enrutador on|off): `enrutador.activo()` lee COGNIA_ENRUTADOR
     # del env, asi que sin sembrarlo el interruptor no sobreviviria al cierre
     # del proceso. Sin pisar lo que el usuario ya puso en el entorno.
@@ -23546,6 +23604,8 @@ def _repl_sesion():
                 _slash_logros(_lg_args)
             elif raw == "/patrones":
                 _slash_patrones("")
+            elif raw.startswith("/debug lazo"):
+                _slash_lazo(raw[len("/debug lazo"):].strip())
             elif raw.startswith("/debug telemetria"):
                 _slash_telemetria(raw[len("/debug telemetria"):].strip())
             elif raw == "/debug":

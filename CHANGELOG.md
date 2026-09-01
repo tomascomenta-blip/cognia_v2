@@ -2,6 +2,41 @@
 
 ---
 
+## [4.23.0] - 2026-09-01
+
+### El arnés corre lo que el agente escribe, en el acto
+
+Medido con el banco de tareas largas: un tablero kanban de 30 KB con README impecable y
+`window.KANBAN` sin definir. El agente escribió todo y no abrió la página ni una vez, porque
+la única ejecución del producto vivía en el cierre del turno, y en una tarea larga el cierre
+no llega.
+
+**Lazo corto** (`cognia/harness/lazo_corto.py`). Cada fichero arrancable que el agente
+escribe o edita se ejecuta ahí mismo y el error real —con su línea— vuelve pegado al
+resultado de la tool, en el mismo turno: HTML se abre en Chromium (errores de consola,
+excepciones, canvas en blanco), Python se compila e importa con timeout, JS pasa por
+`node --check`. Si no se puede comprobar (sin Playwright, sin node) lo dice; no calla.
+Puerta: `/debug lazo [estado|on|off]`; `COGNIA_LAZO_CORTO=0` lo apaga.
+
+**Sonda del contrato.** Del encargo se extrae la interfaz que el usuario declaró
+(`window.X`, `X.metodo()`, `id="..."`, funciones) y tras cargar se comprueba que existe.
+Es general: cualquier encargo que nombre una interfaz, de cualquier dominio.
+
+**Arranque por hitos.** Con un encargo de tres o más requisitos, el arnés dice una vez el
+método: esqueleto mínimo que arranque primero, un requisito cada vez comprobando que sigue
+arrancando, ficheros grandes por bloques con `apendar_archivo`, documentación al final.
+Va como turno de usuario, no en el system prompt (medido en este repo que texto extra ahí
+baja el gate). `COGNIA_ARRANQUE_HITOS=0` lo apaga.
+
+**Aviso de escritura grande.** Una llamada de más de 9.000 caracteres recibe pegado el
+consejo de trocear: las llamadas enormes se cortan a media cadena y se pierde el resto.
+
+**La palanca del pensamiento existe para Qwen3.8.** La familia no declaraba `piensa`, así
+que el bucle creía que no había `enable_thinking` y el corte del razonamiento desbocado
+nunca se armaba: 20.003 caracteres pensando y ningún corte, con el tope en 12.000.
+
+---
+
 ## [4.22.0] - 2026-09-01
 
 ### El agente deja de confundir RESPONDER con TERMINAR

@@ -171,6 +171,29 @@ _SIMPLE_HINTS = (
 )
 
 
+# Tools tras las que el lazo corto CORRE el fichero escrito.
+_TOOLS_ESCRITURA_LAZO = frozenset({"escribir_archivo", "editar_archivo", "apendar_archivo"})
+# A partir de aqui una escritura cuenta como "grande" y se aconseja trocear.
+# ~9k chars son ~2.500 tokens de argumentos: con el razonamiento por delante
+# ya roza el tope de salida de un turno con este modelo.
+_TOPE_ESCRITURA_TROZO = 9000
+
+
+def _ruta_escrita(args_str) -> str:
+    """La ruta de una tool de fichero, vengan los args como JSON nativo
+    ({"ruta": ..., "contenido": ...}) o como legado ('ruta | contenido')."""
+    texto = str(args_str or "").strip()
+    if texto.startswith("{"):
+        try:
+            import json as _json
+            d = _json.loads(texto)
+            for k in ("ruta", "path", "archivo", "fichero", "file"):
+                if isinstance(d, dict) and d.get(k):
+                    return str(d[k]).strip()
+        except Exception:
+            pass
+    return texto.split("|", 1)[0].strip().strip('"').strip("'")
+
 _OBS_DIRS_FUERA = {"__pycache__", ".git", "node_modules", ".pytest_cache",
                    "venv", ".venv", "venv312", "venv312gpu", ".cognia", "dist",
                    "build", ".mypy_cache", "site-packages"}
@@ -1639,14 +1662,34 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # exito un encargo de diez sistemas del que se habian hecho dos. Ver
     # cognia/harness/contrato_tarea.py para lo que mide y lo que NO mide.
     _contrato = None
+    _ids_contrato = None
+    _lazo_mod = None
+    try:
+        from cognia.harness import lazo_corto as _lazo_mod
+        if not _lazo_mod.activo():
+            _lazo_mod = None
+    except Exception as _e_lz0:
+        _lazo_mod = None
+        print_fn(f"[warn_cl]degradado: sin lazo corto "
+                 f"({type(_e_lz0).__name__}: {_e_lz0})[/warn_cl]")
     try:
         from cognia.harness import contrato_tarea as _ct_mod
         _contrato = _ct_mod.Contrato(task)
+        _ids_contrato = _ct_mod.identificadores(task)
         if _contrato.activo:
             print_fn(f"[detail]contrato del encargo: {len(_contrato)} "
                      f"requisitos a cubrir[/detail]")
             if _tel.activa():
                 _tel.evento("contrato", requisitos=len(_contrato))
+            # ARRANQUE POR HITOS (2026-09-01): con un encargo grande, el
+            # metodo se dice UNA vez, como turno de usuario, antes del primer
+            # paso. Va aqui y no en el system prompt porque el repo tiene
+            # medido que texto extra en el system del agente baja el gate
+            # (A/B 2026-07-23); esto solo aparece cuando hay >= 3 requisitos,
+            # y una tarea corta no lo ve nunca.
+            if os.environ.get("COGNIA_ARRANQUE_HITOS", "1").strip() not in ("0", "off"):
+                mensajes.append({"role": "user",
+                                 "content": _contrato.arranque_para_modelo()})
         if isinstance(ctx, dict):
             ctx["_contrato"] = _contrato
     except Exception as _e_ct:
@@ -2103,8 +2146,18 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         if _prog is not None:
             try:
                 _u = resp.usage or {}
-                _prog.gastar(tokens=int(_u.get("prompt_tokens") or 0)
-                             + int(_u.get("completion_tokens") or 0),
+                # SOLO LOS TOKENS GENERADOS cuentan como coste del progreso
+                # (2026-09-01). Antes sumaba prompt+completion, y el prompt de
+                # una tarea larga son 30-40k tokens POR PASO: el "coste desde
+                # el ultimo avance" crecia 35k por vuelta hiciera lo que
+                # hiciera el modelo, y la regla de meseta_de_coste (5x la
+                # mediana, calibrada con los primeros avances baratos, de
+                # prompt corto) disparaba por construccion cuanto mas larga
+                # era la tarea. Medido en el repro del juego: 57 pasos, 1,96 M
+                # tokens contados, cerrada por meseta_de_coste con 143 s de
+                # reloj sin usar. El prompt es el precio de RECORDAR, no de
+                # trabajar: el esfuerzo desde el ultimo avance es lo generado.
+                _prog.gastar(tokens=int(_u.get("completion_tokens") or 0),
                              segundos=__import__("time").time() - _t_paso,
                              pasos=1)
             except Exception:
@@ -2900,6 +2953,48 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             _t_tool = __import__("time").time()
             resultado = (_servido if _servido is not None
                          else run_tool(tc.nombre, args_str, ctx))
+            # LAZO CORTO (2026-09-01): lo que se acaba de escribir se CORRE
+            # aqui, no en el cierre. Ver harness/lazo_corto.py. El texto va
+            # pegado al resultado de la tool, asi que el modelo lo lee en el
+            # mismo turno en que escribio el fichero.
+            if _lazo_mod is not None and tc.nombre in _TOOLS_ESCRITURA_LAZO:
+                try:
+                    _r_lazo = _ruta_escrita(args_str)
+                    _ev_lazo = _lazo_mod.tras_escritura(
+                        _r_lazo, raiz=os.getcwd(), contrato=_ids_contrato)
+                except Exception as _e_lz:
+                    _ev_lazo = "[LAZO CORTO] no se pudo comprobar (%s)" % type(_e_lz).__name__
+                # ESCRITURA POR TROZOS (2026-09-01). Una llamada de escritura
+                # muy larga es la que se corta a media cadena JSON (el 500 del
+                # server). El rescate de parciales salva lo que cabe, pero lo
+                # barato es no llegar: al primer fichero grande se le dice
+                # como seguir. Es un aviso pegado al resultado, no un veto.
+                if len(args_str or "") > _TOPE_ESCRITURA_TROZO:
+                    _ev_lazo = ((_ev_lazo + "\n") if _ev_lazo else "") + (
+                        "[ARNES] esta escritura fue de %d caracteres. Las llamadas "
+                        "muy largas se cortan a mitad y se pierde el resto: para "
+                        "ficheros grandes escribe el esqueleto con escribir_archivo "
+                        "y anade el resto con apendar_archivo en bloques de como "
+                        "mucho 120 lineas." % len(args_str))
+                if _ev_lazo:
+                    resultado = str(resultado or "") + "\n" + _ev_lazo
+                    print_fn(f"[detail]{_escape_seguro(_ev_lazo[:200])}[/detail]")
+                    # El lazo corto es una VERIFICACION observada por la
+                    # maquina: un fichero que pasa de FALLA a OK es un avance
+                    # real para el gobernador de progreso (observar_* solo
+                    # cuenta la transicion rojo->verde, no el verde repetido).
+                    if _prog is not None and "[LAZO CORTO" in _ev_lazo and \
+                            "no se pudo comprobar" not in _ev_lazo:
+                        try:
+                            _prog.observar_verificacion(
+                                "lazo:" + str(_r_lazo), ok=("[LAZO CORTO OK]" in _ev_lazo),
+                                evidencia=_ev_lazo[:200])
+                        except Exception:
+                            pass
+                    if _tel.activa():
+                        _tel.evento("lazo_corto", paso=pasos, fichero=str(_r_lazo)[:120],
+                                    ok=("[LAZO CORTO OK]" in _ev_lazo),
+                                    detalle=_ev_lazo[:300])
             if _tel.activa():
                 try:
                     _tel.evento("tool", nombre=tc.nombre, paso=pasos,

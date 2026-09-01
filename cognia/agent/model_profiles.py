@@ -141,7 +141,13 @@ _FAMILIAS_NATIVAS = {
     # Es RAZONADOR (356 chars de razonamiento para "responde en una frase",
     # medido 2026-08-18): MIN_TOKENS_RAZONADOR aplica -- con max_tokens=120 el
     # `content` sale VACIO porque el pensamiento se come el presupuesto.
-    "qwen3.8": {"temperature": 1.0, "top_p": 0.95, "harness": _HARNESS_VACIO},
+    # `piensa` (2026-09-01): la plantilla de Qwen3.x LEE enable_thinking, y sin
+    # esta clave `_kwargs_plantilla` devuelve {} y el bucle cree que no existe
+    # la palanca: el corte del razonamiento desbocado nunca se arma y un turno
+    # de 20.000 chars pensando solo se cura cuando el tope lo corta (medido en
+    # el banco: 20.003 chars y ningun corte, con COGNIA_TOPE_RAZON en 12.000).
+    "qwen3.8": {"temperature": 1.0, "top_p": 0.95, "piensa": True,
+                "harness": _HARNESS_VACIO},
 }
 
 # EL BACKSTOP DE METADATOS (2026-08-17). La tabla de arriba casa por SUBSTRING

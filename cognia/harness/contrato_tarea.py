@@ -198,6 +198,33 @@ class Contrato:
             % (len(self.requisitos), hechos, lista, extra)
         )
 
+    def arranque_para_modelo(self):
+        """El metodo de trabajo para un encargo GRANDE, dicho una vez al empezar.
+
+        Medido con el banco (2026-09-01): ante diez sistemas el modelo escribe
+        los diez de una vez, sin abrir el producto, y entrega 30 KB que no
+        arrancan. Lo que hace un humano con un encargo asi es al reves:
+        primero un esqueleto minimo que ARRANQUE, y sobre el, un requisito
+        cada vez, comprobando que sigue arrancando. El arnes ahora corre lo
+        escrito en el acto (lazo corto), asi que ese metodo sale gratis: el
+        modelo ve el error de cada paso mientras el contexto esta caliente.
+        """
+        n = len(self.requisitos)
+        return (
+            "NOTA DEL ARNES sobre el metodo (el encargo tiene %d requisitos):\n"
+            "1. Empieza por un ESQUELETO MINIMO que arranque de verdad (la pagina "
+            "abre, el modulo importa, el comando responde) y expone ya la interfaz "
+            "que pide el encargo aunque este vacia.\n"
+            "2. Anade los requisitos DE UNO EN UNO, en el orden del encargo. Tras "
+            "cada uno, comprueba que sigue arrancando: el arnes te devuelve el "
+            "error real de cada fichero que escribes; arreglalo antes de seguir.\n"
+            "3. Ficheros grandes: escribe el esqueleto y ve anadiendo con "
+            "apendar_archivo en bloques de como mucho 120 lineas. Una llamada "
+            "enorme se corta y se pierde.\n"
+            "4. No escribas README ni documentacion hasta que lo principal "
+            "funcione." % n
+        )
+
     def informe(self):
         return {
             "requisitos": len(self.requisitos),
@@ -208,6 +235,54 @@ class Contrato:
                 sum(r["cobertura"] for r in self.requisitos) / len(self.requisitos), 3)
             if self.requisitos else 0.0,
         }
+
+
+# -- identificadores que el encargo EXIGE (la interfaz publica) --------------
+
+_RE_GLOBAL = re.compile(r"\bwindow\.([A-Za-z_]\w*)")
+_RE_METODO = re.compile(r"\bwindow\.([A-Za-z_]\w*)\.([A-Za-z_]\w*)\s*\(")
+_RE_METODO_SIN_WINDOW = re.compile(r"(?<![\w.])([A-Z][A-Z0-9_]{2,})\.([a-zA-Z_]\w*)\s*\(")
+_RE_DOM_ID = re.compile(r"\bid\s*=\s*[\"']([\w-]{2,})[\"']")
+_RE_FUNCION = re.compile(r"(?<![\w.])(?:def\s+|funci[o\u00f3]n\s+|function\s+)([a-z_]\w{2,})\s*\(")
+_RE_LLAMADA = re.compile(r"`([a-z_]\w{2,})\(")
+
+
+def identificadores(texto, tope=16):
+    """Lo que el usuario nombro como interfaz del producto, sacado del encargo.
+
+    Devuelve {"globales": [...], "metodos": {G: [m, ...]}, "dom_ids": [...],
+    "funciones": [...]}. Es lexico y conservador: solo cuenta lo que el texto
+    escribe como codigo (window.X, X.metodo(, id="...", def f( o `f(`). No
+    sabe de dominios; si el encargo no declara interfaz, todo sale vacio y el
+    lazo corto solo mira errores.
+    """
+    texto = texto or ""
+    globales, metodos, dom_ids, funciones = [], {}, [], []
+
+    def _add(lista, x):
+        if x and x not in lista:
+            lista.append(x)
+
+    for m in _RE_GLOBAL.finditer(texto):
+        _add(globales, m.group(1))
+    for m in _RE_METODO.finditer(texto):
+        metodos.setdefault(m.group(1), [])
+        _add(metodos[m.group(1)], m.group(2))
+    for m in _RE_METODO_SIN_WINDOW.finditer(texto):
+        # `JUEGO.tick(` sin window. delante: cuenta solo si JUEGO ya es global
+        if m.group(1) in globales:
+            metodos.setdefault(m.group(1), [])
+            _add(metodos[m.group(1)], m.group(2))
+    for m in _RE_DOM_ID.finditer(texto):
+        _add(dom_ids, m.group(1))
+    for m in _RE_FUNCION.finditer(texto):
+        _add(funciones, m.group(1))
+    for m in _RE_LLAMADA.finditer(texto):
+        _add(funciones, m.group(1))
+    return {"globales": globales[:tope],
+            "metodos": {k: v[:tope] for k, v in list(metodos.items())[:tope]},
+            "dom_ids": dom_ids[:tope],
+            "funciones": funciones[:tope]}
 
 
 # -- evidencia: lo que hay en disco y lo que devolvieron las tools ------------
