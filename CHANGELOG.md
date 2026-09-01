@@ -2,6 +2,37 @@
 
 ---
 
+## [4.21.0] - 2026-08-31
+
+### El tool call cortado APAGA EL PENSAMIENTO, en vez de subir el tope
+
+Un `escribir_archivo` cuyo JSON se corta a media cadena ya no dispara la rampa
+`8192 -> 16384 -> 32768`. Medido contra el 27B-Ridge con el mismo prompt y con
+herramientas: con el pensamiento encendido el modelo **no llega a emitir la
+llamada ni con 9.000 tokens** (23.496 chars de razonamiento, cero tool calls);
+apagado, la emite con 6.000. La rampa subia lo que no faltaba.
+
+Eran dos defectos encadenados:
+
+- `chat_client`: la rama `except HTTPError` devolvia SOLO el error, y el 500 de
+  llama-server por argumentos cortados cae justo ahi — un turno que YA habia
+  generado. Se perdia el `reasoning_content` y el bucle quedaba ciego.
+- `loop._puede_apagar_pensamiento`: exigia `CORTE_ANTES_DEL_TOOL_CALL`, asi que
+  el corte DENTRO del tool call no apagaba nada. Ahora vale cualquier corte en
+  tool call, con la evidencia del reasoning o del contador vivo del stream
+  (`_RAZON_SE_LO_COMIO`, 6.000 chars).
+
+El aviso tambien mentia: decia "sin llegar a llamar la herramienta" cuando la
+herramienta si habia empezado; ahora dice cual de los dos casos fue.
+
+Corrida real que lo motivo: 448,8 s y 14.241 tokens para CERO ficheros. La
+tarea equivalente con el arreglo escribe 12.472 chars en 278,3 s con el
+objetivo verificado 1/1.
+
+Atajo para el dueno mientras tanto: `/ventana pensamiento off`.
+
+---
+
 ## [4.20.0] - 2026-08-31
 
 ### EL TURNO NO CIERRA SIN ENTREGAR: que quedo en disco, y si esta ENTERO
