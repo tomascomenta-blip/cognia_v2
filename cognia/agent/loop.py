@@ -216,6 +216,16 @@ _PARED_MINIMA_TRABAJO = 120.0
 ENV_PARED = "COGNIA_PARED_S"
 
 
+def _pared_total():
+    """El presupuesto de pared de la tarea en segundos, o None si nadie lo puso."""
+    crudo = os.environ.get(ENV_PARED, "")
+    try:
+        total = float(crudo)
+    except (TypeError, ValueError):
+        return None
+    return total if total > 0 else None
+
+
 def _pared_restante(t0):
     """Segundos de presupuesto de PARED que le quedan a la tarea, o None.
 
@@ -1804,6 +1814,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     _advertido_prog = 0
     _prog_pausado = None
     _fin_ventana_prog = 0
+    _aviso_pared = {"dado": False}
     while pasos < _techo_bruto:
         # CORTE COOPERATIVO (T4, 2026-08-18). ctx['_cancelado'] es un callable
         # que inyecta cli.py cuando la tarea corre en el carril de fondo: el
@@ -1826,6 +1837,40 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                                f"detuvo tras el paso {pasos})")
                 finish = "cancelado"
                 break
+        # EL RELOJ CAMBIA EL ORDEN DE LO QUE QUEDA POR HACER (2026-09-01).
+        # Medido con el banco: una tarea de tablero kanban gasto sus ultimos
+        # minutos escribiendo el README que DESCRIBE su contrato -- y murio por
+        # reloj sin haber abierto nunca la pagina, que no exponia el objeto del
+        # contrato. Quedo un producto de 30 KB con toda la documentacion y cero
+        # funcionamiento. El harness sabe abrir la pagina y ejecutarla, pero esa
+        # fase vive en el CIERRE y el cierre no llego.
+        #
+        # Con presupuesto de pared conocido se avisa UNA vez, al entrar en el
+        # ultimo cuarto: deja de producir y comprueba lo que ya hay. No corta
+        # nada ni prohibe nada -- reordena. Sin COGNIA_PARED_S es transparente.
+        if (not _aviso_pared["dado"] and _muta is not None
+                and _muta.ficheros_escritos()):
+            _tot_pared = _pared_total()
+            _resto_pared = _pared_restante(t0)
+            if (_tot_pared and _resto_pared is not None
+                    and _resto_pared <= max(_PARED_MINIMA_TRABAJO, 0.25 * _tot_pared)):
+                _aviso_pared["dado"] = True
+                _n_fich = len(_muta.ficheros_escritos())
+                print_fn(f"[warn_cl]quedan {int(_resto_pared)}s de "
+                         f"presupuesto: pido comprobar lo hecho antes de "
+                         f"seguir produciendo[/warn_cl]")
+                if _tel.activa():
+                    _tel.evento("aviso_pared", paso=pasos,
+                                restante=int(_resto_pared), ficheros=_n_fich)
+                mensajes.append({"role": "user", "content": (
+                    "AVISO DE TIEMPO: quedan unos %d segundos de presupuesto y "
+                    "ya hay %d fichero(s) escritos. Deja de producir material "
+                    "nuevo (nada de documentacion, nada de ficheros extra) y "
+                    "dedica lo que queda a COMPROBAR lo que ya existe: "
+                    "ejecutalo o abrelo, mira el error real y arregla lo que "
+                    "impida que funcione lo principal. Si algo no se puede "
+                    "comprobar, dilo en una linea en vez de darlo por bueno."
+                    % (int(_resto_pared), _n_fich))})
         if _prog is not None:
             _v = _prog.veredicto()
             if _v.get("estado") == "estancado":

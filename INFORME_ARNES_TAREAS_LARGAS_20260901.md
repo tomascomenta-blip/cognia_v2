@@ -111,12 +111,58 @@ guardia de pared cambia amplitud por cosas que funcionan, que es la prioridad de
 
 ---
 
+## 4b. PyPI: la versión que instalaría un usuario
+
+`cognia-ai` **4.22.0** publicada (https://pypi.org/project/cognia-ai/4.22.0/) tras el gate
+obligatorio del repo (camino feliz **5/5**). Instalada en un venv limpio y verificado que
+lo que corre es `site-packages`, no la copia local. La versión publicada trae las mejoras:
+en la primera tarea imprime `Presupuesto de pasos: 40 (techo 66)` — el techo derivado del
+encargo, que antes era la constante 40.
+
+Benchmark **desde esa versión instalada**, mismas 10 tareas y mismo presupuesto de 480 s:
+
+| Métrica | Baseline (local, 4.21) | **PyPI 4.22.0** | |
+|---|---|---|---|
+| tests funcionales superados | 36 / 106 (0,340) | **50 / 108 (0,463)** | +12,3 pp |
+| nota global media | 0,417 | **0,508** | +0,091 |
+| A completitud | 0,633 | **0,817** | +0,184 |
+| B funcionalidad | 0,250 | **0,270** | +0,020 |
+| C calidad | 0,862 | 0,873 | +0,011 |
+| D robustez | 0,300 | **0,400** | +0,100 |
+| E integridad | 0,200 | **0,400** | +0,200 |
+| F entregabilidad | 0,426 | **0,487** | +0,061 |
+| productos muertos (func = 0) | 7 | **6** | −1 |
+| pasos medios | 8,6 | **15,2** | +78 % |
+| tokens medios | 123 k | 249 k | +102 % |
+
+Dos productos salen **completos y funcionando** desde la versión publicada:
+`py-cli-tareas` con nota **1,00** (era 0,24 en la baseline) y `node-cli-generador` con
+**0,98**. `ark-supervivencia`, la tarea más dura del banco, pasa de 0,09 a **0,68**.
+
+**Una ronda descartada, y por qué.** La primera ronda desde PyPI (`r4_pypi`) salió peor
+que la baseline (global 0,418). No es el producto: la corrí mientras yo ejecutaba la suite
+completa y el contrafactual en la misma máquina. La telemetría lo confirma — 39,8 tok/s de
+media frente a 41,96 de la ronda limpia, con tareas cayendo a 28 tok/s. Se repitió con la
+máquina libre (`r5_pypi_limpio`) y es esa la que se reporta. La ronda contaminada se
+conserva en `banco_largo/corridas/r4_pypi/` para que el descarte sea auditable.
+
+---
+
 ## 5. Lo que NO se hizo, y lo que sigue roto
 
-**No hecho** (falta de reloj, no de decisión): publicación en PyPI, instalación desde
-PyPI y benchmark final desde esa versión; las 25 tareas completas (se corrieron 10
-representativas en cada ronda, las 24 restantes están escritas y listas); visualización
-de tokens en vivo en el CLI; runners por familia de producto para verificación.
+**No hecho**: las 25 tareas completas (se corrieron 10 representativas en cada ronda; las
+otras 14 están escritas, validadas y listas para lanzarse); runners declarativos por
+familia de producto; el troceado de artefactos grandes por el arnés en vez de por un aviso
+en prosa.
+
+**Sobre la suite completa.** El gate documentado del repo
+(`pytest tests/ --ignore=tests/test_e2e_inference.py`) da **128 fallos sobre 14 625
+pasados** con estos cambios. Los ficheros que fallan **pasan 349/349 al correrlos
+aislados**, o sea que son efectos de orden/aislamiento de la suite, no del código. El
+contrafactual que corrí (commit `60bb3462`) da 40 fallos, pero está 3 commits atrás y le
+faltan ~580 tests, así que **no es concluyente**: queda pendiente repetirlo contra el
+padre exacto. Los tests dirigidos de todo lo tocado sí están en verde (1 640 + 1 617 +
+520 de comandos y ayuda + 218 de UX + 13 nuevos de pared y rescate).
 
 **Límites de la medida, sin maquillar:**
 - n = 10 por ronda y una sola corrida: las diferencias por tarea de ±0,1 son ruido.
