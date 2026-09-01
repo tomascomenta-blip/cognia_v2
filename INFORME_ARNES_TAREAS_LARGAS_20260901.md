@@ -156,14 +156,26 @@ otras 14 están escritas, validadas y listas para lanzarse); runners declarativo
 familia de producto; el troceado de artefactos grandes por el arnés en vez de por un aviso
 en prosa.
 
-**Sobre la suite completa.** El gate documentado del repo
-(`pytest tests/ --ignore=tests/test_e2e_inference.py`) da **128 fallos sobre 14 625
-pasados** con estos cambios. Los ficheros que fallan **pasan 349/349 al correrlos
-aislados**, o sea que son efectos de orden/aislamiento de la suite, no del código. El
-contrafactual que corrí (commit `60bb3462`) da 40 fallos, pero está 3 commits atrás y le
-faltan ~580 tests, así que **no es concluyente**: queda pendiente repetirlo contra el
-padre exacto. Los tests dirigidos de todo lo tocado sí están en verde (1 640 + 1 617 +
-520 de comandos y ayuda + 218 de UX + 13 nuevos de pared y rescate).
+**Sobre la suite completa — resuelto.** El gate documentado del repo daba al principio
+**128 fallos**, frente a los **39** del padre exacto (`d1c47097`). Perseguido hasta el
+final, eran cuatro cosas reales (tres mías) y el resto orden de ejecución:
+
+1. `test_version_unica` — subí `pyproject.toml` a 4.22.0 y no `AppVersion` en
+   `installer/cognia_setup.iss`. El repo tiene un test justo para eso.
+2. `test_agente_streaming` (×2) — `_kwargs_stream` colgaba **siempre** un `cancelado`,
+   aunque el ctx no trajera ninguno y aunque el corte por razonamiento no pudiera
+   dispararse jamás: eso inventa una vía de cancelación donde no la hay. Ahora sin motivo
+   real no se cuelga hook, y si el único motivo es el del ctx ese hook viaja tal cual
+   (envolverlo rompía la identidad que el llamador comprueba).
+3. `test_no_bare_sqlite_connect` — el guard escaneaba `banco_largo/corridas/**`, que es
+   **producto del agente**, no fuente del repo: 15 falsos positivos.
+4. `test_catalogo_nodos` — siete tools `doc_*` caían al cajón «Otros».
+
+**Resultado final: 39 fallos / 14 724 pasados, y los 39 son exactamente los mismos que
+los del padre** (comparación de identificadores de test, conjunto idéntico). Cero
+regresiones, con 582 tests más en verde. Los 39 son fallos crónicos de esta suite, que
+tiene fugas de estado entre tests: los ficheros afectados pasan 136/136 y 349/349 al
+correrlos aislados.
 
 **Límites de la medida, sin maquillar:**
 - n = 10 por ronda y una sola corrida: las diferencias por tarea de ±0,1 son ruido.
