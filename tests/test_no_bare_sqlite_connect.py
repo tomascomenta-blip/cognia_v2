@@ -43,6 +43,12 @@ _EXCLUDE_DIR_PARTS = {
     ".git", "__pycache__", "node_modules", "venv", ".venv",
     "tests", "scripts", "build", "dist",
     "generated_programs", "generated_games", ".repo_reverse",
+    # Las corridas del banco de tareas largas (banco_largo/corridas/<ronda>/)
+    # son PRODUCTO DEL AGENTE, no fuente del repo: si al agente se le pide un
+    # gestor de tareas con SQLite, va a escribir sqlite3.connect() y hace bien.
+    # Sin esta exclusion el guard denunciaba 15 "violaciones nuevas" que eran
+    # ficheros que el propio banco acababa de generar (2026-09-01).
+    "corridas",
     # Un git worktree DENTRO del repo (.claude/worktrees/<id>/) es una COPIA
     # del arbol: los mismos ficheros del baseline reaparecen con otro prefijo
     # de ruta, no casan con KNOWN_BARE_SQLITE y el guard los denuncia como

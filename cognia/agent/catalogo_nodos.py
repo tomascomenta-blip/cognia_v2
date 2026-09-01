@@ -187,7 +187,14 @@ CATEGORIAS: tuple = (
      "color": "#2fb67c", "color_osc": "#4fd39a", "icono": "pen",
      "tools": ("escribir_archivo", "editar_archivo", "apendar_archivo",
                "copiar_archivo", "mover_archivo", "crear_directorio",
-               "borrar_archivo")},
+               "borrar_archivo"),
+     # La familia `documento` (agent/documento_tools.py) entro al registro sin
+     # entrada aqui y sus siete tools caian al cajon "Otros" en cuanto se
+     # encendia (lo caza el test de huerfanas). Van con la escritura de
+     # ficheros, que es lo que hacen, y no en una categoria propia: una
+     # categoria cuya familia viene apagada es un cajon muerto, que es
+     # justo lo que prohibe test_ninguna_categoria_esta_vacia.
+     "prefijos": ("doc_",)},
 
     {"id": "codigo", "nombre": "Codigo y repositorio",
      "color": "#ff9922", "color_osc": "#ffb966", "icono": "code",

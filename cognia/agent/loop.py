@@ -1529,6 +1529,22 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             if _av:
                 print_fn(f"[warn_cl]{_av}[/warn_cl]")
 
+    def _corte_razon_armable() -> bool:
+        """¿Tiene sentido siquiera vigilar el razonamiento en este turno?
+
+        Si el modelo no lee `enable_thinking`, o el dueno pidio el pensamiento
+        encendido, o el tope esta apagado, el vigilante no puede disparar nunca
+        y colgar un `cancelado` solo por tenerlo seria INVENTAR una via de
+        cancelacion donde no hay ninguna -- justo lo que prohibe
+        test_sin_cancelado_en_el_ctx_no_se_inventa_uno.
+        """
+        if _pensamiento["apagado"] or not _lleva_thinking():
+            return False
+        if os.environ.get("COGNIA_THINKING", "").strip().lower() in (
+                "on", "1", "true", "si"):
+            return False
+        return _TOPE_RAZON_VIVO < 10 ** 9
+
     def _razonamiento_desbocado() -> bool:
         """True cuando ESTE turno se esta yendo entero en pensar.
 
@@ -1569,6 +1585,16 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         k = {"on_token": _suma_token, "on_reasoning": _suma_razonamiento,
              "on_tool_frag": _suma_fragmento_tool}
         _cc = ctx.get("_cancelado") if isinstance(ctx, dict) else None
+        _armable = _corte_razon_armable()
+        if not callable(_cc) and not _armable:
+            return k          # sin motivo real para cancelar, no se cuelga hook
+        if not _armable:
+            # Nada que anadir: el hook del ctx viaja TAL CUAL. Envolverlo por
+            # envolver rompe la identidad que el llamador puede comprobar
+            # (test_el_cancelado_del_ctx_viaja_a_completar) y esconde de quien
+            # lee el codigo que aqui no hay ninguna politica extra.
+            k["cancelado"] = _cc
+            return k
 
         def _cancelar_turno() -> bool:
             if callable(_cc):
