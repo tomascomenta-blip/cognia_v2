@@ -35,6 +35,30 @@ consejo de trocear: las llamadas enormes se cortan a media cadena y se pierde el
 que el bucle creía que no había `enable_thinking` y el corte del razonamiento desbocado
 nunca se armaba: 20.003 caracteres pensando y ningún corte, con el tope en 12.000.
 
+**Raíl duro contra matarse a sí mismo.** El agente ejecutó `taskkill /f /im python.exe`
+para cerrar un servidor que había lanzado y mató todos los Python de la máquina, incluido
+él mismo y el runner del banco. `ejecutar` y `ejecutar_fondo` vetan las matanzas en masa
+del intérprete (`taskkill /im python*`, `pkill python`, `kill -1`, `Stop-Process -Name
+python`) y devuelven cómo usar `matar_proceso <id>` o el PID concreto. No depende del
+interceptor de permisos.
+
+**La página es la unidad de verificación de un producto web.** El agente escribió
+`index.html` una vez y `game.js` doce; el lazo abría la página una sola vez. Ahora, tras
+escribir un `.js`, se abre el `.html` que lo carga (o `index.html`) con el contrato.
+
+**El gobernador de progreso avisa en vez de matar.** Con reloj conocido (o en el REPL,
+donde el reloj es el humano), un estancamiento se avisa hasta cuatro veces con ventana
+nueva; solo se cierra en el último cuarto del reloj. Antes cerró un juego a los 581 s con
+diez minutos sin usar, en mitad de un ciclo de arreglos. Y el gobernador cuenta solo
+tokens generados: sumar los 30-40k de prompt por paso hacía que «meseta de coste»
+disparara por construcción en cualquier tarea larga.
+
+**Espiral de depuración.** Siete `debug*.js` seguidos persiguiendo un bug que la página
+nunca mostró. Los scripts de usar-y-tirar se cuentan por su nombre y al tercero se avisa.
+
+**Canvas quieto.** El lazo toma dos muestras del canvas y dice si «se mueve» o está
+«QUIETO (nada cambia)». Informa, no sentencia.
+
 ---
 
 ## [4.22.0] - 2026-09-01

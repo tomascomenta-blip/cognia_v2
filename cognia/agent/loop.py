@@ -182,7 +182,9 @@ _TOPE_ESCRITURA_TROZO = 9000
 _RE_FICHERO_SUELTO = re.compile(
     r"(?:^|[\\/])(?:debug|dbg|tmp|temp|prueba|pruebas|scratch|borrador|"
     r"verificar|verifica|check|chequeo|diag|diagnostico|sonda|probar|"
-    r"repro|kk|foo|bar)[_\-]?\w*\.(?:js|mjs|py|sh|bat|ps1)$", re.I)
+    r"repro|kk|foo|bar)(?:[_\-\d]\w*)?\.(?:js|mjs|py|sh|bat|ps1)$", re.I)
+# (?:[_\-\d]\w*)? y no [_\-]?\w*: 'check' seguido de letras es otra palabra
+# (checkout.js es producto), 'check_api.py' o 'debug7.js' si son sueltos.
 
 
 def _es_fichero_suelto(ruta) -> bool:
@@ -301,6 +303,14 @@ def techo_por_contrato(task: str, base: int = AGENT_HARD_CAP) -> int:
     que ya existia para la ampliacion ganada con evidencia, asi que ninguna
     tarea que hoy funciona pierde nada.
     """
+    # CON RELOJ DE PARED, LOS PASOS NO SON EL RECURSO ESCASO (2026-09-01).
+    # Medido con 20 min de presupuesto: una tarea agoto su techo de 40 pasos a
+    # los 518 s, con once minutos de reloj sin usar y avanzando. Cuando alguien
+    # de fuera pone el limite en segundos (COGNIA_PARED_S), el techo de pasos
+    # sube al maximo que ya existia para la ampliacion por progreso: el reloj
+    # manda y el gobernador de progreso sigue vigilando los bucles esteriles.
+    if _pared_total() is not None:
+        return AGENT_CAP_CON_PROGRESO
     try:
         from cognia.harness.contrato_tarea import derivar
         n = len(derivar(task or ""))
@@ -1900,6 +1910,8 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # Ver la ESPIRAL DE DEPURACION en el hook del lazo corto.
     _sueltos = []
     _aviso_sueltos = {"dado": False}
+    # Racha de tools fallidas: el primer aviso y desde que paso del trace se dio.
+    _aviso_racha = {"dado": False, "desde": 0}
     while pasos < _techo_bruto:
         # CORTE COOPERATIVO (T4, 2026-08-18). ctx['_cancelado'] es un callable
         # que inyecta cli.py cuando la tarea corre en el carril de fondo: el
@@ -3279,16 +3291,43 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             _racha = fail_streak * 2
         recientes = trace[-_racha:]
         if len(recientes) >= _racha and not any(a["ok"] for a in recientes):
-            # Sin aviso aparte: el hecho va UNA vez, en el footer del turno
-            # ('✗ 37.7s · 5 pasos · parado: 3 tools seguidas fallaron') via
-            # el motivo del envelope (juez 2026-08-24: tres mensajes, tres
-            # estilos, un hecho).
-            if _salida is not None:
-                _salida.sellar(RAZON_BUCLE_DETECTADO,
-                               f"{_racha} tools seguidas fallaron")
-            result_text = (f"(interrumpida: {_racha} herramientas seguidas "
-                           "fallaron sin avanzar; el modelo no logro la tarea)")
-            break
+            # PRIMERO SE AVISA, DESPUES SE CORTA (2026-09-01). Tres tools
+            # fallidas seguidas es lo NORMAL cuando se depura: un comando
+            # que no encuentra el fichero, el segundo con la ruta mal, el
+            # tercero con el flag equivocado. Con 20 min de reloj, este corte
+            # mato una CLI de tareas a los 252 s (borrar_archivo + ejecutar
+            # x2) y un juego a los 410 s (tres `mcp` seguidos), las dos con
+            # tres cuartos del reloj sin usar. Ahora la primera racha manda
+            # un aviso con los errores literales y exige cambiar de enfoque;
+            # solo la racha DOBLE seguida (2x, o sea 6 fallos sin uno bueno)
+            # cierra, que si es girar en vacio.
+            _ultimos_err = " | ".join(
+                str(a.get("result_head") or "")[:140].replace("\n", " ")
+                for a in recientes[-3:])
+            if not _aviso_racha["dado"]:
+                _aviso_racha["dado"] = True
+                _aviso_racha["desde"] = len(trace)
+                mensajes.append({"role": "user", "content": (
+                    "ALTO: las ultimas %d herramientas fallaron seguidas:\n%s\n\n"
+                    "No repitas la misma accion. Lee el error literal, comprueba "
+                    "que la ruta/comando existe (listar, leer_archivo) y cambia "
+                    "de enfoque. Si algo no se puede hacer en este entorno, dilo "
+                    "en una linea y sigue con lo demas." % (_racha, _ultimos_err))})
+                print_fn(f"[warn_cl]{_racha} herramientas seguidas fallaron: "
+                         f"aviso al modelo, sigo[/warn_cl]")
+                if _tel.activa():
+                    _tel.evento("aviso_racha", paso=pasos, racha=_racha)
+            elif len(trace) - _aviso_racha["desde"] >= _racha and \
+                    not any(a["ok"] for a in trace[-(_racha * 2):]):
+                # Sin aviso aparte: el hecho va UNA vez, en el footer del
+                # turno ('parado: 6 tools seguidas fallaron') via el motivo
+                # del envelope (juez 2026-08-24: un hecho, un mensaje).
+                if _salida is not None:
+                    _salida.sellar(RAZON_BUCLE_DETECTADO,
+                                   f"{_racha * 2} tools seguidas fallaron")
+                result_text = (f"(interrumpida: {_racha * 2} herramientas seguidas "
+                               "fallaron sin avanzar; el modelo no logro la tarea)")
+                break
 
         # El prompt_tokens del usage NO incluye lo que este turno apendeo
         # (assistant + N turnos tool): con tool-calls paralelas de resultados

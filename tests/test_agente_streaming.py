@@ -322,23 +322,39 @@ def test_depurar_no_muere_a_los_3_fallos_de_ejecucion(monkeypatch):
     assert "fallaron sin avanzar" not in out["texto"]
 
 
-def test_la_racha_de_fallos_sigue_cortando_si_no_es_solo_ejecucion(monkeypatch):
-    """No se quito el corte: tres fallos de HERRAMIENTA (el agente no sabe
-    operar) siguen cerrando el turno."""
+def test_tres_fallos_de_herramienta_avisan_y_no_cortan(monkeypatch):
+    """PRIMERO SE AVISA, DESPUES SE CORTA (2026-09-01). Tres fallos seguidos
+    es lo normal depurando; con 20 min de reloj el corte a la 3ra mato una CLI
+    a los 252 s y un juego a los 410 s con tres cuartos del reloj sin usar.
+    A la 3ra llega un aviso con los errores literales y el turno sigue."""
     monkeypatch.setenv("COGNIA_STREAM", "0")
     it = iter(_llamadas(["editar_archivo", "escribir_archivo", "leer_archivo"])
-              + [RespuestaChat(texto="x", finish_reason="stop", usage={})])
+              + [RespuestaChat(texto="Cambio de enfoque.", finish_reason="stop",
+                               usage={})])
     out = _correr(lambda m, tools=None, **kw: next(it), max_turns=8,
+                  run_tool=_tool_que_falla)
+    assert "Cambio de enfoque" in out["texto"], out["texto"]
+    assert "fallaron sin avanzar" not in out["texto"]
+
+
+def test_la_racha_doble_de_fallos_sigue_cortando(monkeypatch):
+    """No se quito el corte: SEIS fallos de HERRAMIENTA seguidos (el aviso de
+    la 3ra no cambio nada) siguen cerrando el turno."""
+    monkeypatch.setenv("COGNIA_STREAM", "0")
+    it = iter(_llamadas(["editar_archivo", "escribir_archivo", "leer_archivo"] * 2)
+              + [RespuestaChat(texto="x", finish_reason="stop", usage={})])
+    out = _correr(lambda m, tools=None, **kw: next(it), max_turns=10,
                   run_tool=_tool_que_falla)
     assert not out["ok"], out["texto"]
     assert "fallaron sin avanzar" in out["texto"], out["texto"]
 
 
-def test_seis_ejecuciones_fallidas_seguidas_si_cortan(monkeypatch):
-    """El margen es el DOBLE, no infinito: a la 6ta sigue cerrando."""
+def test_doce_ejecuciones_fallidas_seguidas_si_cortan(monkeypatch):
+    """El margen para ejecutar es el DOBLE del doble, no infinito: seis avisan,
+    doce cierran."""
     monkeypatch.setenv("COGNIA_STREAM", "0")
-    it = iter(_llamadas(["ejecutar"] * 8))
-    out = _correr(lambda m, tools=None, **kw: next(it), max_turns=10,
+    it = iter(_llamadas(["ejecutar"] * 14))
+    out = _correr(lambda m, tools=None, **kw: next(it), max_turns=16,
                   run_tool=_tool_que_falla)
     assert not out["ok"], out["texto"]
     assert "fallaron sin avanzar" in out["texto"], out["texto"]
