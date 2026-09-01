@@ -179,6 +179,18 @@ _TOOLS_ESCRITURA_LAZO = frozenset({"escribir_archivo", "editar_archivo", "apenda
 _TOPE_ESCRITURA_TROZO = 9000
 
 
+_RE_FICHERO_SUELTO = re.compile(
+    r"(?:^|[\\/])(?:debug|dbg|tmp|temp|prueba|pruebas|scratch|borrador|"
+    r"verificar|verifica|check|chequeo|diag|diagnostico|sonda|probar|"
+    r"repro|kk|foo|bar)[_\-]?\w*\.(?:js|mjs|py|sh|bat|ps1)$", re.I)
+
+
+def _es_fichero_suelto(ruta) -> bool:
+    """Un script de usar-y-tirar, por su NOMBRE. test_*.py NO cuenta: los tests
+    son producto; debug7.js no."""
+    return bool(_RE_FICHERO_SUELTO.search(str(ruta or "")))
+
+
 def _ruta_escrita(args_str) -> str:
     """La ruta de una tool de fichero, vengan los args como JSON nativo
     ({"ruta": ..., "contenido": ...}) o como legado ('ruta | contenido')."""
@@ -1884,6 +1896,10 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     _prog_pausado = None
     _fin_ventana_prog = 0
     _aviso_pared = {"dado": False}
+    # Ficheros de usar-y-tirar escritos en la tarea (debug3.js, prueba_x.py...).
+    # Ver la ESPIRAL DE DEPURACION en el hook del lazo corto.
+    _sueltos = []
+    _aviso_sueltos = {"dado": False}
     while pasos < _techo_bruto:
         # CORTE COOPERATIVO (T4, 2026-08-18). ctx['_cancelado'] es un callable
         # que inyecta cli.py cuando la tarea corre en el carril de fondo: el
@@ -1981,6 +1997,42 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                                     paso=pasos, ventana=_ventana_prog)
                     _prog_pausado = _prog
                     _prog = None      # el gobernador calla DURANTE la ventana
+                elif ((_pared_restante(t0) is None
+                       or _pared_restante(t0) > 0.25 * (_pared_total() or 0))
+                      and _advertido_prog < 4):
+                    # Sin reloj externo (REPL, `cognia hacer` a secas) el
+                    # reloj es el humano con su Ctrl-C: tambien ahi se avisa
+                    # hasta cuatro veces antes de cerrar. Matar una tarea que
+                    # el dueno esta mirando "por estancamiento" era justo la
+                    # queja: el harness no termina lo que se le pide.
+                    # CON RELOJ CONOCIDO, EL GOBERNADOR AVISA, NO MATA
+                    # (2026-09-01). El gobernador de progreso nacio porque no
+                    # habia reloj de pared: era la unica forma de que un bucle
+                    # esteril no girase para siempre. Con COGNIA_PARED_S ya hay
+                    # limite duro. Medido en el A/B de 20 min: la version
+                    # publicada cerro el juego por "estancado_sin_progreso" a
+                    # los 581 s con diez minutos de reloj sin usar, en mitad de
+                    # un ciclo de arreglos sobre el mismo fichero (que no
+                    # "avanza" para el gobernador porque no crea ficheros ni
+                    # pone tests en verde). Mientras quede mas de un cuarto del
+                    # reloj se le vuelve a mandar la sugerencia con ventana
+                    # nueva; solo se cierra en el ultimo cuarto o tras cuatro
+                    # avisos, que ya es girar en vacio.
+                    _advertido_prog += 1
+                    _ventana_prog = max(3, max_turns // 4)
+                    _fin_ventana_prog = pasos + _ventana_prog
+                    mensajes.append({"role": "user",
+                                     "content": _v.get("sugerencia") or ""})
+                    print_fn(f"[warn_cl]sin progreso verificado "
+                             f"({_v.get('motivo')}), aviso {_advertido_prog}: "
+                             f"queda reloj, sigo {_ventana_prog} pasos mas"
+                             f"[/warn_cl]")
+                    if _tel.activa():
+                        _tel.evento("advertencia_progreso", motivo=str(_v.get("motivo")),
+                                    paso=pasos, ventana=_ventana_prog,
+                                    aviso=_advertido_prog)
+                    _prog_pausado = _prog
+                    _prog = None
                 else:
                     if _salida is not None:
                         _salida.sellar("estancado_sin_progreso", _v.get("motivo", ""))
@@ -2957,6 +3009,29 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             # aqui, no en el cierre. Ver harness/lazo_corto.py. El texto va
             # pegado al resultado de la tool, asi que el modelo lo lee en el
             # mismo turno en que escribio el fichero.
+            # ESPIRAL DE DEPURACION (medida en el A/B de 20 min, 2026-09-01):
+            # el modelo escribio debug2.js, debug3.js ... debug7.js, siete
+            # scripts sueltos persiguiendo un bug de movimiento, y el juego
+            # se quedo sin arreglar. El guardia de "bucle por fichero" no lo
+            # ve porque cada fichero tiene otro nombre. Aqui se cuentan los
+            # ficheros de usar-y-tirar por su NOMBRE y al tercero se avisa
+            # UNA vez: mira el error en el producto, no en otro script mas.
+            if (tc.nombre == "escribir_archivo" and not _aviso_sueltos["dado"]
+                    and _es_fichero_suelto(_ruta_escrita(args_str))):
+                _sueltos.append(_ruta_escrita(args_str))
+                if len(_sueltos) >= 3:
+                    _aviso_sueltos["dado"] = True
+                    resultado = str(resultado or "") + (
+                        "\n[ARNES] llevas %d scripts sueltos de depuracion (%s). "
+                        "Escribir otro no acerca el producto: reproduce el fallo "
+                        "EN el producto (abrelo o ejecutalo, mira el error real) "
+                        "y arregla el fichero principal. Para una prueba rapida "
+                        "usa ejecutar con python -c o node -e, sin crear ficheros."
+                        % (len(_sueltos), ", ".join(os.path.basename(s) for s in _sueltos[-3:])))
+                    print_fn(f"[warn_cl]espiral de depuracion: {len(_sueltos)} "
+                             f"scripts sueltos[/warn_cl]")
+                    if _tel.activa():
+                        _tel.evento("espiral_depuracion", paso=pasos, n=len(_sueltos))
             if _lazo_mod is not None and tc.nombre in _TOOLS_ESCRITURA_LAZO:
                 try:
                     _r_lazo = _ruta_escrita(args_str)

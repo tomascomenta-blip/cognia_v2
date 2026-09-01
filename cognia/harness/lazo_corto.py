@@ -120,10 +120,13 @@ _JS_SONDA = """
       const g = c.getContext('2d');
       if (g) {
         const d = g.getImageData(0, 0, c.width, c.height).data;
-        const set = new Set();
+        const set = new Set(); let firma = 0, k = 0;
         const paso = Math.max(4, Math.floor(d.length / 20000) * 4);
-        for (let i = 0; i < d.length; i += paso) set.add((d[i] << 16) | (d[i+1] << 8) | d[i+2]);
-        out.canvas = {colores: set.size, ancho: c.width, alto: c.height};
+        for (let i = 0; i < d.length; i += paso) {
+          set.add((d[i] << 16) | (d[i+1] << 8) | d[i+2]);
+          k++; firma = (firma * 31 + (d[i] + 3*d[i+1] + 7*d[i+2]) * (k % 97)) % 2147483647;
+        }
+        out.canvas = {colores: set.size, ancho: c.width, alto: c.height, firma: firma};
       } else {
         out.canvas = {colores: -1, ancho: c.width, alto: c.height};   // webgl: no se lee aqui
       }
@@ -158,6 +161,15 @@ def comprobar_html(ruta, contrato=None) -> dict:
                         timeout=TIMEOUT_NAV_MS)
                 pg.wait_for_timeout(ESPERA_CARGA_MS)
                 sonda = pg.evaluate(_JS_SONDA, ids)
+                # Segunda muestra del canvas: un juego que "abre sin errores y
+                # expone el contrato" puede estar CONGELADO (medido en el A/B:
+                # el modelo escribio siete debug*.js persiguiendo un movimiento
+                # que la pagina nunca mostro). Se informa, no se sentencia: una
+                # pagina estatica legitima no tiene por que animarse.
+                sonda2 = None
+                if sonda.get("canvas") and sonda["canvas"].get("colores", 0) > 0:
+                    pg.wait_for_timeout(700)
+                    sonda2 = pg.evaluate(_JS_SONDA, ids)
             finally:
                 nav.close()
     except Exception as exc:
@@ -180,6 +192,13 @@ def comprobar_html(ruta, contrato=None) -> dict:
         partes.append("el canvas esta en blanco (un solo color)")
     res["ok"] = not partes
     res["detalle"] = " · ".join(partes) if partes else "abre sin errores de JS"
+    if canvas and sonda2 and sonda2.get("canvas"):
+        c2 = sonda2["canvas"]
+        quieto = (c2.get("firma") == canvas.get("firma")
+                  and c2.get("colores") == canvas.get("colores"))
+        res["canvas_animado"] = not quieto
+        res["detalle"] += (" · canvas: %s en 0,7 s" %
+                           ("QUIETO (nada cambia)" if quieto else "se mueve"))
     if not partes and ids.get("globales"):
         res["detalle"] += " y el contrato (%s) esta expuesto" % ", ".join(
             "window." + g for g in ids["globales"][:4])
