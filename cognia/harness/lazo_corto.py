@@ -293,6 +293,45 @@ def comprobar_js(ruta) -> dict:
     return res
 
 
+# -- la PAGINA es la unidad de verificacion, no el fragmento -------------------
+
+def pagina_de(ruta, raiz=None):
+    """El .html que carga este .js/.css, si lo hay. None si no.
+
+    MEDIDO (A/B 20 min, 2026-09-01): el agente escribio index.html una vez y
+    game.js doce veces. El lazo abrio la pagina UNA vez (al escribir el html) y
+    las otras doce solo paso `node --check` sobre game.js, que dice "sintaxis
+    OK" a un juego que no pinta nada. Para un producto web el fichero que hay
+    que correr es la PAGINA: es la que ejecuta el script y expone el contrato.
+    Se busca un .html en el mismo directorio (o en la raiz) que referencie el
+    nombre del fichero; si no hay referencia, index.html del mismo directorio.
+    """
+    try:
+        p = Path(str(ruta))
+        nombre = p.name
+        candidatos = []
+        for base in ([p.parent] + ([Path(str(raiz))] if raiz else [])):
+            try:
+                candidatos.extend(sorted(base.glob("*.html")) + sorted(base.glob("*.htm")))
+            except Exception:
+                continue
+        vistos, refer, indice = set(), None, None
+        for h in candidatos:
+            if h in vistos:
+                continue
+            vistos.add(h)
+            try:
+                if nombre in h.read_text(encoding="utf-8", errors="replace"):
+                    refer = refer or h
+            except Exception:
+                continue
+            if h.name.lower() == "index.html" and indice is None:
+                indice = h
+        return refer or indice
+    except Exception:
+        return None
+
+
 # -- punto de entrada para el bucle ------------------------------------------
 
 def tras_escritura(ruta, raiz=None, contrato=None, forzar=False) -> "str | None":
@@ -317,6 +356,17 @@ def tras_escritura(ruta, raiz=None, contrato=None, forzar=False) -> "str | None"
             r = comprobar_py(p, raiz, contrato)
         else:
             r = comprobar_js(p)
+            # Un .js que carga una pagina se comprueba EN la pagina: la
+            # sintaxis limpia no dice si el juego pinta ni si el contrato
+            # esta expuesto. Si el script no compila, con eso basta.
+            if r.get("ok"):
+                pag = pagina_de(p, raiz)
+                if pag is not None and (forzar or not _reciente(pag.resolve())):
+                    rp = comprobar_html(pag, contrato)
+                    if rp.get("corrio"):
+                        marca = "OK" if rp.get("ok") else "FALLA"
+                        return "[LAZO CORTO %s] %s (abierta tras escribir %s): %s" % (
+                            marca, pag.name, p.name, rp.get("detalle", ""))
         if not r.get("corrio"):
             return "[LAZO CORTO] %s" % r.get("detalle", "no se pudo comprobar")
         marca = "OK" if r.get("ok") else "FALLA"

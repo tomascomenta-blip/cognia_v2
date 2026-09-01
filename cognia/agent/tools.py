@@ -2182,6 +2182,35 @@ def _correr_proceso(args, ctx, timeout, **kw):
     return subprocess.CompletedProcess(args, p.returncode, out, err)
 
 
+_RE_MATA_TODO = re.compile(
+    r"(?:taskkill(?:\.exe)?\s+(?=.*(?:/im|-im)\s*[\"']?(?:python|pythonw|py\b|cognia|\*)))"
+    r"|(?:\b(?:pkill|killall)\b(?=.*\b(?:python\w*|cognia)\b))"
+    r"|(?:\bkill\s+(?:-9\s+)?-1\b)"
+    r"|(?:stop-process\s+(?=.*-name\s+[\"']?(?:python|pythonw|cognia)))",
+    re.I)
+
+
+def _mata_al_propio_arnes(cmd: str) -> str:
+    """El mensaje de bloqueo si `cmd` mata en masa al interprete del agente, o "".
+
+    MEDIDO (A/B 20 min, 2026-09-01): el agente levanto un servidor con
+    `start /b python servidor.py`, no supo cerrarlo y ejecuto
+    `taskkill /f /im python.exe`. Eso mato TODOS los Python de la maquina: el
+    servidor, el propio agente, el runner del banco y lo que el dueno tuviera
+    abierto. Un "preguntar" de permisos_reglas no sirve aqui: sin terminal no
+    hay a quien preguntar, y aunque la hubiera, matarse a si mismo nunca es lo
+    que se pidio. Es un rail duro, no una politica: no depende de que el
+    interceptor este activo.
+    """
+    if _RE_MATA_TODO.search(cmd or ""):
+        return ("RESULTADO ejecutar ERROR: ese comando mata en masa procesos del "
+                "interprete (incluido el propio agente y lo que el usuario tenga "
+                "abierto). Mata SOLO el proceso que lanzaste: si lo arrancaste "
+                "con ejecutar_fondo, usa matar_proceso <id>; si no, "
+                "taskkill /PID <pid> (Windows) o kill <pid> con el pid concreto.")
+    return ""
+
+
 def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
     # El exit arranca en None y solo lo pisa un subprocess que HAYA CORRIDO:
     # asi toda salida temprana (bloqueo del sentinel, cwd inexistente, timeout)
@@ -2213,6 +2242,10 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
         # falta tapar ninguna excepcion: si la ruta no existe, lo dice el
         # is_dir() de abajo con un mensaje accionable.
         cwd = os.path.abspath(os.path.expanduser(cwd))
+    _veto = _mata_al_propio_arnes(cmd)
+    if _veto:
+        _marcar_exit(ctx, 1)
+        return _veto
     from cognia.agent.sentinel import evaluar_shell
     permitido, msg = evaluar_shell(cmd, ctx, cwd=cwd)
     if not permitido:
@@ -2476,6 +2509,9 @@ def _proc_id(raw: str):
            "descripcion": "directorio donde lanzarlo"},
       ])
 def _ejecutar_fondo(args, ctx):
+    _veto = _mata_al_propio_arnes(_partir_ejec(args)[0])
+    if _veto:
+        return _veto.replace("RESULTADO ejecutar ", "RESULTADO ejecutar_fondo ")
     cmd, _timeout, cwd = _partir_ejec(args)
     if not cmd:
         return "RESULTADO ejecutar_fondo ERROR: falta el comando a lanzar"
@@ -2488,6 +2524,10 @@ def _ejecutar_fondo(args, ctx):
             cwd = str(Path(cwd).expanduser())
         except (RuntimeError, OSError):
             pass
+    _veto = _mata_al_propio_arnes(cmd)
+    if _veto:
+        _marcar_exit(ctx, 1)
+        return _veto
     from cognia.agent.sentinel import evaluar_shell
     permitido, msg = evaluar_shell(cmd, ctx, cwd=cwd)
     if not permitido:
