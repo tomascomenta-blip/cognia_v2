@@ -51,7 +51,7 @@ def test_escribir_el_js_abre_la_pagina_y_ve_el_contrato(tmp_path):
         encoding="utf-8")
     js = tmp_path / "game.js"
     js.write_text("window.JUEGO = {tick(){}};", encoding="utf-8")
-    ids = {"globales": ["JUEGO"], "metodos": {"JUEGO": ["tick", "guardar"]}, "dom_ids": []}
+    ids = {"globales": ["JUEGO"], "metodos": {"JUEGO": ["guardar"]}, "dom_ids": []}
     lz._ultima.clear()
     txt = lz.tras_escritura(js, raiz=tmp_path, contrato=ids, forzar=True)
     assert txt.startswith("[LAZO CORTO FALLA] index.html (abierta tras escribir game.js)")

@@ -146,7 +146,9 @@ def test_html_sano_con_contrato_expuesto(tmp_path):
                  "<script>const g=document.getElementById('c').getContext('2d');"
                  "g.fillStyle='#f00';g.fillRect(0,0,10,10);"
                  "window.JUEGO={tick(){},guardar(){}};</script>", encoding="utf-8")
-    ids = {"globales": ["JUEGO"], "metodos": {"JUEGO": ["tick", "guardar"]}, "dom_ids": ["hud"]}
+    # sin 'tick' en el contrato: este test mide que la interfaz este expuesta,
+    # no que la simulacion avance (eso lo mide test_lazo_corto_tick.py)
+    ids = {"globales": ["JUEGO"], "metodos": {"JUEGO": ["guardar"]}, "dom_ids": ["hud"]}
     r = lz.comprobar_html(f, ids)
     assert r["corrio"] is True and r["ok"] is True, r
     assert "contrato" in r["detalle"]

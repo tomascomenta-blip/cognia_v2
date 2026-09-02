@@ -167,9 +167,29 @@ def comprobar_html(ruta, contrato=None) -> dict:
                 # que la pagina nunca mostro). Se informa, no se sentencia: una
                 # pagina estatica legitima no tiene por que animarse.
                 sonda2 = None
+                tick_probado = None
                 if sonda.get("canvas") and sonda["canvas"].get("colores", 0) > 0:
                     pg.wait_for_timeout(700)
                     sonda2 = pg.evaluate(_JS_SONDA, ids)
+                    # Si el contrato promete un tick(ms) y el canvas sigue
+                    # igual, se le da tiempo SIMULADO: un producto cuyo estado
+                    # no avanza ni con tick no es una pagina estatica legitima,
+                    # es una simulacion parada. Medido en ARK con 45 min: 26
+                    # avisos de "canvas QUIETO" informativos y el modelo no
+                    # actuo; con el tick la evidencia deja de ser ambigua.
+                    quieto = (sonda2.get("canvas", {}).get("firma") == sonda["canvas"].get("firma"))
+                    if quieto:
+                        for g, ms in (ids.get("metodos") or {}).items():
+                            if "tick" in ms:
+                                try:
+                                    pg.evaluate("(g) => { try { for (let i=0;i<10;i++) window[g].tick(200); } catch(e) {} }", g)
+                                    pg.wait_for_timeout(300)
+                                    sonda3 = pg.evaluate(_JS_SONDA, ids)
+                                    tick_probado = (g, sonda3.get("canvas", {}).get("firma")
+                                                    != sonda["canvas"].get("firma"))
+                                except Exception:
+                                    tick_probado = (g, None)
+                                break
             finally:
                 nav.close()
     except Exception as exc:
@@ -197,8 +217,19 @@ def comprobar_html(ruta, contrato=None) -> dict:
         quieto = (c2.get("firma") == canvas.get("firma")
                   and c2.get("colores") == canvas.get("colores"))
         res["canvas_animado"] = not quieto
-        res["detalle"] += (" · canvas: %s en 0,7 s" %
-                           ("QUIETO (nada cambia)" if quieto else "se mueve"))
+        if quieto and tick_probado and tick_probado[1] is False:
+            # El contrato promete tick(ms) y 2.000 ms simulados no cambian un
+            # pixel: eso ya no es informativo, es la simulacion parada.
+            res["ok"] = False
+            res["detalle"] += (" · LA SIMULACION NO AVANZA: tras window.%s.tick(200) x10 "
+                               "el canvas sigue identico (ni criaturas, ni ciclo, ni "
+                               "barras cambian)" % tick_probado[0])
+        elif quieto and tick_probado and tick_probado[1]:
+            res["detalle"] += (" · canvas quieto solo, pero avanza con window.%s.tick()"
+                               % tick_probado[0])
+        else:
+            res["detalle"] += (" · canvas: %s en 0,7 s" %
+                               ("QUIETO (nada cambia)" if quieto else "se mueve"))
     if not partes and ids.get("globales"):
         res["detalle"] += " y el contrato (%s) esta expuesto" % ", ".join(
             "window." + g for g in ids["globales"][:4])

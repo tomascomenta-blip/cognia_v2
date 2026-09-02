@@ -145,7 +145,13 @@ def correr_tarea(tarea, dir_ronda, python_cli, cwd_cli=None, extra_env=None,
         presupuesto = int(os.environ["BANCO_PRESUPUESTO"])
     pasos = int(tarea.get("pasos") or 40)
     cmd = [python_cli, "-m", "cognia", "hacer", tarea["prompt"],
-           "--json", "--pasos", str(pasos), "--cwd", str(ws)]
+           "--json", "--cwd", str(ws)]
+    # Con presupuesto de PARED fijado desde fuera, el reloj manda y el techo de
+    # pasos lo decide el agente (120 con COGNIA_PARED_S). Pasar --pasos ademas
+    # era un segundo tope, mas bajo: ARK con 45 min se paro a los 15 por
+    # "techo 80" con media hora de reloj sin usar (2026-09-01).
+    if not os.environ.get("BANCO_PRESUPUESTO"):
+        cmd += ["--pasos", str(pasos)]
     env = dict(os.environ)
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUTF8"] = "1"
