@@ -15670,3 +15670,44 @@ pasos secuenciales): con `COGNIA_PASOS_ILIMITADOS=0` cerró en 44.4 s con
   en la lista de 62 fallos previos de la corrida de 4.24. El fichero que se bloqueo tarda 25 s con el
   backend muerto y >540 s tambien con `git stash` y backend recien reiniciado: es el sueno de
   `Cognia()` (research/hobby con el 9B), no esta tanda. Dirigidos tras los arreglos: 171 passed.
+
+
+## 2026-09-02 (noche) — 4.25.2: autopsia Tank.io — la ventana del servidor nunca es None
+
+El dueño pegó el cierre de una tarea real (Tank.io, 55 pasos, 1.404 s, 47.497 tokens):
+"respuesta final truncada por max_tokens (8192)", "contexto excedido y no queda nada
+recortable: no reintento", HTTP 400 `exceed_context_size` (65.835 > 65.536). Preguntó por qué
+la compactación inteligente no lo evitó.
+
+### Medido
+
+- Telemetría de la tarea (`~/.cognia/telemetria/20260902.jsonl`): `tokens_entrada` sube
+  6.502 → 65.221 en 54 pasos SIN una sola bajada; sin evento de compactación; resultados de
+  tools todos < 1.500 chars (nada que volcar: `~/.cognia/offload` sin carpeta de esa sesión).
+  El prompt es la salida del propio modelo reenviada (razonamiento + args de 29 `editar_archivo`).
+- `compactar()` con un historial sintético de esa forma: 56.905 → 10.758 tokens en 0 s. El bucle
+  real con `n_ctx=65536` compacta tres veces en 64 pasos. La puerta corre cada paso; no hay
+  `continue` entre las tools y ella.
+- Única vía MUDA con esa forma: perfil con `n_ctx=None` → `umbral_tokens(None)=0` →
+  `compactar()` devuelve "sin n_ctx" (no se imprimía) → `_recortar_mensajes` devuelve 0.
+  `backend_activo.props()` cacheaba `{}` 60 s ante un `/props` fallido: un `/hacer` arrancado
+  mientras el 27B cargaba se llevaba ese perfil para toda la tarea. No queda el historial de la
+  sesión para confirmarlo al 100 %; es la hipótesis consistente con todo lo medido.
+- Además: el venv del dueño no tenía Playwright (el lazo corto decía "sin Playwright" en 20 de
+  55 pasos) y el `cognia.exe` abierto desde las 14:08 corría 4.25.0 en memoria.
+
+### Qué cambió
+
+`props()` no cachea fallos; `bucle_nativo` re-sondea la ventana o asume 32.768 y lo dice;
+"compactación no aplicada: <motivo>" visible; `_recorte_de_emergencia` (razonamiento de todos
+los turnos, args de escrituras, resultados largos, mensajes viejos) al 92 % de la ventana y en
+el 400 por contexto con el `n_ctx` que declara el server. Playwright 1.61.0 instalado en
+`~/.cognia/venv` (casa con el chromium-1228 ya descargado).
+
+### Verificación
+
+`tests/test_contexto_ventana_nunca_none.py` (7 tests: props sin cache de fallos, re-sondeo,
+ventana asumida, motivo visible + emergencia, emergencia reduce todo, n_ctx del 400, reintento
+en el 400); barrido de compactación/offload/bucle: 289 passed (queda el previo de
+`test_deepagents_bucle::test_p1`). Repro del bucle con historial tipo Tank.io: serie de prompt
+con tres bajadas (56k → 11k).

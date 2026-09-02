@@ -1123,6 +1123,76 @@ def _degradado_compactacion(print_fn, motivo: str) -> None:
         print_fn(f"[warn_cl]compactacion degradada: {motivo}[/warn_cl]")
 
 
+_N_CTX_ASUMIDO = 32768          # ventana que se asume si NADIE la dice
+_EMERGENCIA_FRAC = 0.92         # del n_ctx: por encima, recorte de emergencia
+_EMERGENCIA_COLA = 6            # mensajes recientes que la emergencia respeta
+
+
+def _n_ctx_de_error(texto) -> int:
+    """El n_ctx que el propio server dice en su 400 ('"n_ctx":65536'). 0 si
+    no viene: es el ultimo recurso cuando el perfil no trajo ventana."""
+    m = re.search(r'"n_ctx"\s*:\s*(\d+)', str(texto or ""))
+    return int(m.group(1)) if m else 0
+
+
+def _recorte_de_emergencia(mensajes, n_ctx, print_fn) -> int:
+    """Lo que se hace cuando la compactacion y el recorte normales NO bajaron
+    el prompt y este ya roza la ventana (2026-09-02: 55 pasos sin una sola
+    bajada y HTTP 400 al final). Determinista y sin modelo:
+      1. el razonamiento de TODOS los assistant (tambien el ultimo) se reduce
+         a 200 chars: es lo que mas pesa y no hace falta para continuar;
+      2. los argumentos de las escrituras viejas se truncan (el contenido ya
+         esta en disco);
+      3. los resultados de tool largos se dejan en cabeza + puntero;
+      4. si aun asi sigue por encima, se descartan los mensajes mas viejos
+         entre el objetivo y la cola de _EMERGENCIA_COLA, con una linea que
+         lo dice.
+    Devuelve chars liberados. Nunca lanza."""
+    liberados = 0
+    try:
+        if not mensajes:
+            return 0
+        ultimo = max((i for i, m in enumerate(mensajes) if m.get("role") == "assistant"),
+                     default=-1)
+        for i, m in enumerate(mensajes):
+            rol = m.get("role")
+            if rol == "assistant" and len(m.get("reasoning_content") or "") > 200:
+                antes = len(m["reasoning_content"])
+                m["reasoning_content"] = m["reasoning_content"][:200] + "…"
+                liberados += antes - len(m["reasoning_content"])
+            elif rol == "tool" and len(m.get("content") or "") > 600:
+                antes = len(m["content"])
+                m["content"] = m["content"][:400] + "\n[... recortado por emergencia de contexto ...]"
+                liberados += antes - len(m["content"])
+        liberados += _truncar_args_escritura(mensajes, ultimo + 1)   # TODAS las escrituras
+        est = _tokens_prompt(mensajes)
+        tope = int(n_ctx * 0.8) if n_ctx else 0
+        inicio = 1 if mensajes and mensajes[0].get("role") == "system" else 0
+        inicio += 1 if inicio < len(mensajes) and mensajes[inicio].get("role") == "user" else 0
+        descartados = 0
+        while (tope and est > tope and len(mensajes) - inicio > _EMERGENCIA_COLA):
+            m = mensajes.pop(inicio)
+            # un tool sin su assistant (o al reves) es una traza huerfana:
+            # se descarta el par completo
+            if m.get("role") == "assistant" and m.get("tool_calls"):
+                while inicio < len(mensajes) and mensajes[inicio].get("role") == "tool":
+                    liberados += len(mensajes.pop(inicio).get("content") or "")
+            liberados += len(str(m.get("content") or "")) + len(str(m.get("reasoning_content") or ""))
+            descartados += 1
+            est = _tokens_prompt(mensajes)
+        if descartados:
+            mensajes.insert(inicio, {"role": "user", "content": (
+                "[contexto: se descartaron %d mensajes viejos por falta de ventana; "
+                "lo que esta en disco sigue en disco: relee lo que necesites]" % descartados)})
+        if liberados:
+            print_fn(f"[warn_cl]recorte de emergencia de contexto: ~{liberados // 4} tokens "
+                     f"liberados ({descartados} mensajes descartados); la ventana del "
+                     f"servidor es de {n_ctx or '?'} tokens[/warn_cl]")
+    except Exception as exc:
+        print_fn(f"[warn_cl]recorte de emergencia fallo: {type(exc).__name__}: {exc}[/warn_cl]")
+    return liberados
+
+
 def _compactar_por_resumen(mensajes, n_ctx, prompt_tokens, estado, print_fn):
     """F4: compactacion por RESUMEN estructurado en UNA pasada
     (harness/compactacion): [system, objetivo, resumen, cola intacta], una
@@ -1164,6 +1234,12 @@ def _compactar_por_resumen(mensajes, n_ctx, prompt_tokens, estado, print_fn):
         print_fn(f"[detail]compactado por resumen: ~{info['tokens_antes']} -> "
                  f"~{info['tokens_despues']} tokens ({info['descartados']} "
                  f"mensajes viejos fundidos en un resumen)[/detail]")
+    elif n_ctx and int(prompt_tokens or 0) >= comp.umbral_tokens(n_ctx) \
+            and info.get("motivo") not in ("bajo el umbral", ""):
+        # Por encima del umbral y sin aplicar: eso NO puede ser mudo (era el
+        # unico camino sin rastro del bucle; revision 2026-09-02).
+        print_fn(f"[warn_cl]compactacion no aplicada: {info.get('motivo')} "
+                 f"(prompt ~{int(prompt_tokens or 0)} tokens de {n_ctx})[/warn_cl]")
     return int(info.get("liberados") or 0) + liberados_args
 
 
@@ -1422,6 +1498,24 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     _aviso_fichero = ""        # nudge de reconsideracion por fichero
 
     t0 = __import__("time").time()
+    # VENTANA CONOCIDA O ASUMIDA, NUNCA None (2026-09-02). Con n_ctx=None
+    # toda la gestion de contexto se apagaba en silencio (umbral 0 -> 'sin
+    # n_ctx', recorte -> 0) y la tarea moria a los 55 pasos con un 400 del
+    # server. Se re-sondea el backend; si sigue sin saberse, se asume
+    # _N_CTX_ASUMIDO y SE DICE.
+    if not perfil.get("n_ctx"):
+        perfil = dict(perfil or {})
+        try:
+            from cognia.agent.model_profiles import n_ctx_del_backend as _nctx_bk
+            perfil["n_ctx"] = int(_nctx_bk(perfil.get("url") or "") or 0) or None
+        except Exception:
+            perfil["n_ctx"] = None
+        if not perfil.get("n_ctx"):
+            perfil["n_ctx"] = _N_CTX_ASUMIDO
+            print_fn(f"[warn_cl]ventana del servidor desconocida: la gestion de "
+                     f"contexto asume {_N_CTX_ASUMIDO} tokens[/warn_cl]")
+        else:
+            print_fn(f"[detail]ventana del servidor re-sondeada: {perfil['n_ctx']} tokens[/detail]")
     if _ev is not None:
         _emitir(_ev.TareaInicio(tarea=task[:300], modo="agente",
                                 modelo=perfil.get("modelo", "")))
@@ -2606,6 +2700,14 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                             _liberados = _recortar_mensajes(
                                 mensajes, perfil.get("n_ctx"), 10 ** 9)
                         if not _liberados:
+                            # El server acaba de decir su ventana en el 400:
+                            # con ella, el recorte de emergencia SI libera.
+                            _nctx_err = (_n_ctx_de_error(resp.error)
+                                         or int(perfil.get("n_ctx") or 0)
+                                         or _N_CTX_ASUMIDO)
+                            _liberados = _recorte_de_emergencia(
+                                mensajes, _nctx_err, print_fn)
+                        if not _liberados:
                             print_fn("[warn_cl]contexto excedido y no queda "
                                      "nada recortable: no reintento[/warn_cl]")
                             _puede_reintentar = False
@@ -3518,6 +3620,16 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 except Exception as _exc_ct:
                     print_fn(f"[warn_cl]telemetria de compactacion no anotada: "
                              f"{_exc_ct}[/warn_cl]")
+        # EMERGENCIA (2026-09-02): si con todo lo anterior el prompt sigue
+        # rozando la ventana, se recorta a lo bruto antes de pedir el paso
+        # siguiente. Es la red de seguridad de la clase de fallo "55 pasos
+        # sin una sola bajada"; con la compactacion sana no se llega aqui.
+        _nctx_g = int(perfil.get("n_ctx") or 0)
+        if _nctx_g and est >= int(_nctx_g * _EMERGENCIA_FRAC):
+            _lib_em = _recorte_de_emergencia(mensajes, _nctx_g, print_fn)
+            if _lib_em:
+                _libero_algo = True
+                est = _tokens_prompt(mensajes)
         # La reinyeccion del canal es solo para el TRUNCADO: en modo resumen
         # el bloque de estado ya viaja DENTRO del propio resumen. `not
         # _lib_resumen` (no `is None`): si el resumen devolvio 0 y libero el

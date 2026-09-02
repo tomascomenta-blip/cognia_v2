@@ -2,6 +2,32 @@
 
 ---
 
+## [4.25.2] - 2026-09-02
+
+### La ventana del servidor nunca es "desconocida" (autopsia Tank.io)
+
+Tarea real del dueño: 55 pasos, 23 minutos, el prompt subió de 6.502 a 65.221 tokens sin UNA
+sola bajada y el 27B contestó `exceed_context_size` (65.835 > 65.536). La compactación y el
+recorte no actuaron nunca, en silencio. Con el historial reconstruido la compactación funciona
+(56k → 11k), así que el bucle no tenía con qué: el perfil de la tarea llevaba `n_ctx=None`.
+`backend_activo.props()` cacheaba 60 segundos un `/props` FALLIDO como `{}`; un `/hacer`
+arrancado mientras el 27B cargaba (~1 minuto) se llevaba ese perfil para toda la tarea, y con
+`n_ctx=None` el umbral es 0, `compactar()` dice "sin n_ctx" (sin imprimirlo) y el recorte
+devuelve 0.
+
+- `props()` ya no cachea fallos: el siguiente llamador vuelve a sondear.
+- `bucle_nativo` re-sondea la ventana si el perfil no la trae; si nadie la sabe, asume 32.768
+  tokens y lo dice en pantalla.
+- `compactar()` "no aplicada" por encima del umbral se imprime con su motivo.
+- Recorte de emergencia: si el prompt llega al 92 % de la ventana con todo lo anterior, se
+  reduce el razonamiento de TODOS los turnos, los argumentos de las escrituras y los resultados
+  largos, y si aún no cabe se descartan los mensajes más viejos (dejando una línea que lo dice).
+  Determinista, sin modelo.
+- En el 400 por contexto, la ventana que declara el propio servidor alimenta esa emergencia y el
+  bucle reintenta en vez de rendirse con "no queda nada recortable".
+
+---
+
 ## [4.25.1] - 2026-09-02
 
 ### `renderizar`: file://, servidor local caído y el favicon

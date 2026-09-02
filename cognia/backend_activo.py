@@ -212,6 +212,17 @@ def props(url: str, forzar: bool = False) -> dict:
         }
     except Exception:
         datos = {}
+    if not datos:
+        # UN FALLO NO SE CACHEA (2026-09-02). Cachear {} 60 s hacia que un
+        # /hacer arrancado mientras el 27B cargaba (~1 min) se llevara un
+        # perfil con n_ctx=None para TODA la tarea: sin ventana, la
+        # compactacion, el recorte y el presupuesto de salida se apagaban en
+        # silencio hasta que el server rechazo el prompt (65.835 > 65.536
+        # tokens, paso 55, 23 min de trabajo). El siguiente llamador vuelve
+        # a sondear; la cache solo guarda respuestas reales.
+        _props_cache.pop(url, None)
+        _props_sello.pop(url, None)
+        return datos
     _props_cache[url] = datos
     # (epoch, la entrada que sellamos): la referencia fuerte es lo que permite
     # distinguir "esto lo midio props()" de "esto lo inyecto un test".
