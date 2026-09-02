@@ -27586,6 +27586,14 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                   f"delegacion quedan en los valores base[/warn_cl]")
         _aviso_degradado("cli.agente.hybrid_router",
                          f"{type(_e_hyb).__name__}: {_e_hyb}")
+    # CON RELOJ DE PARED, EL PRESUPUESTO INICIAL ES EL TECHO (2026-09-01). La
+    # heuristica estima pasos desde el TEXTO del encargo (42 para ARK) y la
+    # ampliacion por progreso llega tarde: ARK con 45 min de reloj cerro a los
+    # 14 por "techo 42" con la tarea avanzando. Cuando alguien de fuera ya puso
+    # el limite en segundos, los pasos no son el recurso escaso: se arranca con
+    # el techo entero y el reloj (y el gobernador de progreso) cortan.
+    if not max_steps and os.environ.get("COGNIA_PARED_S"):
+        budget = _techo_tarea
     _print_fn(f"[detail]Presupuesto de pasos: {budget} (techo {_techo_tarea})"
                f"[/detail]")
     try:
