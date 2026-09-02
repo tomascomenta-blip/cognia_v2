@@ -301,9 +301,19 @@ def main(argv=None):
     ap.add_argument("--salida", default=str(RAIZ / "banco_largo" / "corridas"))
     args = ap.parse_args(argv)
 
+    # Primero se ESPERA (hasta 3 min): en la costura entre dos rondas
+    # encadenadas el runner anterior sigue vivo un par de segundos y abortar
+    # ahi rompia la cadena entera (paso 2026-09-01 19:41). Solo si siguen
+    # vivos pasado ese margen es que hay otra ronda de verdad.
     vivas = otras_rondas_vivas()
+    t_espera = time.time()
+    while vivas and not args.forzar and time.time() - t_espera < 180:
+        print("[banco] esperando a que terminen %d proceso(s) de otra ronda (pids %s)"
+              % (len(vivas), ", ".join(vivas[:6])), flush=True)
+        time.sleep(15)
+        vivas = otras_rondas_vivas()
     if vivas and not args.forzar:
-        print("[banco] NO ARRANCO: ya hay %d proceso(s) de runner o de `cognia hacer` "
+        print("[banco] NO ARRANCO: sigue habiendo %d proceso(s) de runner o de `cognia hacer` "
               "corriendo (pids %s). Una ronda encima de otra contamina las dos. "
               "Espera a que terminen o pasa --forzar." % (len(vivas), ", ".join(vivas[:6])),
               flush=True)
