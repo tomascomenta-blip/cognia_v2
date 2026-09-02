@@ -271,13 +271,19 @@ def otras_rondas_vivas():
     compartir la GPU). Y paso dos veces hoy por cadenas de shell mal escritas.
     Mejor que el runner se niegue a arrancar que confiar en el script de turno.
     """
+    # En Windows `venv\Scripts\python.exe` es un LANZADOR: crea un segundo
+    # python.exe con la misma linea de comandos. Excluyendo solo el propio pid,
+    # el runner se veia a si mismo (su padre o su hijo) y se negaba a arrancar
+    # (paso dos veces, 19:41 y 19:59). Se excluyen el padre y los hijos.
+    yo, padre = os.getpid(), os.getppid()
     try:
         pr = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
              "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
-             "Where-Object { $_.ProcessId -ne %d -and ($_.CommandLine -like '*banco_largo.runner*' "
+             "Where-Object { $_.ProcessId -ne %d -and $_.ProcessId -ne %d "
+             "-and $_.ParentProcessId -ne %d -and ($_.CommandLine -like '*banco_largo.runner*' "
              "-or $_.CommandLine -like '*-m cognia hacer*') } | "
-             "ForEach-Object { $_.ProcessId }" % os.getpid()],
+             "ForEach-Object { $_.ProcessId }" % (yo, padre, yo)],
             capture_output=True, text=True, timeout=30)
         return [x.strip() for x in (pr.stdout or "").splitlines() if x.strip()]
     except Exception:
