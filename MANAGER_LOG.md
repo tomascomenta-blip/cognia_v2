@@ -15414,3 +15414,138 @@ todo cae en la cara 2. El arreglo de `chat_client` esta verificado por codigo y
 por test de fuente, NO contra un 500 real. Queda pendiente cazarlo cuando
 vuelva a pasar (ahora el log del server en ~/.cognia/logs/llama-server-8080.log
 ayuda).
+
+
+## 2026-09-02 — 4.24.0: las tareas se ven como el chat (prosa entera, tokens en vivo, sin ruido)
+
+Pedido del dueño: "eliminar todo el ruido que hay en las tareas, mostrar todas las
+líneas que el agente escribe y la cantidad de tokens en vivo, como lo hace el chat".
+
+### Diagnóstico (captura real del REPL, antes)
+
+Con el spinner forzado (`COGNIA_SPINNER=1 FORCE_COLOR=1`) y una tarea /hacer, entre el
+prompt y la primera tool no salía NI UN frame: el bucle del agente solo contaba tokens
+(`TokensVivos`) y el renderer solo arrancaba la línea viva con una tool. El chat sí la
+tenía (`Escarbando en los datos… (2s · ~136 tok · ctrl+c corta)`). Además:
+
+- la prosa del agente salía como `∴ …` cortada a 160 chars ("...Usaré la…");
+- el footer `✓ 11.4s · 642 tokens · 3 pasos` salía ENCIMA de la respuesta;
+- `⎿ 51 chars escritos` y debajo `OK (51 chars)`;
+- `✓ Objetivo verificado: 1/1 criterios reales cumplidos` en línea propia;
+- `⚠ degradado — proactividad: el modelo residente no devolvio nada … → arranca la
+  flota` con la flota arrancada;
+- `ENTREGA — lo que quedo en disco: OK suma.py — 51 bytes · compila → los ficheros
+  estan completos (estructura), pero eso no dice que hagan lo que pediste.`
+
+### Qué cambió
+
+- Eventos nuevos: `PasoInicio` (el modelo empieza a generar), `TextoAgente` (prosa del
+  agente en streaming), `Progreso` (actividad transitoria del arnés); `TokensVivos.tokens`
+  con los tokens contados (uno por delta SSE).
+- Renderer: línea viva por paso con verbo, segundos, `N tok` sin `~`, tok/s y fase; prosa
+  del agente con el markdown vivo del chat; `PasoIntencion` no se repite si ya hubo prosa
+  (o razonamiento con `/pensar ver`, que ahora también funciona en modo agente); footer
+  DIFERIDO con `objetivo N/M` (✗ si no se cumplió), pintado por `_mostrar_cierre_agente`
+  debajo de la respuesta; cualquier `_print_line` cierra antes la prosa abierta.
+- `spinner_vivo.componer_linea`: cuando no cabe, cae la pista `ctrl+c corta` antes que el
+  contador (antes el número parpadeaba a 80 columnas).
+- `render_tools.bloque_colapsado`: no repite la fila de la que salió el resumen.
+- `entrega.bloque`: un fichero entero = una línea, sin coletilla.
+- `proactividad`: "no devolvió nada" es `logger.info`, no un degradado de backend.
+- `loop.py`: "bucle por fichero" dice una frase; revisión profunda informa por `Progreso`.
+- cli.py: `Objetivo verificado` y `Skill capturada` a `[detail]`.
+
+### Salida real (tecleado en el REPL, Qwythos-9B en :8080, `PYTHONPATH` al repo)
+
+Tarea cotidiana con spinner forzado (los frames repetidos se colapsan):
+
+```
+cognia> ⠋ · pensando…
+⠋ · pensando…
+⠋ · Hilando fino… (1s · ctrl+c corta)
+⠋ · Hilando fino… (2s · 13 tok · ctrl+c corta)
+⠋ · Merodeando la solucion… (4s · 157 tok) · 39 tok/s · razonando
+  ∴ The user wants me to create a file called lista_compra.txt with five
+    supermarket products, one per line, and then read it back and tell them
+    how many lines it…
+⠋ · Escribiendo lista_compra.txt…
+● escribir_archivo(lista_compra.txt)
+  ⎿ 29 chars escritos
+      + pan
+      + leche
+      + huevos…
+  ∴ Good, the file was written. Now I need to read it back to verify the
+    content and count the lines. I'll use leer_archivo with the default
+    settings (2000 lines…
+⠋ · Leyendo lista_compra.txt…
+● leer_archivo(lista_compra.txt)
+  ⎿ 5 lineas
+    pan
+    leche
+    huevos
+  ⎿ … +2 lineas (/expandir 2)
+⠋ · Ordenando bigotes… (2s · 129 tok · ctrl+c corta) · 64 tok/s · razonando
+⠋ · Ordenando bigotes… (3s · 195 tok · ctrl+c corta) · 64 tok/s · razonando
+  ∴ The file read back correctly showing the five product names. Now I need
+    to count how many lines are in there. I'll use the calcular tool with an
+    expression…
+⠋ · Calculando 5…
+● calcular(5)
+  ⎿ 5 = 5
+  lista_compra.txt tiene 5 líneas.
+  ENTREGA — lo que quedo en disco: OK  lista_compra.txt — 29 bytes · no esta
+  vacio
+  ✓ 11.3s · 622 tokens · 4 pasos · objetivo 1/1
+cognia> Hasta luego.
+```
+
+Con `/pensar ver` (`COGNIA_PENSAR=ver`), el razonamiento del agente sale entero:
+
+```
+cognia> ⠋ · pensando…
+⠋ · pensando…
+    ∴ Primero debo crear el archivo hola.txt con el contenido "buenos dias". Luego, para confirmar que realmente existe y contiene lo esperado, lo leeré con leer_archivo. Así verifico que la tarea esté completa antes de responder al usuario.
+⠋ · Escribiendo hola.txt…
+● escribir_archivo(hola.txt)
+  ⎿ 11 chars escritos
+      + buenos dias
+    ∴ Ya escribí el archivo hola.txt con "buenos dias". Ahora debo confirmar leyendo el archivo para verificar que el contenido es correcto, como pide la tarea.
+⠋ · Leyendo hola.txt…
+● leer_archivo(hola.txt)
+  ⎿ 1 linea
+    ∴ Ya escribí el archivo y lo leí para confirmar el contenido. Ahora debo presentar al usuario el resultado concreto: el texto que contiene hola.txt.
+  hola.txt contiene: "buenos dias"
+  ENTREGA — lo que quedo en disco: OK  hola.txt — 11 bytes · no esta vacio
+  ✓ 5.0s · 213 tokens · 3 pasos · objetivo 1/1
+cognia> Hasta luego.
+```
+
+Línea viva a 80 columnas, sin parpadeo del contador:
+`Merodeando la solucion… (4s · 157 tok) · 39 tok/s · razonando`.
+
+### Verificación
+
+- `tests/test_renderer_paso_vivo.py`: 17 tests nuevos (cada uno falla sin su fix).
+- Dirigidos del área (renderer, spinner, eventos, remoto, entrega, render_tools,
+  streaming del agente, proactividad): 151 passed en el último tramo, 559 en el barrido
+  ancho.
+- Gate del camino feliz (`scripts/e2e_happy_path.py` con `PYTHONPATH` al repo — sin él
+  importa el wheel instalado, ver memoria): **5/5 OK en 1,7 min**.
+- Suite completa (27 min, con el backend :8080 vivo): 62 failed / 14.846 passed. Contrafactual
+  con `git stash` sobre esos 62: 34 fallan igual en la linea base (previos); de los 28
+  restantes, 8 eran mios (6 tests que fijaban el footer EN TareaFin -> reclaman el
+  diferido; la deduplicacion del bloque colapsado se acota a resultados OK para no mover
+  el golden `tool_error_colapsado`; `installer/cognia_setup.iss` a 4.24.0) y los otros 20
+  pasan aislados (dependen del orden o del backend vivo). Tras los arreglos, el barrido
+  dirigido de todo lo tocado sale en verde (ver `logs/dirigidos_final.txt`).
+- `tests/test_adaptive_prompt.py::test_learns_verbosity_preference` falla igual con
+  `git stash` (fallo previo, no de esta tanda).
+
+### Límite declarado
+
+En dos de siete corridas de prueba Qwythos-9B cerró en un paso escribiendo la llamada a
+la tool como texto (`escribir_archivo("notas.md", …)`) en vez de un tool call; el aviso
+del bucle lo dice y el footer sale ✗ con `objetivo 0/1`. Es del modelo/servidor (pasa
+también con 4.23.0 instalada: el agente recordaba tareas de sesiones "efímeras" previas
+por el estado del agente y la memoria de conversación, que `COGNIA_EFIMERO=1` no cubre).
+Queda anotado; no es parte de esta entrega.

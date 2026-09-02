@@ -521,3 +521,31 @@ def test_una_escritura_normal_sigue_pasando(monkeypatch):
 
     _correr(_completar, max_turns=6, run_tool=_run_tool)
     assert len(escrituras) == 1, escrituras
+
+
+# ── eventos del paso vivo (2026-09-02) ───────────────────────────────────────
+
+def test_el_bucle_emite_paso_inicio_prosa_y_tokens_contados(monkeypatch):
+    """Pedido del dueno: ver la prosa del agente entera y los tokens en vivo.
+    El bucle abre cada paso con PasoInicio, cada delta de `content` sale como
+    TextoAgente y el pulso TokensVivos lleva los tokens CONTADOS (no solo
+    chars)."""
+    from cognia.ux import events as ev
+    monkeypatch.delenv("COGNIA_STREAM", raising=False)
+    vistos = []
+    ev.suscribir(vistos.append)
+    try:
+        def _completar(mensajes, tools=None, **kw):
+            for trozo in ("La suma ", "es 5."):
+                kw["on_token"](trozo)
+            return RespuestaChat(texto="La suma es 5.", finish_reason="stop")
+        r = _correr(_completar)
+    finally:
+        ev.desuscribir(vistos.append)
+    assert r["texto"] == "La suma es 5."
+    tipos = [type(e).__name__ for e in vistos]
+    assert tipos.index("PasoInicio") < tipos.index("TextoAgente")
+    assert "".join(e.texto for e in vistos if type(e).__name__ == "TextoAgente") == "La suma es 5."
+    pulsos = [e for e in vistos if type(e).__name__ == "TokensVivos"]
+    assert pulsos and pulsos[0].tokens >= 1 and pulsos[0].fase == "respondiendo"
+    assert r.get("prosa_emitida") is True

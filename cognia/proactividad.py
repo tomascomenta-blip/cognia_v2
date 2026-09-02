@@ -94,8 +94,14 @@ def proponer_extras(tarea: str, respuesta: str,
             reasoning_effort="low" if _razonador else None,
             via="proactividad")
         if not respuesta_llm:
-            _grito("el modelo residente no devolvio nada: NADIE penso en "
-                   "extras para el usuario")
+            # NO es un degradado de backend (2026-09-02): el server esta
+            # vivo y contesto; el razonador se comio el presupuesto o
+            # devolvio vacio. Gritarlo en ambar en CADA cierre del agente
+            # ('⚠ degradado — proactividad: ... → arranca la flota') era
+            # ruido y ademas mentia (la flota estaba arrancada). Queda en
+            # el log del modulo, que es donde se diagnostica.
+            logger.info("Proactividad: el modelo residente no devolvio "
+                        "nada; sin extras este turno")
             return []
 
         limpia = respuesta_llm.strip()

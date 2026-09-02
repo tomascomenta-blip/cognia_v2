@@ -4534,6 +4534,13 @@ def _print_line(text):
             return
     except Exception:
         pass
+    # La prosa del agente en streaming (renderer) se cierra ANTES de esta
+    # linea: si no, el aviso sale encima del texto que aun no se vacio.
+    try:
+        from cognia.ux import renderer as _ux_r_pl
+        _ux_r_pl.cerrar_flujo_abierto()
+    except Exception:
+        pass
     if _HAS_RICH and _console:
         _console.print(text)
     else:
@@ -4672,6 +4679,38 @@ def _show_footer(elapsed, text, tokens=None, ok=True, motivo=""):
     from cognia.ux.estilo import footer_turno as _ft, pintar_footer as _pf
     _pf(_ft(bool(ok), elapsed, tokens, ctx_libre_pct=libre,
             ctx_estimado=estimado, motivo=motivo), _console)
+
+
+def _mostrar_cierre_agente(resp, color=None) -> None:
+    """Pinta el cierre de un turno del agente (2026-09-02): la respuesta —
+    MENOS la prosa que el renderer ya streameo en vivo (TextoAgente), para no
+    repetirla— y, DEBAJO de ella, el footer diferido de TareaFin.
+
+    Antes el footer salia ENCIMA de la respuesta ('✓ 11.4s · 642 tokens' y
+    debajo el resultado): TareaFin se emite antes del post-procesado y el
+    renderer lo pintaba en el acto. Bajo COGNIA_REMOTO la respuesta va entera
+    y plana (contrato del movil) y el footer ya lo pinto el renderer."""
+    texto = _to_str(resp) if resp is not None else ""
+    remoto = os.environ.get("COGNIA_REMOTO", "").strip() == "1"
+    try:
+        from cognia.ux import renderer as _ux_r
+    except Exception as exc:
+        _aviso_degradado("cli.cierre_agente", f"{type(exc).__name__}: {exc}")
+        _ux_r = None
+    resto = texto
+    if _ux_r is not None and not remoto:
+        ya = (_ux_r.prosa_final_pintada() or "").strip()
+        if ya and texto.strip().startswith(ya):
+            # lo que el post-procesado agrego (entrega, adjuntos): eso si es
+            # nuevo para el dueno; la prosa ya la vio escribirse.
+            resto = texto.strip()[len(ya):].strip()
+    if resto.strip():
+        _show_response(resto, color or _ACCENT, respuesta_final=True)
+    if _ux_r is not None:
+        try:
+            _ux_r.pintar_footer_pendiente()
+        except Exception as exc:
+            _aviso_degradado("cli.footer.agente", f"{type(exc).__name__}: {exc}")
 
 
 class _VerboseFilter(logging.Filter):
@@ -11572,7 +11611,7 @@ def _slash_skill(arg: str, ai):
     # (.skill_usage.json solo aprendia de los auto-matches del loop).
     _resp = _run_agent_task(ai, task, _print_line, guidance=skill_guidance(s),
                             applied_skill=s.name)
-    _show_response(_resp, _ACCENT, respuesta_final=True)
+    _mostrar_cierre_agente(_resp)
     _session_log.append({"input": f"/skill {name} {task}", "output": _resp, "elapsed": 0})
     _persist_turn(ai, f"/skill {name} {task}", _resp)
 
@@ -17640,7 +17679,7 @@ def _chat_afirmaciones_cierre(ai, raw: str, respuesta: str):
     _print_line("[detail]Reencamino la peticion al agente para ejecutarla "
                 "de verdad...[/detail]")
     resp2 = _run_agent_task(ai, tarea, _print_line)
-    _show_response(resp2, _ACCENT, respuesta_final=True)
+    _mostrar_cierre_agente(resp2)
     return resp2, True
 
 
@@ -24881,7 +24920,7 @@ def _repl_sesion():
                     def _turno_hacer(_t=_tarea, _raw=raw):
                         _resp = _run_agent_task(ai, _t, _print_line)
                         if _resp:
-                            _show_response(_resp, _ACCENT, respuesta_final=True)
+                            _mostrar_cierre_agente(_resp)
                         else:
                             _print_line("[warn_cl]El agente no produjo "
                                         "respuesta.[/warn_cl]")
@@ -26108,7 +26147,7 @@ def _repl_sesion():
                     # sin modelo (escalon 3). Un turno cortado por Ctrl-C NO
                     # cuenta: ese `except` hace `continue` sin llegar aqui.
                     _ultimo_turno_agente = True
-                    _show_response(_resp, _ACCENT, respuesta_final=True)
+                    _mostrar_cierre_agente(_resp)
                     _session_log.append({"input": raw, "output": _resp, "elapsed": 0})
                     _persist_turn(ai, raw, _resp)
                 if not _needs_tool:
@@ -28298,9 +28337,20 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             # Con la sangria y el glifo del footer (misma reja que el bloque
             # de tools); el texto 'Objetivo verificado' se conserva: es clave
             # del clasificador del movil (remoto/sesiones.py).
+            # El veredicto va al FOOTER del turno ('objetivo 1/1'), no en una
+            # linea propia (ruido, 2026-09-02). El texto 'Objetivo verificado'
+            # sigue saliendo en [detail] (clave del clasificador del movil y
+            # del modo avanzado); lo que falta se dice siempre, es senal.
+            try:
+                from cognia.ux import renderer as _ux_obj
+                _ux_obj.anotar_footer(
+                    f"objetivo {_st.satisfied_count}/{_st.total}",
+                    ok=(True if _st.complete else False))
+            except Exception:
+                pass
             if _st.complete:
-                _print_fn(f"[ok_cl]  ✓ Objetivo verificado: {_st.satisfied_count}/"
-                          f"{_st.total} criterios reales cumplidos[/ok_cl]")
+                _print_fn(f"[detail]  ✓ Objetivo verificado: {_st.satisfied_count}/"
+                          f"{_st.total} criterios reales cumplidos[/detail]")
             else:
                 _faltan = [r.criterion.description for r in _st.results
                            if not r.satisfied]
@@ -28352,8 +28402,8 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         from cognia.agent.skill_capture import maybe_capture_skill
         _cap = maybe_capture_skill(task, _actions_trace)
         if _cap.get("captured"):
-            _print_fn(f"[ok_cl]Skill nivel-2 capturada: {_cap['name']} "
-                      f"({_cap['path']})[/ok_cl]")
+            _print_fn(f"[detail]Skill nivel-2 capturada: {_cap['name']} "
+                      f"({_cap['path']})[/detail]")
     except Exception:
         pass
 

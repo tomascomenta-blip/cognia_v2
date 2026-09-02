@@ -150,6 +150,45 @@ class TokensVivos(Evento):
     """
     chars: int = 0
     fase: str = ""
+    # Tokens REALES del pulso (2026-09-02): cada delta SSE de llama-server es
+    # un token, asi que contar callbacks da la cifra exacta. Con esto la linea
+    # viva del agente dice 'N tok' en vez de '~N tok' (chars/4). 0 = no se
+    # conto (productor viejo): el renderer cae a la estimacion por chars.
+    tokens: int = 0
+
+
+@dataclass(frozen=True)
+class PasoInicio(Evento):
+    """El agente le pide el paso `paso` al modelo: empieza a generar.
+
+    POR QUE EXISTE (2026-09-02, pedido del dueno: "los tokens en vivo, como
+    en el chat"). En modo agente el renderer solo arrancaba una linea viva
+    cuando una TOOL corria; mientras el modelo generaba el paso (que es donde
+    se va el tiempo y donde fluyen los tokens) la pantalla estaba MUDA:
+    TokensVivos contaba, pero sin status que refrescar el numero no se veia.
+    Este evento abre la fase de generacion; ToolInicio / TextoAgente /
+    PasoIntencion la cierran."""
+    paso: int = 0
+
+
+@dataclass(frozen=True)
+class TextoAgente(Evento):
+    """Trozo de la PROSA que el agente escribe en un paso (su `content`),
+    en streaming. Distinto de TokenTexto a proposito: TokenTexto es la
+    respuesta del CHAT y el remoto la agrupa como 'delta' de la burbuja
+    final; este es lo que el agente va diciendo entre tool calls y el
+    renderer local lo pinta entero (antes solo se veia la primera linea,
+    cortada a 160 chars, como PasoIntencion)."""
+    texto: str = ""
+    paso: int = 0
+
+
+@dataclass(frozen=True)
+class Progreso(Evento):
+    """Actividad TRANSITORIA del arnes que no es una tool ('revision profunda:
+    arrancando index.html'). Va a la linea viva (spinner), no al transcript:
+    tres lineas grises por pasada de revision eran ruido, no informacion."""
+    texto: str = ""
 
 
 @dataclass(frozen=True)

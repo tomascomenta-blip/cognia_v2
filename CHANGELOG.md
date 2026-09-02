@@ -2,6 +2,41 @@
 
 ---
 
+## [4.24.0] - 2026-09-02
+
+### Las tareas se ven como el chat: prosa entera, tokens en vivo, sin ruido
+
+Pedido del dueño: "eliminar el ruido de las tareas, mostrar todas las líneas que el agente
+escribe y la cantidad de tokens en vivo, como lo hace el chat normal".
+
+**Línea viva mientras el modelo genera cada paso.** Antes, en `/hacer` la pantalla estaba muda
+entre el prompt y la primera tool (que es donde se va el tiempo): solo las tools tenían spinner.
+Ahora cada paso abre la línea viva con el verbo, los segundos, los tokens **contados** (uno por
+delta del servidor, sin `~`), la velocidad y la fase:
+`Cazando el bug… (16s · 219 tok · ctrl+c corta) · 14 tok/s · razonando`. El contador ya no
+parpadea a 80 columnas: cuando la línea no cabe cae primero la pista `ctrl+c corta`, no el número.
+Eventos nuevos del bus: `PasoInicio`, `TextoAgente`, `Progreso`; `TokensVivos` lleva `tokens`.
+
+**La prosa del agente sale entera y en streaming.** Lo que el agente escribe entre tool calls
+(su `content`) se pinta con el mismo markdown vivo que la respuesta del chat, a medida que llega.
+Antes solo se veía la primera línea, cortada a 160 caracteres, como "∴ intención". La intención
+sigue saliendo cuando el paso no trajo prosa (solo razonamiento + tool call).
+
+**Menos ruido en el cierre.** El footer (`✓ 32.9s · 597 tokens · 2 pasos · objetivo 1/1`) va
+DEBAJO de la respuesta, no encima; el veredicto del contrato viaja en él (y vuelve ✗ el glifo si
+no se cumplió) en vez de ocupar una línea propia; la ENTREGA de un solo fichero es una línea sin
+coletilla; el bloque colapsado no repite `OK (51 chars)` bajo `51 chars escritos`; la revisión
+profunda informa por la línea viva y no con tres líneas grises por pasada; "bucle por fichero"
+dice una frase, no el nudge cortado a media palabra; la proactividad sin extras deja de gritar
+`⚠ degradado — proactividad … arranca la flota` con la flota arrancada; la skill capturada pasa a
+`[detail]`. Cualquier línea del transcript cierra antes la prosa en streaming, así un aviso no
+sale encima del texto que aún no se vació.
+
+Verificado tecleando en el REPL (`tabla.py`, `notas.md`, `suma.py`) con Qwythos-9B en :8080,
+más el gate del camino feliz y la suite. Regresión en `tests/test_renderer_paso_vivo.py`.
+
+---
+
 ## [4.23.0] - 2026-09-01
 
 ### El arnés corre lo que el agente escribe, en el acto

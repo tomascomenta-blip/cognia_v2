@@ -830,7 +830,12 @@ def bloque_colapsado(tool: str, args="", ok: bool = True, resultado: str = "",
     # la rama vieja exigia max_lineas > 0 y el mismo resumen mentiroso volvia
     # por esa puerta (revision adversarial 2026-08-23).
     ya_visto = 0
-    if filas and _una_linea(filas[0]) == resumen:
+    if filas and (_una_linea(filas[0]) == resumen
+                  # 'OK (51 chars)' bajo '51 chars escritos': la primera
+                  # fila es la FUENTE del resumen, no informacion nueva
+                  # (2026-09-02). Se decide resumiendo esa fila sola.
+                  or (bool(ok)
+                      and resumir_resultado(tool, filas[0], ok=True) == resumen)):
         ya_visto = 1
     vistas = filas[ya_visto:ya_visto + max_lineas]
     sangria_cuerpo = SANGRIA + " " * ancho_visual(conector_colgante() + " ")

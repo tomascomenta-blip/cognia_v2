@@ -474,6 +474,9 @@ def test_footer_plano_intacto_sin_rich(capsys):
     r = Renderer(console=None)
     r(events.TareaFin(ok=True, resumen="", pasos=3, tokens_predichos=87,
                       duracion_s=3.2))
+    # diferido (2026-09-02): lo pinta quien muestra la respuesta, debajo
+    assert capsys.readouterr().out == ""
+    r.pintar_footer_pendiente()
     out = capsys.readouterr().out
     assert "  3.2s · 87 tokens · 3 pasos" in out
     assert "✓" not in out and "✗" not in out
@@ -484,6 +487,8 @@ def test_footer_con_glifo_ok_en_rich_local():
     r = Renderer(console=con)
     r(events.TareaFin(ok=True, resumen="", pasos=3, tokens_predichos=87,
                       duracion_s=3.2))
+    assert "3.2s" not in buf.getvalue()          # diferido hasta reclamarlo
+    r.pintar_footer_pendiente()
     assert "✓ 3.2s · 87 tokens · 3 pasos" in buf.getvalue()
 
 
@@ -491,6 +496,7 @@ def test_footer_con_glifo_error_en_rich_local():
     con, buf = _consola_rich()
     r = Renderer(console=con)
     r(events.TareaFin(ok=False, resumen="", pasos=2, duracion_s=5.0))
+    r.pintar_footer_pendiente()
     assert "✗ 5.0s · 2 pasos" in buf.getvalue()
 
 
@@ -930,13 +936,17 @@ def test_footer_con_glifo_texto_y_visible_del_registro(monkeypatch):
     assert not _A.errores(_A.poner("footer.turno", "estados.ok.glifo", "✔"))
     assert not _A.errores(_A.poner("footer.turno", "texto.tokens", "tok"))
     con, buf = _consola_rich()
-    Renderer(console=con)(events.TareaFin(ok=True, resumen="", pasos=3, tokens_predichos=87,
-                                          duracion_s=3.2))
+    _r = Renderer(console=con)
+    _r(events.TareaFin(ok=True, resumen="", pasos=3, tokens_predichos=87,
+                       duracion_s=3.2))
+    _r.pintar_footer_pendiente()
     assert "✔ 3.2s · 87 tok · 3 pasos" in buf.getvalue()
     assert not _A.errores(_A.poner("footer.turno", "visible", "off"))
     con, buf = _consola_rich()
-    Renderer(console=con)(events.TareaFin(ok=True, resumen="", pasos=3, tokens_predichos=87,
-                                          duracion_s=3.2))
+    _r = Renderer(console=con)
+    _r(events.TareaFin(ok=True, resumen="", pasos=3, tokens_predichos=87,
+                       duracion_s=3.2))
+    _r.pintar_footer_pendiente()
     assert "3.2s" not in buf.getvalue(), "footer.turno.visible=false no imprime el footer"
 
 

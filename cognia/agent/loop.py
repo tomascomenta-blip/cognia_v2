@@ -1537,22 +1537,53 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # son miles de pasadas por el bus para mover un numero que el ojo lee 4
     # veces por segundo.
     _PULSO_S = 0.25
-    _pulso = {"chars": 0, "t": 0.0, "fase": ""}
+    _pulso = {"chars": 0, "tokens": 0, "t": 0.0, "fase": ""}
 
-    def _pulso_tokens(n_chars: int, fase: str, forzar: bool = False) -> None:
+    def _pulso_tokens(n_chars: int, fase: str, forzar: bool = False,
+                      n_tokens: int = 1) -> None:
         _pulso["chars"] += max(0, int(n_chars or 0))
+        # Un delta SSE de llama-server es un token: contarlos da la cifra
+        # REAL, y la linea viva la pinta sin '~' (2026-09-02).
+        _pulso["tokens"] += max(0, int(n_tokens or 0))
         _pulso["fase"] = fase
         _ahora = __import__("time").monotonic()
         if not forzar and _ahora - _pulso["t"] < _PULSO_S:
             return
         _pulso["t"] = _ahora
         if _pulso["chars"] and _ev is not None:
-            _emitir(_ev.TokensVivos(chars=_pulso["chars"], fase=fase))
+            _emitir(_ev.TokensVivos(chars=_pulso["chars"],
+                                    tokens=_pulso["tokens"], fase=fase))
             _pulso["chars"] = 0
+            _pulso["tokens"] = 0
+
+    _ver_razon = {"on": False}
+
+    def _paso_arranca() -> None:
+        """El modelo va a generar: la linea viva del renderer arranca aqui
+        (PasoInicio) y se alimenta con los pulsos de abajo. Antes la
+        pantalla estaba muda entre el prompt y la primera tool."""
+        # /pensar ver (COGNIA_PENSAR=ver) se lee UNA vez por paso, no por
+        # token: en modo agente el razonamiento tambien se streamea (2026-09-02).
+        _ver_razon["on"] = (os.environ.get("COGNIA_PENSAR", "").strip().lower()
+                            == "ver")
+        if _ev is not None:
+            _emitir(_ev.PasoInicio(paso=pasos))
+
+    def _progreso_rev(m) -> None:
+        """Actividad de la revision profunda: linea viva, no transcript."""
+        if _ev is not None:
+            _emitir(_ev.Progreso(texto=str(m or "")))
+        else:
+            print_fn(f"[info_dim]{_escape_seguro(m)}[/info_dim]")
 
     def _suma_token(_frag):
         _vivo["tokens"] += 1
         _pulso_tokens(len(_frag or ""), "respondiendo")
+        # La prosa del agente se PINTA entera y en vivo (pedido del dueno
+        # 2026-09-02): el renderer la streamea como la respuesta del chat y
+        # PasoIntencion deja de resumirla en una linea cortada.
+        if _frag and _ev is not None:
+            _emitir(_ev.TextoAgente(texto=str(_frag), paso=pasos))
 
     def _suma_fragmento_tool(_frag):
         """Argumentos de un tool call llegando: el UNICO latido de un paso que
@@ -1564,6 +1595,10 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         _vivo["razonamiento"] += 1
         _vivo["chars_razon"] += len(_frag or "")
         _pulso_tokens(len(_frag or ""), "razonando")
+        # Con /pensar ver el razonamiento del agente sale en vivo como prosa
+        # (mismo evento y mismo renderer que el chat). Sin ver, solo cuenta.
+        if _ver_razon["on"] and _frag and _ev is not None:
+            _emitir(_ev.RazonamientoTick(chars=len(_frag), fragmento=str(_frag)))
         # Aviso EN VIVO: el dueno ve que el modelo lleva 20.000 chars pensando
         # en vez de mirar un spinner mudo. Cada hito se dice una vez por paso.
         if _vig is not None:
@@ -2181,6 +2216,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 pass
         _av_antes = len(_prog.avances) if _prog is not None else 0
         _t_paso = __import__("time").time()
+        _paso_arranca()
         resp = completar(mensajes, tools=schemas, **_sampling_ventana(),
                          **_kwargs_stream())
         tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
@@ -2333,6 +2369,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 # nuevo: es administracion. Sin el refund, un fichero largo se
                 # comia dos vueltas de la tarea (conversation_loop.py:1996).
                 _pres.refund(MOTIVO_REINTENTO_FORMATO)
+            _paso_arranca()
             resp = completar(mensajes, tools=schemas, **_sampling_ventana(),
                              **_kwargs_stream())
             tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
@@ -2371,6 +2408,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                             "repitas la llamada entera ni intentes la mitad "
                             "del fichero: no cabe."),
             })
+            _paso_arranca()
             resp = completar(mensajes, tools=schemas, **_sampling_ventana(),
                              **_kwargs_stream())
             tokens_total += int((resp.usage or {}).get("completion_tokens") or 0)
@@ -2748,8 +2786,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                         "pasos": pasos,
                         "rondas_usadas": _rondas_rev,
                         "superficie": "cli",
-                        "on_evento": lambda m: print_fn(
-                            f"[info_dim]{_escape_seguro(m)}[/info_dim]"),
+                        "on_evento": _progreso_rev,
                     })
                 except Exception as _e_rv:
                     # Contrato: revisar() no lanza. Si igual lanzo, la revision
@@ -3152,8 +3189,12 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                                      f"apagado: {_exc_cf}")
                     _cont_fich = None
                 if _aviso_fichero:
-                    print_fn(f"[warn_cl]bucle por fichero: "
-                             f"{_aviso_fichero[len(_rep_mod.MARCA):].strip()[:120]}"
+                    # Solo la PRIMERA frase del nudge: el resto es la
+                    # instruccion al modelo, y en pantalla salia cortada a
+                    # mitad de palabra ('...enuncia la').
+                    _frase = _aviso_fichero[len(_rep_mod.MARCA):].strip()
+                    _frase = re.split(r"(?<=[.!?])\s", _frase, maxsplit=1)[0]
+                    print_fn(f"[warn_cl]bucle por fichero: {_frase[:140]}"
                              f"[/warn_cl]")
             if _estado_on and _canal is not None:
                 # Hechos MEDIDOS: anotar_fichero le lee el sha256 y los bytes al
@@ -3479,8 +3520,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     "pasos": pasos,
                     "rondas_usadas": _rev_mod.max_rondas(),   # solo reporte
                     "superficie": "cli",
-                    "on_evento": lambda m: print_fn(
-                        f"[info_dim]{_escape_seguro(m)}[/info_dim]"),
+                    "on_evento": _progreso_rev,
                 })
             except Exception as _e_rv2:
                 _informe_rev = None
@@ -3506,8 +3546,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 "pasos": pasos,
                 "rondas_usadas": _rev_mod.max_rondas(),   # solo reporte
                 "superficie": "cli",
-                "on_evento": lambda m: print_fn(
-                    f"[info_dim]{_escape_seguro(m)}[/info_dim]"),
+                "on_evento": _progreso_rev,
             })
         except Exception as _e_rv3:
             _informe_rev = None
@@ -3621,5 +3660,9 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             pass
     return {"texto": result_text, "pasos": pasos, "ok": ok,
             "tokens": tokens_total, "finish": finish,
+            # True si el `content` del ultimo paso salio por TextoAgente
+            # (streaming): quien pinte la respuesta puede saltarse esa prosa.
+            "prosa_emitida": bool(_stream_on and _ev is not None
+                                  and _vivo["tokens"] > 0),
             "razon": (_envelope or {}).get("razon", ""),
             "envelope": _envelope}

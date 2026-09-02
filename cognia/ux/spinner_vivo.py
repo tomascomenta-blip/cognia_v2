@@ -153,7 +153,8 @@ def verbo_rotante(t0: float, ahora: float, verbos: list | None = None,
 
 def componer_linea(verbo: str, segundos: int, tokens: int = 0,
                    hint: str = HINT_CORTE, ancho: int = 100,
-                   sep: str = SEPARADOR, tok: str = PALABRA_TOK) -> str:
+                   sep: str = SEPARADOR, tok: str = PALABRA_TOK,
+                   aprox: bool = True) -> str:
     """UNA linea: 'Maullando ideas… (12s · ~340 tok · ctrl+c corta)'.
 
     `hint`, `sep` y `tok` son los textos editables del elemento spinner.*
@@ -171,13 +172,20 @@ def componer_linea(verbo: str, segundos: int, tokens: int = 0,
     candidatas = []
     partes = [f"{segundos}s"]
     if tokens > 0:
-        partes.append(f"~{tokens} {tok}".rstrip())
+        # '~' solo cuando la cifra es la estimacion chars/4; con tokens
+        # contados de verdad (TokensVivos.tokens) se dice el numero pelado.
+        partes.append(f"{'~' if aprox else ''}{tokens} {tok}".rstrip())
     if hint:
         partes.append(hint)
     candidatas.append(partes)                       # completa
-    if tokens > 0:
-        candidatas.append([f"{segundos}s"] + ([hint] if hint else []))
-    if hint:
+    # Orden de caida (2026-09-02, pedido del dueno: "los tokens en vivo"):
+    # primero cae la PISTA (ctrl+c corta), que es comodidad; el contador de
+    # tokens es la informacion y se queda hasta el final. Antes era al reves
+    # y en una consola de 80 columnas el numero parpadeaba (aparecia y
+    # desaparecia segun el largo del verbo gato).
+    if tokens > 0 and hint:
+        candidatas.append([f"{segundos}s", partes[1]])
+    if hint or tokens > 0:
         candidatas.append([f"{segundos}s"])         # solo el latido
     for p in candidatas:
         linea = f"{verbo}… ({sep.join(p)})"
@@ -220,7 +228,7 @@ def sufijo_diagnostico(tokens: int, segundos: float, fase: str | None,
 
 def linea_estado(base: str | None, t0: float, ahora: float, chars: int,
                  ancho: int = 100, id: str | None = None,
-                 fase: str | None = None) -> str:
+                 fase: str | None = None, tokens: int | None = None) -> str:
     """La linea viva completa para el ticker del renderer. `base` es la
     etiqueta de la tool en curso ('Leyendo motor.py…' — mas honesta que un
     verbo generico); None = fase de pensar, verbo gato rotatorio. Con `id`
@@ -233,7 +241,10 @@ def linea_estado(base: str | None, t0: float, ahora: float, chars: int,
         verbo = verbo_rotante(t0, ahora, verbos)
     asp = aspecto_spinner(id) if id else ASPECTO_DEFECTO
     _seg = max(0.0, ahora - t0)
-    _toks = estimar_tokens(chars)
+    # `tokens` (contados por el productor, uno por delta SSE) manda sobre la
+    # estimacion por chars: es el numero real y se pinta sin '~'.
+    _aprox = not (tokens is not None and int(tokens) > 0)
+    _toks = estimar_tokens(chars) if _aprox else int(tokens)
     _suf = sufijo_diagnostico(_toks, _seg, fase, asp.sep)
     # El ancho se le resta ANTES a componer_linea: si el sufijo se pegara
     # despues sin descontarlo, la linea envolveria y el salto de altura ensucia
@@ -241,7 +252,7 @@ def linea_estado(base: str | None, t0: float, ahora: float, chars: int,
     return componer_linea(verbo, int(_seg),
                           tokens=_toks, hint=asp.hint,
                           ancho=max(12, ancho - len(_suf)),
-                          sep=asp.sep, tok=asp.tok) + _suf
+                          sep=asp.sep, tok=asp.tok, aprox=_aprox) + _suf
 
 
 # ---------------------------------------------------------------------------

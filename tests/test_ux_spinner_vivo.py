@@ -35,13 +35,15 @@ def test_sin_tokens_no_inventa_conteo():
     assert "3s" in linea and "ctrl+c corta" in linea
 
 
-def test_ancho_estrecho_caen_los_tokens_primero():
-    # entra verbo + segundos + hint pero no los tokens
+def test_ancho_estrecho_cae_el_hint_y_quedan_los_tokens():
+    # (2026-09-02) entra verbo + segundos + tokens pero no la pista: el
+    # contador es la informacion que el dueno pidio ver; la pista es
+    # comodidad. Antes caia al reves y el numero parpadeaba a 80 columnas.
     linea = spinner_vivo.componer_linea("Atando cabos", 9, tokens=1200,
                                         ancho=40)
     assert len(linea) <= 40
-    assert "tok" not in linea
-    assert "ctrl+c corta" in linea and "9s" in linea
+    assert "~1200 tok" in linea and "9s" in linea
+    assert "ctrl+c corta" not in linea
 
 
 def test_ancho_mas_estrecho_cae_el_hint_y_queda_el_latido():

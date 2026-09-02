@@ -89,6 +89,7 @@ def test_streaming_y_footer_con_tokens_reales(bus_limpio, capsys):
         events.emitir(events.TokenTexto(texto=tok))
     events.emitir(events.TareaFin(ok=True, resumen="", pasos=3,
                                   tokens_predichos=87, duracion_s=3.2))
+    ux_renderer.pintar_footer_pendiente()   # diferido (2026-09-02)
     out = capsys.readouterr().out
     assert "Hola mundo desde el stream." in out
     assert "87 tokens" in out                    # usage real del evento
@@ -99,6 +100,7 @@ def test_streaming_y_footer_con_tokens_reales(bus_limpio, capsys):
 def test_footer_sin_tokens_no_inventa(bus_limpio, capsys):
     events.emitir(events.TareaFin(ok=True, resumen="listo", pasos=0,
                                   tokens_predichos=0, duracion_s=2.0))
+    ux_renderer.pintar_footer_pendiente()
     out = capsys.readouterr().out
     assert "2.0s" in out
     assert "tokens" not in out
@@ -128,6 +130,7 @@ def test_tarea_fin_no_imprime_el_resumen(bus_limpio, capsys):
     # el sink JSONL/remoto. Imprimirlo aqui duplicaba la respuesta final.
     events.emitir(events.TareaFin(ok=True, resumen="# Titulo\n- item",
                                   duracion_s=2.0, pasos=2))
+    ux_renderer.pintar_footer_pendiente()
     out = capsys.readouterr().out
     assert "Titulo" not in out and "item" not in out
     assert "2.0s" in out                         # el footer si sale
@@ -141,6 +144,7 @@ def test_evento_malformado_no_rompe(bus_limpio, capsys):
     events.emitir(events.TokenTexto(texto=None))
     events.emitir(events.TareaFin(ok=True, resumen="sigo vivo",
                                   duracion_s=3.0, pasos=1))
+    ux_renderer.pintar_footer_pendiente()
     assert "3.0s" in capsys.readouterr().out
 
 

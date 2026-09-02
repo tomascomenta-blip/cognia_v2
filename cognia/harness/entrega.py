@@ -195,10 +195,10 @@ def bloque(inf) -> str:
     """
     if not isinstance(inf, dict):
         return ""
-    lineas = [f"{MARCA} — lo que quedo en disco:"]
+    cabecera = f"{MARCA} — lo que quedo en disco:"
     if inf.get("nada"):
-        lineas.append("  (ningun fichero escrito ni modificado en esta tarea)")
-        return "\n".join(lineas)
+        return cabecera + " (ningun fichero escrito ni modificado en esta tarea)"
+    lineas = []
     for e in inf.get("escritos") or []:
         if not e.get("existe"):
             lineas.append(f"  ?   {e['nombre']} — {e.get('motivo', '')}")
@@ -218,10 +218,13 @@ def bloque(inf) -> str:
         lineas.append(f"  → {rotos} fichero(s) quedaron INCOMPLETOS: NO uses la "
                       "entrega tal cual. Para continuar uno, apendar_archivo "
                       "desde donde se corta (arriba se dice la linea).")
-    elif inf.get("enteros"):
-        lineas.append("  → los ficheros estan completos (estructura), pero eso "
-                      "no dice que hagan lo que pediste.")
-    return "\n".join(lineas)
+    # COMPACTO (2026-09-02, "el ruido de las tareas"): con un solo fichero
+    # entero la entrega es UNA linea; la coletilla filosofica ("eso no dice
+    # que hagan lo que pediste") se fue: 'OK' aqui ya significa estructura,
+    # no funcionamiento, y el docstring del modulo lo dice una vez.
+    if len(lineas) == 1 and not rotos:
+        return cabecera + " " + lineas[0].strip()
+    return "\n".join([cabecera] + lineas)
 
 
 def hace_falta(result_text) -> bool:

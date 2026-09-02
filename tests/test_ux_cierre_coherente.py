@@ -101,6 +101,7 @@ def test_footer_local_lleva_el_motivo_del_cierre(monkeypatch):
     r = Renderer(console=con)
     r(events.TareaFin(ok=False, resumen="", pasos=5, tokens_predichos=1213,
                       duracion_s=37.7, motivo="parado: 3 tools seguidas fallaron"))
+    r.pintar_footer_pendiente()        # diferido (2026-09-02): debajo de la respuesta
     assert ("✗ 37.7s · 1213 tokens · 5 pasos · parado: 3 tools seguidas "
             "fallaron") in buf.getvalue()
 
@@ -118,8 +119,9 @@ def test_footer_remoto_no_rompe_el_dedup_con_el_motivo(monkeypatch):
 
 def test_el_evento_sin_motivo_pinta_el_footer_de_siempre():
     con, buf = _consola()
-    Renderer(console=con)(events.TareaFin(ok=True, pasos=3, tokens_predichos=87,
-                                          duracion_s=3.2))
+    r = Renderer(console=con)
+    r(events.TareaFin(ok=True, pasos=3, tokens_predichos=87, duracion_s=3.2))
+    r.pintar_footer_pendiente()
     assert buf.getvalue().strip() == "✓ 3.2s · 87 tokens · 3 pasos"
 
 

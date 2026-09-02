@@ -55,7 +55,10 @@ def test_html_entero_sale_OK_pero_sin_prometer_que_funciona(tmp_path):
     p.write_text(HTML_ENTERO, encoding="utf-8")
     txt = E.bloque(E.informe([str(p)]))
     assert "OK  index.html" in txt
-    assert "no dice que hagan lo que pediste" in txt
+    # compacto (2026-09-02): un fichero entero = UNA linea, sin coletilla
+    assert "\n" not in txt
+    assert "no dice que hagan" not in txt
+    assert "INCOMPLETO" not in txt
 
 
 def test_fichero_borrado_tras_escribirlo_se_reporta(tmp_path):

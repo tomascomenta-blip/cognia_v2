@@ -180,6 +180,28 @@ class Renderer:
         # status vigente (None = fase pensar, verbo gato rotatorio) y su t0.
         self._chars_stream = 0
         self._fase_stream = ""
+        # Tokens CONTADOS del paso (TokensVivos.tokens, uno por delta SSE):
+        # con ellos la linea viva dice 'N tok' sin '~'. 0 = solo estimacion.
+        self._tokens_stream = 0
+        # La prosa del agente en el paso en curso (TextoAgente), ya pintada
+        # en streaming: PasoIntencion la salta (seria repetirla en una linea)
+        # y TareaFin la recuerda en _prosa_final para que cli.py no vuelva a
+        # imprimir la respuesta final que el dueno ya vio escribirse.
+        self._texto_paso: list = []
+        self._prosa_final = ""
+        # En modo agente (tras PasoInicio) los chars los cuentan los pulsos
+        # TokensVivos; un RazonamientoTick que ademas llegue (/pensar ver)
+        # no debe sumar dos veces. Y si en este paso se streameo el
+        # razonamiento, PasoIntencion no lo resume otra vez.
+        self._pulso_activo = False
+        self._pensar_paso_chars = 0
+        # Footer DIFERIDO (2026-09-02): TareaFin llega ANTES de que cli.py
+        # post-procese y pinte la respuesta, asi que pintar el footer aqui lo
+        # dejaba ENCIMA de la respuesta ('✓ 11.4s · 642 tokens' y debajo el
+        # resultado). Se guarda y lo pinta quien muestra la respuesta
+        # (pintar_footer_pendiente); TareaInicio descarta uno no reclamado.
+        self._footer_pendiente = None
+        self._footer_extras: list = []
         self._ticker = None              # threading.Thread del refresco, o None
         self._ticker_stop = None         # threading.Event que lo corta
         self._status_base: str | None = None
@@ -446,7 +468,8 @@ class Renderer:
             texto = spinner_vivo.linea_estado(
                 self._status_base, self._status_t0, time.time(),
                 self._chars_stream, ancho=max(12, ancho - 6),
-                id=self._status_id, fase=self._fase_stream)
+                id=self._status_id, fase=self._fase_stream,
+                tokens=self._tokens_stream or None)
             if self._linea_viva is not None:
                 # P8: el texto cambia una vez por segundo; el barrido lo pinta
                 # la Live del status por cuadro del reloj (LineaViva refresca
@@ -578,7 +601,17 @@ class Renderer:
         self._avisos_vistos.clear()
         self._t0 = ev.ts
         self._chars_stream = 0           # el ~tok de la linea viva arranca en 0
+        self._tokens_stream = 0
         self._fase_stream = ""
+        self._texto_paso = []
+        self._prosa_final = ""
+        self._pulso_activo = False
+        self._pensar_paso_chars = 0
+        # Un footer que nadie reclamo no se pinta tarde encima de la tarea
+        # siguiente: se descarta (el dato sigue en el evento TareaFin del
+        # sink jsonl / remoto).
+        self._footer_pendiente = None
+        self._footer_extras = []
         # Nada que imprimir: el usuario acaba de teclear la tarea; repetirsela
         # es eco. El modelo que respondera se ve en el footer si hace falta.
         # F5 (harness/notificaciones): anillo 9;4 INDETERMINADO en la pestana
@@ -595,10 +628,78 @@ class Renderer:
                 _cli._aviso_degradado("notificaciones",
                                       f"{type(exc).__name__}: {exc}")
 
+    def _on_paso_inicio(self, ev: events.PasoInicio) -> None:
+        """El modelo empieza a generar el paso: linea viva 'pensando…' con
+        el verbo gato, los segundos, los tokens CONTADOS y la fase. Antes de
+        esto la pantalla estaba muda mientras el agente generaba (que es
+        donde se va el tiempo): solo las tools tenian spinner."""
+        self._parar_status()
+        self._cerrar_flujo()
+        self._cerrar_flujo_pensar()
+        # El contador es POR PASO: los tok/s de la linea salen de chars/t0
+        # del status, y un acumulado de toda la tarea sobre el reloj del
+        # paso daria velocidades inventadas.
+        self._chars_stream = 0
+        self._tokens_stream = 0
+        self._fase_stream = ""
+        self._texto_paso = []
+        self._pulso_activo = True
+        self._pensar_paso_chars = 0
+        if self._sin_stream or self._console is None or not _consola_interactiva():
+            # Sin terminal viva no hay linea que refrescar: una linea quieta
+            # 'pensando…' por paso solo ensuciaria trazas y logs.
+            return
+        self._arrancar_status(self._texto_pensando(), estilo="pensar",
+                              rotar=True)
+        self._pensando_desde = ev.ts or time.time()
+
+    def _on_texto_agente(self, ev: events.TextoAgente) -> None:
+        """La prosa del agente en este paso, en streaming y ENTERA (pedido
+        del dueno 2026-09-02: 'mostrarme todas las lineas que el agente
+        escribe'). Mismo flujo que la respuesta del chat (markdown vivo);
+        el spinner se para al primer trozo y la prosa respira arriba."""
+        if not ev.texto:
+            return
+        self._chars_stream += len(ev.texto)
+        if self._sin_stream:
+            return    # remoto: el movil recibe PasoIntencion / la respuesta
+        self._texto_paso.append(ev.texto)
+        if self._flujo is None:
+            self._parar_status()
+            self._cerrar_flujo_pensar()
+            respirar(self._console)
+            try:
+                from . import markdown_vivo
+                self._flujo = markdown_vivo.crear(self._console)
+            except Exception as exc:
+                self._degradar_markdown(exc)
+                self._flujo = None
+            if self._flujo is None:
+                self._flujo = FlujoSuave(console=self._console)
+        self._flujo.escribir(ev.texto)
+
+    def _on_progreso(self, ev: events.Progreso) -> None:
+        """Actividad transitoria del arnes: va a la linea viva, no al
+        transcript. Sin terminal, una linea tenue (como antes)."""
+        texto = (ev.texto or "").strip()
+        if not texto:
+            return
+        self._cerrar_flujo()
+        self._cerrar_flujo_pensar()
+        if self._sin_stream or self._console is None or not _consola_interactiva():
+            self._print(f"{_SANGRIA}{texto}", style="info_dim")
+            return
+        self._arrancar_status(texto)
+
     def _on_paso_intencion(self, ev: events.PasoIntencion) -> None:
         self._parar_status()
         self._cerrar_flujo()
         self._cerrar_flujo_pensar()
+        if self._texto_paso or getattr(self, "_pensar_paso_chars", 0):
+            # La prosa (o el razonamiento, con /pensar ver) del paso ya se
+            # pinto entera en streaming: repetir su primera linea aqui seria
+            # decirlo dos veces.
+            return
         intencion = (ev.intencion or "").strip().split("\n")[0]
         from . import aspecto as _A
         if intencion and _A.visible("tool.intencion"):
@@ -915,8 +1016,13 @@ class Renderer:
         # status compitiendo con el stream entrelazaba '· pensando… (0s)'
         # dentro de las frases (cazado MIRANDO la escena pensar_visible).
         # Los fragmentos del razonamiento cuentan para el ~tok de la linea
-        # viva: es lo unico que "llega" mientras el modelo piensa.
-        self._chars_stream += len(ev.fragmento or "")
+        # viva: es lo unico que "llega" mientras el modelo piensa — salvo en
+        # modo agente, donde ya los conto el pulso TokensVivos.
+        if not getattr(self, "_pulso_activo", False):
+            self._chars_stream += len(ev.fragmento or "")
+        if self._pensar_en_vivo() and (ev.fragmento or ""):
+            self._pensar_paso_chars = (getattr(self, "_pensar_paso_chars", 0)
+                                       + len(ev.fragmento))
         # Un tick de razonamiento que llega cuando la RESPUESTA ya se esta
         # pintando (self._flujo abierto por TokenTexto) no puede volver a
         # arrancar el status: _parar_status reseteo _pensando_desde y la rama
@@ -972,6 +1078,10 @@ class Renderer:
         """
         try:
             self._chars_stream += max(0, int(ev.chars or 0))
+            # getattr: hay tests (y embebedores) que arman el Renderer con
+            # __new__ y solo los campos que usan; un contador que falte vale 0.
+            self._tokens_stream = (getattr(self, "_tokens_stream", 0)
+                                   + max(0, int(getattr(ev, "tokens", 0) or 0)))
         except (TypeError, ValueError):
             return
         # La FASE del pulso (razonando / escribiendo / respondiendo) va a la
@@ -1058,16 +1168,28 @@ class Renderer:
     def _on_tarea_fin(self, ev: events.TareaFin) -> None:
         self._parar_status()
         self._cerrar_flujo_pensar()
+        # Se recuerda QUE se pinto del ultimo paso (haya o no un flujo
+        # abierto todavia: un aviso del bucle pudo cerrarlo antes): cli.py
+        # muestra solo lo que el post-procesado agrego (entrega, adjuntos),
+        # no la prosa otra vez. Cazado en la captura 2026-09-02: el aviso
+        # 'cerro sin usar herramientas' cerraba el flujo y la respuesta salia
+        # dos veces.
+        self._prosa_final = "".join(self._texto_paso)
         if self._flujo is not None:
-            # la respuesta ya se streameo: no re-imprimirla, solo cerrar
             self._cerrar_flujo()
         # El resumen del evento NO se imprime aqui (cazado en el e2e
         # 2026-08-09): TareaFin se emite ANTES del post-procesado de cli.py
         # (adjuntos de rutas, 2a pasada), asi que el texto del evento esta
         # incompleto y ademas el handler de /hacer muestra la respuesta
         # enriquecida — imprimirla aqui la duplicaba. El resumen queda en el
-        # evento para el sink JSONL/remoto; en pantalla va solo el footer.
-        self._footer(ev)
+        # evento para el sink JSONL/remoto; en pantalla va solo el footer —
+        # y DIFERIDO: lo pinta quien muestra la respuesta, debajo de ella.
+        # Bajo remoto se pinta aqui como siempre (el de-dup del movil espera
+        # el footer plano junto al cierre, y alli cli.py no lo reclama).
+        if self._sin_stream:
+            self._footer(ev)
+        else:
+            self._footer_pendiente = ev
         # F5 (harness/notificaciones): toast OSC 9 si el turno fue largo —
         # con el 27B local un turno dura minutos y el dueno se fue a otra
         # ventana; este es el unico "ya termine" que le llega. El modulo
@@ -1228,10 +1350,70 @@ class Renderer:
                 return   # P6: footer.turno.visible=false (solo local)
             # El MISMO constructor que el footer del chat (estilo.footer_
             # turno): un solo idioma para el cierre del turno.
-            pintar_footer(footer_turno(bool(ev.ok), dur, ev.tokens_predichos,
-                                       ev.pasos, motivo=motivo), self._console)
+            extras = [e for e in (self._footer_extras or []) if e]
+            trozos = footer_turno(bool(ev.ok), dur, ev.tokens_predichos,
+                                  ev.pasos, motivo=motivo)
+            if extras:
+                # 'objetivo 1/1' y similares: datos del cierre que cli.py
+                # conoce despues del evento; van en el mismo footer, no en
+                # una linea propia (estilo del dueno: una linea por hecho).
+                from .estilo import _PUNTO
+                punto = _A.separador("footer.turno") or _PUNTO
+                for e in extras:
+                    trozos += [(punto, "footer"), (str(e), "footer")]
+            pintar_footer(trozos, self._console)
             return
+        if self._footer_extras:
+            resto += " · " + " · ".join(str(e) for e in self._footer_extras if e)
         self._print(f"{_SANGRIA}{resto}", style="footer")
+
+    # -- API para quien pinta la respuesta (cli.py) -------------------------
+
+    def anotar_footer(self, extra: str, ok=None) -> None:
+        """Agrega un dato al footer pendiente ('objetivo 1/1'). `ok=False`
+        ademas vuelve ✗ el glifo: un turno cuyo contrato no se cumplio no es
+        un exito aunque el bucle cerrara sin error."""
+        if (extra or "").strip():
+            self._footer_extras.append(str(extra).strip())
+        if ok is False and self._footer_pendiente is not None:
+            import dataclasses
+            try:
+                self._footer_pendiente = dataclasses.replace(
+                    self._footer_pendiente, ok=False)
+            except Exception:
+                pass
+
+    def cerrar_flujo_abierto(self) -> None:
+        """Termina la prosa en streaming (si la hay) ANTES de que alguien
+        imprima una linea del transcript por fuera del bus (print_fn del
+        bucle): sin esto el aviso salia ENCIMA de la prosa aun no vaciada
+        (cazado en la captura real 2026-09-02: 'el agente cerro sin usar
+        herramientas' y debajo el texto que venia antes)."""
+        with self._lock:
+            if self._flujo is not None:
+                self._cerrar_flujo()
+            self._cerrar_flujo_pensar()
+
+    def pintar_footer_pendiente(self) -> bool:
+        """Pinta el footer que TareaFin dejo diferido. True si habia uno."""
+        with self._lock:
+            ev = self._footer_pendiente
+            self._footer_pendiente = None
+            if ev is None:
+                self._footer_extras = []
+                return False
+            try:
+                self._footer(ev)
+            except Exception:
+                return False
+            finally:
+                self._footer_extras = []
+            return True
+
+    def prosa_final_pintada(self) -> str:
+        """La prosa del ULTIMO paso si el renderer ya la pinto en streaming
+        (y por tanto cli.py no debe repetirla). "" si no se pinto nada."""
+        return self._prosa_final
 
     # Confianza y FooterTurno (paridad remota 2026-08-24) NO tienen handler a
     # proposito: en el terminal los pinta cli.py en el mismo sitio donde los
@@ -1248,6 +1430,9 @@ class Renderer:
         "RazonamientoTick": _on_razonamiento_tick,
         "TokenTexto":       _on_token_texto,
         "TokensVivos":      _on_tokens_vivos,
+        "PasoInicio":       _on_paso_inicio,
+        "TextoAgente":      _on_texto_agente,
+        "Progreso":         _on_progreso,
         "Aviso":            _on_aviso,
         "Degradado":        _on_degradado,
         "TareaFin":         _on_tarea_fin,
@@ -1287,6 +1472,26 @@ def suprimir_stream(valor: bool) -> None:
     if _renderer is not None:
         with _renderer._lock:
             _renderer._stream_externo = bool(valor)
+
+
+def pintar_footer_pendiente() -> bool:
+    """Wrapper del singleton: pinta el footer diferido de TareaFin (si hay)."""
+    return _renderer.pintar_footer_pendiente() if _renderer is not None else False
+
+
+def anotar_footer(extra: str, ok=None) -> None:
+    if _renderer is not None:
+        _renderer.anotar_footer(extra, ok=ok)
+
+
+def cerrar_flujo_abierto() -> None:
+    """Para _print_line de cli.py: barato cuando no hay prosa abierta."""
+    if _renderer is not None and _renderer._flujo is not None:
+        _renderer.cerrar_flujo_abierto()
+
+
+def prosa_final_pintada() -> str:
+    return _renderer.prosa_final_pintada() if _renderer is not None else ""
 
 
 def desactivar() -> None:
