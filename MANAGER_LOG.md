@@ -15711,3 +15711,68 @@ ventana asumida, motivo visible + emergencia, emergencia reduce todo, n_ctx del 
 en el 400); barrido de compactación/offload/bucle: 289 passed (queda el previo de
 `test_deepagents_bucle::test_p1`). Repro del bucle con historial tipo Tank.io: serie de prompt
 con tres bajadas (56k → 11k).
+
+## 2026-09-02 (noche) — 4.25.3: autopsia Tank.io, segunda pasada — el render que "no existía"
+
+Pedido del dueño: "mira mi última sesión de cognia cli y arregla los errores que veas, sobre todo
+que el modelo no puede llamar al render". Sesión leída de `chat_history` (ids 1094-1117, cwd
+`Desktop/Tank.io`, 14:33 → 16:57) + `cognia.log` + checkpoints.
+
+### Lo que decía la sesión
+
+- 16:36 el modelo: "`renderizar` devuelve 'no existe' para `tankio.html` (funciona para el PNG de
+  input_images; fallo del resolver de rutas del renderizador)". 16:57: "4 intentos distintos,
+  error 'no existe' en todos".
+- 14:32 HTTP 400 `request (65835 tokens) exceeds the available context size (65536)`.
+- 15:13, 16:24, 16:48: "tool call cortado sin salida" con `RESULTADO escribir_archivo ERROR: tu
+  llamada se corto, y tankio.html YA tiene mas contenido…".
+- 15:25 y 15:35: dos mensajes del dueño ("Continúa con las mejoras pendientes…") sin respuesta
+  (`label=respuesta_streaming`, el proceso se reinició 6 min después).
+- 16:57 el modelo: "la memoria no guardó la lista completa de las modificaciones anteriores".
+
+### Causa real del render (reproducida, no supuesta)
+
+`args_legacy("renderizar", {"fuente": "tankio.html", "espera": 2000})` → `'tankio.html espera=2000'`
+(armar_args usa ESPACIO para los params `clave`, pipe solo para `ejecutar`); `partir_args` solo
+entendía `| espera=`. Con la tool registrada:
+
+    run_tool('renderizar', 'tankio.html espera=2000', {})
+    -> RESULTADO renderizar ERROR: no existe: tankio.html espera=2000
+
+El PNG "funcionaba" porque iba sin parámetros. No era el resolver de rutas… aunque también: la
+ruta relativa se resolvía contra el cwd del proceso y no contra el workspace (reproducido con
+cwd≠workspace: `no existe: tankio.html`).
+
+### Qué cambió
+
+- `renderizador.partir_args`: acepta `clave=valor` tras `|` o tras espacio, comiendo el ÚLTIMO
+  token cada vez. Rutas relativas: workspace → cwd; el error dice dónde buscó. `salida=` relativa
+  al scratchpad.
+- `loop._PESO_FIJO["schemas"]` (~6.400 tokens de 73 tools) sumado a `_tokens_prompt` y al
+  estimado de fallback sin usage.
+- Rescate negado (fichero en disco más grande): mensaje propio "NO se escribió nada… usa
+  editar_archivo", el turno sigue; ya no se anuncia como "rescató y ESCRIBIÓ".
+- CONTEXTO PREVIO: se guarda 2000/600 chars (antes 100/150), se inyecta 1500/400 de la inmediata
+  anterior; `_CONTINUIDAD` + `continú/sigamos/sigue/mencionad/pendiente/previo/faltaba/faltando`.
+- `intent`: `_ARRANQUE_CONTINUACION` (verbo de continuar + objeto de tarea) tras turno de agente
+  → `continuacion:agente` sin modelo.
+
+### Verificación
+
+- `tests/test_autopsia_tankio_20260902.py`: 17 tests (render por la tool con `espera=` y con
+  cwd≠workspace, partir_args, schemas en el estimado, bucle sin usage, rescate negado, continuidad,
+  intent larga). Dirigidos de render/intent/loop/ventana/rescate: 143 passed.
+- Reproducción real desde `Desktop/Tank.io` con el código del repo:
+
+    RESULTADO renderizar tankio.html: captura en …\Tank.io\.cognia_capturas\captura_tankio.html_172046.png
+    (900x720, html, playwright) · sin errores de consola · titulo: Tank.io · canvas 900x720 con 24 colores
+
+- Trampa cazada por el camino: desde fuera del repo `~/.cognia/venv` y `venv312` importan el
+  cognia INSTALADO en site-packages (4.25.2), no el del repo; el REPL del dueño corre el instalado.
+  La corrección llega al CLI solo tras reinstalar el paquete en `~/.cognia/venv`.
+
+### Queda abierto
+
+- Por qué el chat streaming de 15:25 no produjo nada en 6 minutos (no hay rastro en el log; con
+  el enrutado nuevo ese mensaje ya no va al chat).
+- VLM en :8081 con timeout durante la revisión profunda ("NO juzgo"): entorno, no CLI.

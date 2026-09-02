@@ -83,7 +83,12 @@ def objective_context(history: list, ctx_lo: int, char_cap: int = 8000):
 
 _FILENAME_RE = re.compile(r"\b[\w./\\-]+\.\w{1,4}\b")
 _CONTINUIDAD = ("anterior", "antes", "segui", "seguir", "continua",
-                "continuar", "retoma", "retomar", "lo de recien")
+                "continuar", "retoma", "retomar", "lo de recien",
+                # Autopsia Tank.io 2026-09-02: "las 3 variantes mencionadas
+                # anteriormente" y "sigamos con el juego" no casaban con
+                # ninguna (son substrings: "continua" no esta en "continúa").
+                "continú", "sigamos", "sigue", "mencionad", "pendiente",
+                "previo", "previa", "faltaba", "faltaban", "faltando")
 
 
 def prior_context_relevant(task: str, prev_task: str) -> bool:
@@ -721,7 +726,29 @@ def _tokens_prompt(mensajes: list) -> int:
             f = tc.get("function") if isinstance(tc, dict) else None
             if isinstance(f, dict):
                 total += len(str(f.get("arguments") or ""))
-    return total // 4
+    return total // 4 + _PESO_FIJO["schemas"]
+
+
+# Tokens que viajan en CADA peticion sin estar en `mensajes`: los schemas de
+# las tools. Medido 2026-09-02 (autopsia Tank.io): 73 tools = 25.492 chars =
+# ~6.400 tokens que ningun estimado contaba. Con la ventana de 65.536 el
+# server devolvio "request (65835 tokens) exceeds the available context size
+# (65536)" cuando el bucle creia que sobraban ~6k: la compactacion no disparo
+# porque su aritmetica iba 6k por debajo de la realidad. Lo fija
+# bucle_nativo al arrancar (una vez por tarea) y lo suman _tokens_prompt y
+# el estimado de fallback del final del paso. Solo pesa cuando el usage del
+# server no trajo prompt_tokens (ahi el server ya los cuenta el mismo).
+_PESO_FIJO = {"schemas": 0}
+
+
+def _peso_schemas(schemas) -> int:
+    """Tokens (chars/4) del JSON de los schemas; 0 si no hay o no serializa."""
+    if not schemas:
+        return 0
+    try:
+        return len(json.dumps(schemas, ensure_ascii=False)) // 4
+    except (TypeError, ValueError):
+        return 0
 
 
 _INTENCION_TOPE = 160
@@ -1350,6 +1377,10 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 _ev.emitir(evento)
             except Exception:
                 pass
+
+    # Los schemas viajan en cada peticion y no estan en `mensajes`: se pesan
+    # UNA vez y los estimados los suman (ver _PESO_FIJO).
+    _PESO_FIJO["schemas"] = _peso_schemas(schemas)
 
     # -- ARNES HERMES (2026-08-19) -----------------------------------------
     # Cinco mecanismos destilados del fuente de Hermes Agent 0.19.1 y cableados
@@ -2589,7 +2620,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             # `resp.tool_calls`, que en este camino viene vacia. Se escriben las
             # partes que estan completas y el turno SIGUE: el modelo continua
             # desde lo que ya hay en disco en vez de reempezar el fichero.
-            _rescatados = []
+            _rescatados, _negados = [], []
             for _tc_p in _tool_calls_con_parciales(resp):
                 if not getattr(_tc_p, "argumentos_rotos", False):
                     continue
@@ -2605,11 +2636,34 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     _res_p = None
                     print_fn(f"[warn_cl]rescate parcial fallido: "
                              f"{type(_e_rp).__name__}: {_e_rp}[/warn_cl]")
-                if _res_p:
+                if not _res_p:
+                    continue
+                # El rescate tambien devuelve un "RESULTADO ... ERROR" cuando se
+                # NEGO a escribir (el fichero en disco ya tenia mas que el
+                # trozo). Eso no es un rescate: decirle al modelo "el arnes
+                # ESCRIBIO en disco lo que generaste" seguido de "no se
+                # sobrescribio nada" (autopsia Tank.io 2026-09-02) era una
+                # contradiccion que lo mandaba a repetir la escritura entera.
+                if "ERROR" in str(_res_p)[:60]:
+                    _negados.append(str(_res_p)[:400])
+                else:
                     _rescatados.append(str(_res_p)[:200])
             if _tel.activa():
                 _tel.evento("rescate", motivo="tool_call_cortado_500",
-                            paso=pasos, rescatados=len(_rescatados))
+                            paso=pasos, rescatados=len(_rescatados),
+                            negados=len(_negados))
+            if _negados and not _rescatados:
+                history.extend(_negados)
+                mensajes.append({"role": "user", "content":
+                                 "La llamada anterior se corto a media cadena y "
+                                 "NO se escribio nada:\n- " + "\n- ".join(_negados)
+                                 + "\n\nEl fichero entero no cabe en un mensaje: "
+                                   "NO lo reescribas. Cambia SOLO la parte que "
+                                   "toca con editar_archivo (bloque viejo -> "
+                                   "bloque nuevo, corto) o agrega al final con "
+                                   "apendar_archivo, en trozos de como mucho "
+                                   "100 lineas."})
+                continue
             if _rescatados:
                 print_fn(f"[ok_cl]rescatados {len(_rescatados)} fichero(s) del "
                          f"turno cortado: sigo desde ahi en vez de "
@@ -3580,6 +3634,9 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         est += sum(len(str(m.get("content") or ""))
                    + len(str(m.get("reasoning_content") or ""))
                    for m in mensajes[idx_turno:]) // 4
+        if not (resp.usage or {}).get("prompt_tokens"):
+            # sin usage del server, los schemas tampoco estan contados
+            est += _PESO_FIJO["schemas"]
         _libero_algo = False
         # F4 (2026-08-23): modo 'resumen' = UNA pasada que funde el historial
         # viejo en un resumen estructurado (canal de estado + 1 linea por tool

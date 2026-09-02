@@ -498,6 +498,15 @@ def guard_ensanchado_dispara(t: str, saludo_pelado: bool = False) -> bool:
 # hace falta". Si el turno anterior activo el agente, un mensaje corto con un
 # deictico ("y ahora borralo", "otra vez", "igual pero en descargas") es la
 # continuacion de esa accion, no charla: agente en 0 ms, sin modelo.
+_ARRANQUE_CONTINUACION = re.compile(
+    r"^\s*(?:y\s+|ahora\s+|bueno[,\s]+|ok[,\s]+|vale[,\s]+)?"
+    r"(?:contin[uú][aáe]|sigue|segu[ií]|sigamos|retom[aá]|complet[aá]"
+    r"|termin[aá]|acab[aá]|prosigue)"
+    # el verbo tiene que ir seguido de un OBJETO de tarea ("con las mejoras",
+    # "de crear el juego", "el juego"): "sigue siendo raro que..." es charla
+    r"\s+(?:con|de|el|la|los|las|lo|a|es[aeo]|est[aeo]s?|tod[ao]s?"
+    r"|aplicando|implementando|creando|arreglando|haciendo|agregando"
+    r"|corrigiendo|mejorando|completando)\b", re.I)
 _DEICTICOS_CONTINUACION = re.compile(
     r"\b(h[aá]zlo|hazlos|hacelo|hacelos|y\s+ahora|otra\s+vez|igual\s+pero"
     r"|b[oó]rralo|b[oó]rralos|elim[ií]nalo|sigue|segu[ií]|contin[uú]a"
@@ -692,6 +701,16 @@ def detect(text: str, respuesta_previa: str = "",
     # deictico despues de que el agente actuara -> la accion sigue. 0 ms.
     if turno_previo_agente and len(t.split()) <= 6 \
             and _DEICTICOS_CONTINUACION.search(t):
+        return Intent(True, suggested_tool="", reason="continuacion:agente")
+    # CONTINUACION LARGA tras un turno de agente: "Continua con las mejoras
+    # pendientes del juego de tanques, completando la barra de vida..." (44
+    # palabras). Sin esta regla el mensaje caia al enrutador por inferencia,
+    # que lo mando a CHAT, y el chat no ejecuta nada: dos turnos seguidos sin
+    # respuesta ni fichero (autopsia Tank.io 2026-09-02, 15:25 y 15:35). Un
+    # mensaje que ARRANCA con el verbo de continuar, justo despues de que el
+    # agente actuara, es la misma accion que sigue: agente en 0 ms.
+    if turno_previo_agente and _ARRANQUE_CONTINUACION.match(t) \
+            and not t.rstrip().endswith("?"):
         return Intent(True, suggested_tool="", reason="continuacion:agente")
 
     for guard in _CHAT_GUARDS:

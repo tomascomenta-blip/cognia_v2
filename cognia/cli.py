@@ -27580,9 +27580,23 @@ def _run_agent_task_cuerpo(ai, task: str, _print_fn, max_steps: int = None,
     if _agent_state["tasks"]:
         from cognia.agent.loop import prior_context_relevant
         _prior_lines = []
-        for _t in _agent_state["tasks"][-2:]:
+        _previas = _agent_state["tasks"][-2:]
+        for _i, _t in enumerate(_previas):
             if prior_context_relevant(task, _t.get("task", "")):
-                _prior_lines.append(f"- Tarea anterior: {_t['task'][:80]} -> {_t['result'][:120]}")
+                # La INMEDIATA anterior va casi entera (autopsia Tank.io
+                # 2026-09-02): con 80 chars el modelo solo veia "Modifica el
+                # juego de tanques para que el menu de mejora..." y confeso
+                # "la memoria no guardo la lista completa de las
+                # modificaciones anteriores" cuando el dueno dijo "las 3
+                # variantes mencionadas anteriormente". El tope corto era
+                # para un 3B que copiaba nombres de ficheros ajenos; con la
+                # relevancia ya filtrada, recortar el pedido es perder el
+                # pedido. La anterior a esa, en resumen.
+                _es_ultima = (_i == len(_previas) - 1)
+                _tope_t = 1500 if _es_ultima else 300
+                _tope_r = 400 if _es_ultima else 150
+                _prior_lines.append(f"- Tarea anterior: {_t['task'][:_tope_t]}"
+                                    f" -> {_t['result'][:_tope_r]}")
         if _prior_lines:
             _prior_ctx = "CONTEXTO PREVIO:\n" + "\n".join(_prior_lines) + "\n\n"
 
@@ -28667,8 +28681,11 @@ def _run_agent_task_cuerpo(ai, task: str, _print_fn, max_steps: int = None,
     try:
         import json as _json_save
         _agent_state["tasks"].append({
-            "task": task[:100],
-            "result": (result_text or "(sin respuesta)")[:150],
+            # 2000/600 y no 100/150: el CONTEXTO PREVIO del siguiente /hacer
+            # recorta al inyectar; guardar recortado aqui era perder el pedido
+            # antes de decidir si hacia falta (autopsia Tank.io 2026-09-02).
+            "task": task[:2000],
+            "result": (result_text or "(sin respuesta)")[:600],
             "steps": total_steps,
             "ts": datetime.datetime.now().isoformat()[:19],
             # Clave nueva retrocompatible: enlaza con el estado durable del

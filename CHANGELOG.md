@@ -2,6 +2,47 @@
 
 ---
 
+## [4.25.3] - 2026-09-02
+
+### Autopsia de la sesión Tank.io (14:33 → 16:57): cinco fallos del CLI
+
+**1. `renderizar` decía "no existe" y el modelo dejó de mirar el juego.** Causa real: con un
+parámetro opcional (`{"fuente": "tankio.html", "espera": 2000}`) el puente JSON→texto arma
+`tankio.html espera=2000` (clave=valor con espacio, como todas las tools con params `clave`),
+y `partir_args` solo entendía `| espera=2000`: la "fuente" era el string entero. Reproducido
+con la tool: `no existe: tankio.html espera=2000`. Ahora acepta las dos formas, y toma el ÚLTIMO
+token clave=valor cada vez (`ancho=800 alto=600` son dos claves). Además, las rutas relativas se
+resuelven contra el **workspace** de la tarea (como leer/escribir_archivo) y luego el cwd, y el
+error dice dónde buscó; `salida=` relativa va al scratchpad, no al cwd del proceso.
+
+**2. 400 "request (65835 tokens) exceeds the available context size (65536)".** Los schemas de
+las 73 tools (~25 KB, ~6.400 tokens) viajan en cada petición y ningún estimado los contaba: sin
+`usage` del server el bucle creía tener ~6k de margen que no existía. `_PESO_FIJO["schemas"]` se
+fija al arrancar `bucle_nativo` y lo suman `_tokens_prompt` y el estimado de fallback del paso.
+
+**3. El rescate NEGADO se anunciaba como rescate.** Un `escribir_archivo` cortado sobre un
+fichero que en disco ya era más grande devolvía "ERROR … No se sobrescribió nada", y el bucle
+lo envolvía en "el arnés rescató y ESCRIBIÓ en disco lo que generaste": contradicción que mandaba
+al modelo a repetir la escritura entera. Ahora los negados van aparte: "NO se escribió nada:
+cambia solo la parte que toca con editar_archivo", y el turno sigue.
+
+**4. "La memoria no guardó la lista completa de las modificaciones anteriores".** El CONTEXTO
+PREVIO guardaba la tarea a 100 chars e inyectaba 80; y "Continúa"/"mencionadas anteriormente"/
+"sigamos" no casaban con las palabras de continuidad (`continua` no es substring de `continúa`).
+Se guardan 2000/600, la inmediata anterior se inyecta hasta 1500 chars (400 de resultado) y la
+lista de continuidad cubre acentos y referencias al pedido previo.
+
+**5. Dos turnos sin respuesta (15:25 y 15:35).** "Continua con las mejoras pendientes del juego
+de tanques, completando…" (40+ palabras) tras un turno de agente iba al enrutador por inferencia,
+que eligió CHAT, y el chat no ejecuta nada. Regla nueva en `intent.detect`: tras un turno de
+agente, un mensaje que ARRANCA con el verbo de continuar seguido de un objeto de tarea
+("continúa con…", "termina de crear…", "completa el juego…") es `continuacion:agente` en 0 ms;
+las preguntas y "sigue siendo raro que…" siguen siendo charla.
+
+Tests: `tests/test_autopsia_tankio_20260902.py` (17, cada uno falla sin su fix).
+
+---
+
 ## [4.25.2] - 2026-09-02
 
 ### La ventana del servidor nunca es "desconocida" (autopsia Tank.io)

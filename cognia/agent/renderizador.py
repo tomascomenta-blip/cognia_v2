@@ -138,6 +138,22 @@ def _md_a_html(texto: str) -> str:
         return "<pre style='white-space:pre-wrap'>%s</pre>" % _html.escape(texto)
 
 
+def _bases_relativas() -> list:
+    """Directorios contra los que se resuelve una ruta RELATIVA, en orden:
+    el workspace del agente (el mismo de leer/escribir_archivo) y el cwd del
+    proceso. Sin duplicados; si dev_tools no importa, solo el cwd."""
+    bases = []
+    try:
+        from cognia.agents.workers.dev_tools import _workspace
+        bases.append(Path(_workspace()))
+    except Exception:
+        pass
+    cwd = Path(os.getcwd())
+    if not any(os.path.normcase(str(b)) == os.path.normcase(str(cwd)) for b in bases):
+        bases.append(cwd)
+    return bases
+
+
 def preparar_fuente(fuente: str, tmpdir: Path) -> tuple:
     """(uri, tecnologia, aviso). Escribe una pagina envoltorio en `tmpdir`
     cuando la fuente no es HTML directo. Lanza ValueError si no existe."""
@@ -159,7 +175,23 @@ def preparar_fuente(fuente: str, tmpdir: Path) -> tuple:
             f = "//" + u.netloc + f
     p = Path(f)
     if not p.is_absolute():
-        p = Path(os.getcwd()) / p
+        # RELATIVA AL WORKSPACE, no al cwd del proceso (autopsia Tank.io
+        # 2026-09-02): el modelo pedia `renderizar tankio.html` y recibia
+        # "no existe" cuatro veces seguidas mientras el fichero estaba en el
+        # workspace de la tarea; el cwd del CLI era otro. Las demas tools
+        # (leer/escribir/editar) resuelven contra _workspace(), y una tool que
+        # resuelve distinto a sus hermanas es una trampa para el modelo, que
+        # concluyo "fallo del resolver de rutas" y dejo de comprobar el render.
+        # Orden: workspace, luego cwd (por si el dueno renderiza a mano).
+        bases = _bases_relativas()
+        for base in bases:
+            cand = (base / p)
+            if cand.exists():
+                p = cand
+                break
+        else:
+            raise ValueError("no existe: %s (buscado en %s)"
+                             % (f, " y ".join(str(b) for b in bases)))
     p = p.resolve()
     if not p.exists():
         raise ValueError("no existe: %s" % f)
@@ -391,7 +423,9 @@ def renderizar(fuente: str, salida=None, ancho: int = ANCHO_DEF, alto: int = ALT
         if salida:
             png = Path(str(salida))
             if not png.is_absolute():
-                png = Path(os.getcwd()) / png
+                # misma regla que la fuente: scratchpad de la tarea, si no el
+                # workspace; el cwd del proceso no es "donde trabaja el modelo"
+                png = (Path(str(scratch)) if scratch else _bases_relativas()[0]) / png
         else:
             base = Path(str(scratch)) if scratch else (Path(os.getcwd()) / ".cognia_capturas")
             base.mkdir(parents=True, exist_ok=True)
@@ -484,19 +518,31 @@ def ultimo() -> dict:
 # Registro en el catalogo del agente
 # ---------------------------------------------------------------------------
 
-_RE_KV = re.compile(r"\|\s*(ancho|alto|espera|salida|backend)\s*=\s*([^|]+)\s*$", re.I)
+# El token clave=valor puede venir tras '|' (la forma documentada, la que
+# teclea el dueno en /renderizar) O tras un espacio: es lo que produce
+# tools.armar_args para las tools con params 'clave' cuando el modelo llama
+# en JSON (`{"fuente": "tankio.html", "espera": 2000}` -> 'tankio.html
+# espera=2000'). LA CAUSA REAL de la autopsia Tank.io 2026-09-02: con solo el
+# pipe, ese string entero era la "fuente" y la tool contestaba "no existe:
+# tankio.html espera=2000" en cada intento con un parametro opcional; el
+# modelo lo resumio como "renderizar devuelve 'no existe'" y dejo de mirar.
+_RE_CLAVE = re.compile(r"(?:\|\s*|\s+)(ancho|alto|espera|salida|backend)\s*=\s*", re.I)
 
 
 def partir_args(args: str) -> tuple:
-    """(fuente, opciones) desde 'ruta | ancho=N | alto=N | espera=MS | salida=X'."""
+    """(fuente, opciones) desde 'ruta | ancho=N | alto=N | espera=MS | salida=X'
+    o 'ruta ancho=N espera=MS' (tokens separados por espacio)."""
     s = (args or "").strip()
     opts = {}
     while True:
-        m = _RE_KV.search(s)
-        if not m:
+        # se come el ULTIMO token clave=valor y repite: asi 'ancho=800
+        # alto=600' da dos claves y no ancho='800 alto=600'
+        ms = list(_RE_CLAVE.finditer(s))
+        if not ms:
             break
-        opts[m.group(1).lower()] = m.group(2).strip().strip("\"'")
-        s = s[:m.start()].strip()
+        m = ms[-1]
+        opts[m.group(1).lower()] = s[m.end():].strip().strip("|").strip().strip("\"'")
+        s = s[:m.start()].strip().rstrip("|").strip()
     return s, opts
 
 
