@@ -3340,6 +3340,9 @@ _CMD_DESCRIPTIONS = {
     "/color":           "Color de acento de las respuestas: /color <nombre|#hex> (persiste)",
     "/estilo":          "Editar el aspecto de cada elemento (banner, prompt, barra, spinner...)  [lista | ver <id> | <id> <prop> <valor> | reset | guardar | cargar <preset> | animacion on|off]",
     "/expandir":        "Ver COMPLETO (crudo, sin colores) el output de una tool del turno; el render los colapsa a 3 lineas. Uso: /expandir [N | lista | on | off | lineas <n>]",
+    "/pasos":           "Pasos del agente: ilimitados (cierra cuando el modelo termina, default) o con presupuesto. Uso: /pasos [estado | ilimitados | limitados]",
+    "/scratchpad":      "Carpeta temporal para tests y pruebas de usar-y-tirar; se borra sola al cerrar /hacer. Uso: /scratchpad [estado | on | off | conservar on|off | ver]",
+    "/renderizar":      "Renderiza HTML/SVG/MD/JS/CSS/URL en un navegador AISLADO (sin ventana) y guarda una captura PNG. Uso: /renderizar <ruta o URL> | estado | backend auto|playwright|edge|chrome",
     "/pegado":          "Pastes largos del prompt colapsados a '[pegado #N: +X lineas]' (se expanden al enviar). Uso: /pegado [lista | N | on | off | umbral <lineas> [<chars>]]",
     "/enlaces":         "Rutas de fichero clicables (hyperlink OSC 8 file://) en el render de tools y /offload. Uso: /enlaces [estado | on | off]",
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
@@ -4711,6 +4714,134 @@ def _mostrar_cierre_agente(resp, color=None) -> None:
             _ux_r.pintar_footer_pendiente()
         except Exception as exc:
             _aviso_degradado("cli.footer.agente", f"{type(exc).__name__}: {exc}")
+
+
+# ── pasos ilimitados / scratchpad / renderizar (2026-09-02) ───────────────
+
+def _pasos_ilimitados() -> bool:
+    """¿El agente cierra solo cuando el MODELO termina? Env
+    COGNIA_PASOS_ILIMITADOS manda; despues la config 'pasos_ilimitados';
+    default ON (pedido del dueno: sin techo de pasos)."""
+    v = os.environ.get("COGNIA_PASOS_ILIMITADOS", "").strip().lower()
+    if v:
+        return v not in ("0", "off", "false", "no")
+    try:
+        return str(_load_config().get("pasos_ilimitados", "on")).strip().lower() \
+            not in ("0", "off", "false", "no")
+    except Exception as exc:
+        _aviso_degradado("cli.pasos", f"config no legible: {exc}; pasos ilimitados")
+        return True
+
+
+def _slash_pasos(arg: str = "") -> None:
+    """`/pasos`: sin techo de pasos (default) o con presupuesto."""
+    v = (arg or "").strip().lower()
+    if v in ("", "estado"):
+        modo = "ILIMITADOS" if _pasos_ilimitados() else "con presupuesto"
+        env = os.environ.get("COGNIA_PASOS_ILIMITADOS", "")
+        _print_line(f"[ok_cl]pasos: {modo}[/ok_cl] [info_dim]· el agente cierra "
+                    f"{'cuando el modelo da la tarea por terminada (o Ctrl-C)' if _pasos_ilimitados() else 'al agotar el presupuesto de pasos (techo 40, ampliable con progreso)'}"
+                    f"{' · env COGNIA_PASOS_ILIMITADOS=' + env if env else ''}"
+                    f"[/info_dim]")
+        _print_line("[info_dim]/pasos ilimitados | limitados[/info_dim]")
+        return
+    if v in ("ilimitados", "ilimitado", "on", "sin-limite", "infinitos"):
+        cfg = _load_config(); cfg["pasos_ilimitados"] = "on"; _save_config(cfg)
+        _print_line("[ok_cl]pasos ilimitados: el agente para cuando el modelo "
+                    "termina; ni el presupuesto ni el gobernador cortan. Solo "
+                    "cierra un ciclo DEGENERADO (la misma accion repetida con 6 "
+                    "avisos seguidos ignorados) o Ctrl-C[/ok_cl]")
+        return
+    if v in ("limitados", "limitado", "off", "presupuesto"):
+        cfg = _load_config(); cfg["pasos_ilimitados"] = "off"; _save_config(cfg)
+        _print_line("[ok_cl]pasos con presupuesto: techo por tarea (ampliable "
+                    "con progreso verificado)[/ok_cl]")
+        return
+    _print_line("[warn_cl]Uso: /pasos [estado | ilimitados | limitados][/warn_cl]")
+
+
+# Scratchpad ACTUAL por hilo: _run_agent_task lo abre (solo la tarea de nivel
+# superior) y el cuerpo lo lee al armar el ctx. Por hilo porque /hacer corre
+# en el carril de fondo mientras el REPL sigue vivo en el principal.
+_SCRATCH_POR_HILO: dict = {}
+
+
+def _scratch_actual() -> str:
+    import threading as _th
+    return _SCRATCH_POR_HILO.get(_th.get_ident(), "")
+
+
+def _slash_scratchpad(arg: str = "") -> None:
+    """`/scratchpad`: carpeta temporal por tarea (tests, pruebas, capturas)."""
+    from cognia.agent import scratchpad as _spad
+    v = (arg or "").strip().lower()
+    if v in ("", "estado"):
+        u = _spad.ultimo()
+        _print_line(f"[ok_cl]scratchpad: {'ON' if _spad.activo() else 'OFF'}[/ok_cl] "
+                    f"[info_dim]· conservar al cerrar: {'si' if _spad.conservar() else 'no'}"
+                    f" · carpeta: <workspace>/{_spad.NOMBRE_DIR}/<id>/[/info_dim]")
+        if u.get("ruta"):
+            estado = ("abierto" if not u.get("cerrado") else
+                      ("borrado" if u.get("borrado") else "conservado"))
+            _print_line(f"[info_dim]ultimo: {u['ruta']} · {estado}"
+                        f"{' · ' + str(u['ficheros']) + ' fichero(s)' if u.get('ficheros') else ''}"
+                        f"{' · error: ' + u['error'] if u.get('error') else ''}[/info_dim]")
+        _print_line("[info_dim]/scratchpad on|off · conservar on|off · ver[/info_dim]")
+        return
+    cfg = _load_config()
+    if v in ("on", "off"):
+        cfg["scratchpad"] = v; _save_config(cfg)
+        _print_line(f"[ok_cl]scratchpad {v}: "
+                    f"{'cada tarea abre su carpeta temporal' if v == 'on' else 'las tareas no abren carpeta temporal'}[/ok_cl]")
+        return
+    if v.startswith("conservar"):
+        val = v.split(None, 1)[1].strip() if " " in v else "on"
+        cfg["scratchpad_conservar"] = "on" if val in ("on", "si", "1") else "off"
+        _save_config(cfg)
+        _print_line(f"[ok_cl]scratchpad conservar {cfg['scratchpad_conservar']}: "
+                    f"{'no se borra al cerrar (para inspeccionar)' if cfg['scratchpad_conservar'] == 'on' else 'se borra al cerrar la tarea'}[/ok_cl]")
+        return
+    if v == "ver":
+        u = _spad.ultimo()
+        ruta = u.get("ruta") or _scratch_actual()
+        if not ruta or not os.path.isdir(ruta):
+            _print_line("[info_dim]no hay scratchpad en disco ahora (se borra al cerrar; "
+                        "/scratchpad conservar on para inspeccionarlo)[/info_dim]")
+            return
+        fichs = sorted(str(p.relative_to(ruta)) for p in Path(ruta).rglob("*") if p.is_file())
+        _show_response(f"{ruta}\n" + ("\n".join("  " + f for f in fichs) or "  (vacio)"),
+                       "listado")
+        return
+    _print_line("[warn_cl]Uso: /scratchpad [estado | on | off | conservar on|off | ver][/warn_cl]")
+
+
+def _slash_renderizar(arg: str = "") -> None:
+    """`/renderizar`: la MISMA tool que usa el agente, tecleada a mano."""
+    from cognia.agent import renderizador as _rz
+    v = (arg or "").strip()
+    bajo = v.lower()
+    if bajo in ("", "estado"):
+        d = _rz.disponibilidad()
+        u = _rz.ultimo()
+        _print_line(f"[ok_cl]renderizar: backend {d['pedido']}[/ok_cl] [info_dim]· playwright: "
+                    f"{'si' if d['playwright'] else 'no'} · sistema: {d['sistema'] or 'ninguno'}"
+                    f"{' (' + d['sistema_ruta'] + ')' if d['sistema_ruta'] else ''}[/info_dim]")
+        if u.get("png"):
+            _print_line(f"[info_dim]ultimo: {u['fuente']} -> {u['png']} · {u['backend']} · "
+                        f"{u['errores']} error(es){' · ' + u['detalle'] if u.get('detalle') else ''}[/info_dim]")
+        _print_line("[info_dim]/renderizar <ruta o URL> [| ancho=N | alto=N | espera=MS | salida=X.png]"
+                    " · backend auto|playwright|edge|chrome[/info_dim]")
+        return
+    if bajo.startswith("backend"):
+        val = bajo.split(None, 1)[1].strip() if " " in bajo else "auto"
+        if val not in ("auto", "playwright", "edge", "chrome"):
+            _print_line("[warn_cl]backend: auto | playwright | edge | chrome[/warn_cl]")
+            return
+        cfg = _load_config(); cfg["renderizador_backend"] = val; _save_config(cfg)
+        _print_line(f"[ok_cl]renderizar backend {val}[/ok_cl]")
+        return
+    from cognia.agent.tools import run_tool as _rt
+    _print_line(_rt("renderizar", v, {"_scratchpad": _scratch_actual()}))
 
 
 class _VerboseFilter(logging.Filter):
@@ -23669,6 +23800,12 @@ def _repl_sesion():
                 _slash_estilo(raw[len("/estilo "):] if raw.startswith("/estilo ") else "")
             elif raw == "/expandir" or raw.startswith("/expandir "):
                 _slash_expandir(raw[len("/expandir "):] if raw.startswith("/expandir ") else "")
+            elif raw == "/pasos" or raw.startswith("/pasos "):
+                _slash_pasos(raw[len("/pasos "):] if raw.startswith("/pasos ") else "")
+            elif raw == "/scratchpad" or raw.startswith("/scratchpad "):
+                _slash_scratchpad(raw[len("/scratchpad "):] if raw.startswith("/scratchpad ") else "")
+            elif raw == "/renderizar" or raw.startswith("/renderizar "):
+                _slash_renderizar(raw[len("/renderizar "):] if raw.startswith("/renderizar ") else "")
             elif raw == "/pegado" or raw.startswith("/pegado "):
                 _slash_pegado(raw[len("/pegado "):] if raw.startswith("/pegado ") else "")
             elif raw == "/enlaces" or raw.startswith("/enlaces "):
@@ -27176,6 +27313,48 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
                     allowed_tools: set = None, delegation_depth: int = 0,
                     applied_skill: str = "", skills: dict = None,
                     proactividad: bool = True) -> str:
+    """Envoltorio del agente con SCRATCHPAD por tarea (2026-09-02): la tarea
+    de nivel superior abre `<workspace>/.cognia_scratch/<id>/` (los
+    sub-agentes comparten el del padre) y al terminar —bien, mal o por
+    Ctrl-C— se borra, salvo /scratchpad conservar on. El cuerpo es
+    _run_agent_task_cuerpo, sin cambios de firma."""
+    import threading as _th
+    from cognia.agent import scratchpad as _spad
+    hilo = _th.get_ident()
+    abierto = ""
+    if delegation_depth == 0 and not _SCRATCH_POR_HILO.get(hilo):
+        try:
+            if _spad.activo():
+                abierto = str(_spad.abrir())
+                _SCRATCH_POR_HILO[hilo] = abierto
+        except Exception as exc:
+            _aviso_degradado("scratchpad", f"no se pudo abrir: {type(exc).__name__}: {exc}")
+            abierto = ""
+    try:
+        return _run_agent_task_cuerpo(
+            ai, task, _print_fn, max_steps=max_steps, hint=hint,
+            guidance=guidance, allowed_tools=allowed_tools,
+            delegation_depth=delegation_depth, applied_skill=applied_skill,
+            skills=skills, proactividad=proactividad)
+    finally:
+        if abierto:
+            _SCRATCH_POR_HILO.pop(hilo, None)
+            try:
+                borrado = _spad.cerrar(abierto)
+                u = _spad.ultimo()
+                if not borrado and u.get("error"):
+                    _aviso_degradado("scratchpad", f"no se pudo borrar {abierto}: {u['error']}")
+                elif _spad.conservar():
+                    _print_fn(f"[detail]scratchpad conservado: {abierto}[/detail]")
+            except Exception as exc:
+                _aviso_degradado("scratchpad", f"cierre fallo: {type(exc).__name__}: {exc}")
+
+
+def _run_agent_task_cuerpo(ai, task: str, _print_fn, max_steps: int = None,
+                           hint: str = "", guidance: str = "",
+                           allowed_tools: set = None, delegation_depth: int = 0,
+                           applied_skill: str = "", skills: dict = None,
+                           proactividad: bool = True) -> str:
     """
     ReAct-style agent loop with a CONCRETE tool registry (cognia/agent/tools.py)
     and DYNAMIC step budgeting (cognia/agent/loop.py).
@@ -27383,7 +27562,9 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     _AGENT_STATE_PATH = Path.home() / ".cognia_agent_state.json"
     _agent_state: dict = {"tasks": [], "files_touched": [], "key_facts": []}
     try:
-        if _AGENT_STATE_PATH.exists():
+        # Sesion EFIMERA: ni se lee (el contexto previo de otras sesiones se
+        # colaba en las pruebas) ni se escribe (abajo) el estado del agente.
+        if _AGENT_STATE_PATH.exists() and not _es_efimero():
             import json as _json
             _agent_state = _json.loads(_AGENT_STATE_PATH.read_text(encoding="utf-8"))
     except Exception:
@@ -27429,13 +27610,30 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _matched = find_skill(task, skills=skills, semantic_fallback=False)
             if _matched:
                 _g_skill = skill_guidance(_matched)
+                # Regimen NATIVO: la traza 'ACCION: tool args' de la skill se
+                # vuelve descripcion (skills.neutralizar_acciones); si no, el
+                # modelo la imita como texto y cierra sin tool calls.
+                try:
+                    from cognia.agent.model_profiles import perfil_del_agente as _pda
+                    if (_pda() or {}).get("tools") == "nativo":
+                        from cognia.agent.skills import neutralizar_acciones
+                        _g_skill = neutralizar_acciones(_g_skill)
+                except Exception as _e_na:
+                    _aviso_degradado("skills", f"no neutralice la skill: {type(_e_na).__name__}: {_e_na}")
                 guidance = (guidance + "\n\n" + _g_skill) if guidance else _g_skill
                 _applied_skill = _matched.name
                 _print_fn(f"[detail]Aplicando skill '{_matched.name}'[/detail]")
         except Exception:
             pass
 
-    history, _con_indice = _history_inicial_agente(ai, task, _prior_ctx,
+    _nota_scr = ""
+    if _scratch_actual():
+        try:
+            from cognia.agent import scratchpad as _spad_nota
+            _nota_scr = _spad_nota.nota_para_el_modelo(_scratch_actual()) + "\n\n"
+        except Exception as _e_scr:
+            _aviso_degradado("scratchpad", f"nota no compuesta: {type(_e_scr).__name__}: {_e_scr}")
+    history, _con_indice = _history_inicial_agente(ai, task, _nota_scr + (_prior_ctx or ""),
                                                    delegation_depth)
     # Con el indice inyectado, skill_leer tiene que estar ANUNCIADA (no es
     # CORE: fuera de aqui seria una tool mas contra el techo del modelo chico).
@@ -27486,6 +27684,10 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         # runner recursivo se inyecta aca (evita el import circular tools<->cli).
         "_allowed_tools": allowed_tools,
         "_delegation_depth": delegation_depth,
+        # Pasos ilimitados (/pasos) y scratchpad de la tarea (/scratchpad):
+        # los lee agent/loop.py y la tool renderizar.
+        "_pasos_ilimitados": _pasos_ilimitados(),
+        "_scratchpad": _scratch_actual(),
         "_run_agent": (lambda subtask, allowed_tools=None, max_steps=None,
                        delegation_depth=0: _run_agent_task(
                            ai, subtask, _print_fn, max_steps=max_steps,
@@ -27634,7 +27836,8 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
     if not max_steps and os.environ.get("COGNIA_PARED_S"):
         budget = _techo_tarea
     _print_fn(f"[detail]Presupuesto de pasos: {budget} (techo {_techo_tarea})"
-               f"[/detail]")
+               + (" · pasos ILIMITADOS: el techo no corta" if _pasos_ilimitados() else "")
+               + "[/detail]")
     try:
         from cognia.harness import telemetria as _tel_cli
         if _tel_cli.activa():
@@ -27861,7 +28064,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             _aviso_degradado("cli.agente.bucle_nativo",
                              f"{type(_e_nat).__name__}: {_e_nat}")
 
-    while not _bon_ok and total_steps < AGENT_HARD_CAP:
+    while not _bon_ok and (_pasos_ilimitados() or total_steps < AGENT_HARD_CAP):
         # Corte pedido por el usuario (Ctrl-C en el prompt de espera o en la
         # vista). Este bucle no tenia NINGUN hook de cancelacion: sin esto,
         # Ctrl-C sobre un /hacer en segundo plano no cortaba nada y el usuario
@@ -27889,7 +28092,7 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
         # pasos que quedan -> sub-presupuesto de delegar_subtarea
         ctx["_steps_remaining"] = max(0, budget - total_steps)
         # Out of budget: ask the model if it actually needs more steps.
-        if total_steps >= budget:
+        if total_steps >= budget and not _pasos_ilimitados():
             extra = wants_more_steps(task, "\n".join(history[-3:]), orch,
                                      inferir=_inferir_para_agente)
             if extra <= 0:
@@ -28473,10 +28676,11 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             **({"task_id": _hz_task_id} if _hz_task_id else {}),
         })
         _agent_state["tasks"] = _agent_state["tasks"][-5:]
-        _AGENT_STATE_PATH.write_text(
-            _json_save.dumps(_agent_state, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        if not _es_efimero():
+            _AGENT_STATE_PATH.write_text(
+                _json_save.dumps(_agent_state, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
     except Exception:
         pass
 
@@ -28525,6 +28729,12 @@ def _run_agent_task(ai, task: str, _print_fn, max_steps: int = None,
             pass    # la proactividad nunca puede romper la respuesta real
 
     return result_text or "(el agente no produjo una respuesta final)"
+
+
+# El envoltorio del scratchpad es transparente para inspect.getsource (los
+# tests del cableado del agente leen el CUERPO por el nombre publico): con
+# __wrapped__, inspect.unwrap lleva al cuerpo, como hace functools.wraps.
+_run_agent_task.__wrapped__ = _run_agent_task_cuerpo
 
 
 if __name__ == "__main__":

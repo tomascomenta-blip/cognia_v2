@@ -1934,6 +1934,39 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # que devolviera una vuelta por vuelta dejaria el bucle girando para
     # siempre. x3 es holgado para lo administrativo y sigue siendo finito.
     _techo_bruto = max_turns if _pres is None else max_turns * 3
+    # PASOS ILIMITADOS (2026-09-02, pedido del dueno: "que pueda tener los
+    # pasos que quiera aunque salgan de su presupuesto, y que se detenga
+    # unicamente cuando el modelo piense que su trabajo esta bien"). Con
+    # ctx['_pasos_ilimitados'] (config 'pasos_ilimitados', /pasos) el bucle
+    # NO cierra por techo, presupuesto, gobernador de progreso, guardia de
+    # bucle ni racha de fallos: esas guardas siguen AVISANDO al modelo (el
+    # nudge es informacion util) pero no matan la tarea. Cierra el modelo
+    # (respuesta sin tool calls), el dueno (Ctrl-C), el reloj de pared si
+    # alguien lo puso (COGNIA_PARED_S) o el backend caido.
+    _ilimitado = bool(ctx.get("_pasos_ilimitados")) if isinstance(ctx, dict) else False
+    if _ilimitado:
+        _techo_bruto = 10 ** 9
+    # LA VALVULA DEL CICLO DEGENERADO (medido 2026-09-02 con el 9B y --pasos
+    # 2: 60 apendices seguidos sobre c.txt, el mismo patron A-B-C repetido
+    # durante 10 minutos con el aviso del guardia ignorado cada vez). Un
+    # modelo asi no esta "pensando que su trabajo esta bien": esta girando.
+    # Con pasos ilimitados se toleran los bloqueos del guardia y las rachas
+    # de fallos, pero SEGUIDOS y sin cambiar nada, hasta este tope; despues
+    # se cierra con motivo claro. Un paso sin bloqueo resetea la cuenta.
+    _TOPE_BLOQUEOS_SEGUIDOS = 6
+    _TOPE_REAVISOS_RACHA = 3
+    _bloqueos_seguidos = [0]
+    _reavisos_racha = [0]
+
+    def _ampliar_ilimitado() -> bool:
+        """Con pasos ilimitados el techo se corre solo: True si ya hay vuelta."""
+        if not _ilimitado or _pres is None:
+            return False
+        try:
+            _pres.ampliar(max(4, max_turns // 2), "pasos_ilimitados")
+        except Exception:
+            return False
+        return _pres.consume()
     # Estado ADVERTIDO del gobernador de progreso: 0 = nunca avisado,
     # 1 = avisado y en ventana de gracia, 2 = ventana consumida (el proximo
     # veredicto de estancamiento ya cierra).
@@ -1945,6 +1978,18 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     # Ver la ESPIRAL DE DEPURACION en el hook del lazo corto.
     _sueltos = []
     _aviso_sueltos = {"dado": False}
+
+    def _en_scratch(ruta) -> bool:
+        """Un fichero de prueba en el scratchpad NO es 'suelto': ahi es donde
+        el arnes le pide al modelo que pruebe (agent/scratchpad.py)."""
+        _scr = ctx.get("_scratchpad") if isinstance(ctx, dict) else None
+        if not _scr:
+            return False
+        try:
+            from cognia.agent import scratchpad as _spad
+            return _spad.es_del_scratch(ruta, _scr)
+        except Exception:
+            return False
     # Racha de tools fallidas: el primer aviso y desde que paso del trace se dio.
     _aviso_racha = {"dado": False, "desde": 0}
     while pasos < _techo_bruto:
@@ -2044,7 +2089,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                                     paso=pasos, ventana=_ventana_prog)
                     _prog_pausado = _prog
                     _prog = None      # el gobernador calla DURANTE la ventana
-                elif ((_pared_restante(t0) is None
+                elif _ilimitado or ((_pared_restante(t0) is None
                        or _pared_restante(t0) > 0.25 * (_pared_total() or 0))
                       and _advertido_prog < 4):
                     # Sin reloj externo (REPL, `cognia hacer` a secas) el
@@ -2072,8 +2117,9 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                                      "content": _v.get("sugerencia") or ""})
                     print_fn(f"[warn_cl]sin progreso verificado "
                              f"({_v.get('motivo')}), aviso {_advertido_prog}: "
-                             f"queda reloj, sigo {_ventana_prog} pasos mas"
-                             f"[/warn_cl]")
+                             + ("pasos ilimitados, sigo" if _ilimitado else
+                                f"queda reloj, sigo {_ventana_prog} pasos mas")
+                             + "[/warn_cl]")
                     if _tel.activa():
                         _tel.evento("advertencia_progreso", motivo=str(_v.get("motivo")),
                                     paso=pasos, ventana=_ventana_prog,
@@ -2094,7 +2140,7 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             _prog = _prog_pausado
             _prog_pausado = None
             _advertido_prog = 2
-        if _pres is not None and not _pres.consume():
+        if _pres is not None and not _pres.consume() and not _ampliar_ilimitado():
             # AMPLIACION GANADA CON EVIDENCIA (2026-08-30). El presupuesto de
             # pasos es un PRIOR sacado del texto de la tarea, y el texto no
             # sabe cuanto trabajo hay: "arregla el juego" son 267 caracteres,
@@ -2984,7 +3030,21 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 # El guardia anade ping-pong A-B-A-B y ciclos A-B-C-A-B-C, que
                 # es como se ve de verdad un agente atascado con dos ficheros.
                 _vg = _guardia.registrar(tc.nombre, args_str)
-                if _vg.get("estado") == "bloqueo":
+                if _vg.get("estado") == "bloqueo" and _ilimitado and \
+                        _bloqueos_seguidos[0] + 1 < _TOPE_BLOQUEOS_SEGUIDOS:
+                    # pasos ilimitados: el patron se le dice al modelo y se
+                    # sigue; cerrar por bucle seria decidir por el.
+                    _bloqueos_seguidos[0] += 1
+                    _aviso_guardia = (_vg.get("mensaje") or "bucle detectado") + \
+                        " Cambia de enfoque: no repitas la misma accion."
+                    print_fn(f"[warn_cl]bucle detectado ({_vg.get('patron', 'repeticion')}): "
+                             f"aviso al modelo {_bloqueos_seguidos[0]}/{_TOPE_BLOQUEOS_SEGUIDOS}, "
+                             f"sigo (pasos ilimitados)[/warn_cl]")
+                elif _vg.get("estado") == "bloqueo":
+                    if _ilimitado:
+                        print_fn(f"[warn_cl]ciclo degenerado: {_TOPE_BLOQUEOS_SEGUIDOS} bloqueos "
+                                 f"seguidos del guardia ignorados; cierro (pasos ilimitados "
+                                 f"no es girar en vacio)[/warn_cl]")
                     print_fn(f"[warn_cl]{_vg.get('mensaje') or 'bucle detectado'}"
                              f"[/warn_cl]")
                     _salida.sellar(RAZON_BUCLE_DETECTADO, _vg.get("patron", ""))
@@ -2995,6 +3055,8 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     break
                 if _vg.get("estado") == "aviso":
                     _aviso_guardia = _vg.get("mensaje") or ""
+                if _vg.get("estado") != "bloqueo":
+                    _bloqueos_seguidos[0] = 0      # un paso sano resetea la valvula
             # EL CORTE TONTO, ACOTADO (2026-08-26). register_action cuenta el
             # par (tool, args) en TODA la tarea: sin ventana, sin caducidad y
             # sin mirar las EXENTAS. A la 3ra vez mata el turno. En una tarea
@@ -3022,7 +3084,13 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                 verdict = "ok"
             else:
                 verdict = register_action(sig_counts, tc.nombre, args_str)
-            if verdict == "stop":
+            if verdict == "stop" and _ilimitado:
+                _aviso_guardia = (f"Repetiste '{tc.nombre}' con los mismos argumentos "
+                                  "tres veces. No lo repitas: lee el resultado y "
+                                  "cambia de enfoque.")
+                print_fn(f"[warn_cl]tool repetida 3 veces ({tc.nombre}): aviso al "
+                         f"modelo, sigo (pasos ilimitados)[/warn_cl]")
+            elif verdict == "stop":
                 # Estancamiento (3ra vez el MISMO par tool+args): cierre
                 # honesto con lo que hay, sin quemar mas presupuesto.
                 print_fn("[warn_cl]Agente estancado (tool repetida 3 veces): "
@@ -3066,7 +3134,8 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             # ficheros de usar-y-tirar por su NOMBRE y al tercero se avisa
             # UNA vez: mira el error en el producto, no en otro script mas.
             if (tc.nombre == "escribir_archivo" and not _aviso_sueltos["dado"]
-                    and _es_fichero_suelto(_ruta_escrita(args_str))):
+                    and _es_fichero_suelto(_ruta_escrita(args_str))
+                    and not _en_scratch(_ruta_escrita(args_str))):
                 _sueltos.append(_ruta_escrita(args_str))
                 if len(_sueltos) >= 3:
                     _aviso_sueltos["dado"] = True
@@ -3358,6 +3427,21 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                          f"aviso al modelo, sigo[/warn_cl]")
                 if _tel.activa():
                     _tel.evento("aviso_racha", paso=pasos, racha=_racha)
+            elif _ilimitado and _reavisos_racha[0] < _TOPE_REAVISOS_RACHA and \
+                    len(trace) - _aviso_racha["desde"] >= _racha and \
+                    not any(a["ok"] for a in trace[-(_racha * 2):]):
+                # pasos ilimitados: se repite el ALTO con los errores nuevos
+                # y se sigue; el modelo decide cuando esta bien. Tras
+                # _TOPE_REAVISOS_RACHA re-avisos ignorados cae a la rama de
+                # abajo, que cierra: eso ya no es trabajar, es girar.
+                _reavisos_racha[0] += 1
+                _aviso_racha["desde"] = len(trace)
+                mensajes.append({"role": "user", "content": (
+                    "ALTO otra vez: %d herramientas seguidas fallaron:\n%s\n\n"
+                    "Para y piensa que esta fallando de verdad antes de la "
+                    "siguiente accion." % (_racha * 2, _ultimos_err))})
+                print_fn(f"[warn_cl]{_racha * 2} herramientas seguidas fallaron: "
+                         f"aviso al modelo, sigo (pasos ilimitados)[/warn_cl]")
             elif len(trace) - _aviso_racha["desde"] >= _racha and \
                     not any(a["ok"] for a in trace[-(_racha * 2):]):
                 # Sin aviso aparte: el hecho va UNA vez, en el footer del
@@ -3593,6 +3677,16 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         try:
             from cognia.harness import entrega as _entr
             _escritos = _muta.ficheros_escritos()
+            # Lo escrito en el SCRATCHPAD es temporal (se borra al cerrar):
+            # no es entrega ni puede salir como "no existe en disco".
+            _scr = ctx.get("_scratchpad") if isinstance(ctx, dict) else None
+            if _scr:
+                try:
+                    from cognia.agent import scratchpad as _spad
+                    _escritos = [f for f in _escritos
+                                 if not _spad.es_del_scratch(f, _scr)]
+                except Exception:
+                    pass
             if _escritos or not ok:
                 result_text = _entr.anexar(result_text, _escritos,
                                            _muta.rutas_fallidas())

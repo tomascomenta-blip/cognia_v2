@@ -57,7 +57,10 @@ def test_core_es_chico():
     # el default tiene que quedarse en ~12 tools, no volver a crecer en
     # silencio. Si esto falla, alguien agrego una tool al CORE: que lo mida.
     from cognia.agent.tools import CORE_TOOLS
-    assert len(CORE_TOOLS) <= 14
+    # 15 desde 2026-09-02: entra `renderizar` (captura AISLADA de lo que el
+    # agente escribe, pedido del dueno). Medido con el gate del camino feliz
+    # (5/5) al anadirla; si vuelve a subir, que se mida otra vez.
+    assert len(CORE_TOOLS) <= 15
 
 
 def test_optin_activo_entra_al_catalogo_sencillo(monkeypatch):

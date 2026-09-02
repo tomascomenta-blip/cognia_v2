@@ -390,6 +390,25 @@ def find_skill(text: str, skills: dict = None, min_overlap: int = 2,
     return _semantic_best_match(text, usable, SEMANTIC_MATCH_THRESHOLD)
 
 
+_RE_ACCION = re.compile(r"^(\s*(?:\d+[.)]\s*)?)ACCION:\s*([A-Za-z_][\w-]*)\s*(.*)$", re.M)
+
+
+def neutralizar_acciones(texto: str) -> str:
+    """Las skills capturadas de corridas viejas son trazas del protocolo de
+    TEXTO ('8. ACCION: leer_archivo kanban.js'). Inyectadas como guia a un
+    modelo en regimen NATIVO (tool-calling del servidor), el modelo imita el
+    literal y escribe 'ACCION: escribir_archivo ...' como prosa: el bucle no
+    ve tool calls y cierra en un paso (cazado 2026-09-02 tecleando en el
+    REPL, dos veces en cuatro tareas). Aqui la traza se vuelve descripcion:
+    'usar la tool leer_archivo con: kanban.js'. El contenido no se pierde;
+    el formato que envenena, si."""
+    if not texto or "ACCION:" not in texto:
+        return texto or ""
+    return _RE_ACCION.sub(lambda m: f"{m.group(1)}usar la tool {m.group(2)}"
+                          + (f" con: {m.group(3)}" if m.group(3).strip() else ""),
+                          texto)
+
+
 def skill_guidance(skill: SkillSpec, max_chars: int = 2000) -> str:
     """El bloque de la skill candidata que se inyecta al agente. Se presenta
     como REFERENCIA a verificar, no como orden ("Segui estas instrucciones"

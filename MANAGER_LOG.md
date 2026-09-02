@@ -15549,3 +15549,124 @@ del bucle lo dice y el footer sale ✗ con `objetivo 0/1`. Es del modelo/servido
 también con 4.23.0 instalada: el agente recordaba tareas de sesiones "efímeras" previas
 por el estado del agente y la memoria de conversación, que `COGNIA_EFIMERO=1` no cubre).
 Queda anotado; no es parte de esta entrega.
+
+
+## 2026-09-02 (tarde) — 4.25.0: pasos ilimitados, `renderizar` aislado y scratchpad por tarea
+
+Pedido del dueño: (1) quitar el límite de pasos del CLI, "que se detenga únicamente cuando el
+modelo realmente piense que su trabajo está bien"; (2) una tool que interprete HTML y otras
+tecnologías y tome capturas aisladas sin molestar lo que él esté haciendo (Playwright a veces
+no funciona); (3) scratchpads: ficheros temporales que se borran al terminar, donde van los
+tests.
+
+### Qué se entregó (tres puertas, config persistida, on/off, degradación con aviso)
+
+- `/pasos [estado|ilimitados|limitados]` — config `pasos_ilimitados` (default on), env
+  `COGNIA_PASOS_ILIMITADOS`. En `agent/loop.py` el flag `ctx['_pasos_ilimitados']` quita el
+  techo bruto, amplía el presupuesto solo, y vuelve AVISO (nudge al modelo) lo que antes era
+  corte: gobernador de progreso, guardia de bucle, tool repetida 3 veces, racha de fallos.
+  El bucle legacy de cli.py también deja de contar contra AGENT_HARD_CAP.
+- `renderizar <ruta|URL> [| ancho= | alto= | espera= | salida=]` (tool CORE, `agent/renderizador.py`)
+  y `/renderizar` para teclearla; config `renderizador_backend` (auto|playwright|edge|chrome).
+  Playwright headless → Edge/Chrome headless por CLI (`--headless=new --screenshot`,
+  `--enable-logging=stderr` para la consola, `--dump-dom` para el texto). Sin ventana, perfil
+  temporal propio, nunca roba el foco.
+- `/scratchpad [estado|on|off|conservar on|off|ver]` (`agent/scratchpad.py`): `_run_agent_task`
+  es ahora un envoltorio que abre `<workspace>/.cognia_scratch/<id>/` (dentro del workspace por
+  el gate de escritura), lo anuncia en el primer user y lo borra en `finally`. Lo escrito ahí no
+  entra en la ENTREGA ni cuenta como "fichero suelto"; `renderizar` deja ahí las capturas.
+
+### Lo que la prueba real destapó (y se arregló)
+
+1. **Ciclo degenerado con pasos ilimitados.** Con el 9B y `cognia hacer --pasos 2` sobre una
+   tarea secuencial, el modelo hizo 60 apéndices seguidos sobre `c.txt` (patrón `ciclo_3`
+   repetido decenas de veces) durante 10 minutos, con el aviso del guardia ignorado cada vez.
+   Válvula: seis bloqueos SEGUIDOS del guardia ignorados, o tres re-avisos de racha de fallos,
+   cierran con motivo "ciclo degenerado"; un paso sano resetea la cuenta. El presupuesto y el
+   gobernador siguen sin cortar.
+2. **Las skills auto-capturadas envenenan el régimen nativo.** Son trazas `N. ACCION: tool args`
+   (42-47 líneas por skill en `cognia_skills/construye-*.md`); inyectadas como guía, el modelo
+   escribía `ACCION: escribir_archivo index.html | …` como PROSA y el bucle cerraba "sin usar
+   herramientas" (2 de 4 tareas tecleadas). `skills.neutralizar_acciones` las vuelve
+   descripción cuando el perfil es nativo.
+3. **`COGNIA_EFIMERO=1` no cubría `~/.cognia_agent_state.json`**: las tareas de prueba se colaban
+   como contexto previo de la siguiente. Ya ni se lee ni se escribe en sesión efímera.
+4. `listar` serializa sus args siempre como `.`: para el guardia, 30 `listar` distintos son la
+   misma llamada. Anotado en el test; no se tocó la tool.
+
+### Salida real (tecleado en el REPL, Qwythos-9B en :8080, `PYTHONPATH` al repo)
+
+`/hacer crea tarjeta.html … comprueba con renderizar … escribe en el scratchpad un test en python … y ejecutalo`
+(23 pasos, el modelo usó `renderizar` solo, escribió el test en `.cognia_scratch/<id>/`, lo
+corrió con pytest y al cerrar solo quedó `tarjeta.html` en disco):
+
+```
+● escribir_archivo(tarjeta.html)
+  ⎿ 120 chars escritos
+● renderizar("tarjeta.html ancho=1100 alto=72…60902-111145-8f5eaf/tarjeta.png")
+  ⎿ no existe: tarjeta.html ancho=1100 al…ch/20260902-111145-8f5eaf/tarjeta.png
+  ⎿ 1 entrada
+● renderizar("tarjeta.html ancho=1100 alto=72…60902-111145-8f5eaf/tarjeta.png")
+  ⎿ no existe: tarjeta.html ancho=1100 al…ch/20260902-111145-8f5eaf/tarjeta.png
+  ⎿ 9 lineas
+  ⎿ … +6 lineas (/expandir 5)
+● ejecutar(cd .)
+  ⎿ (sin output)
+● renderizar("tarjeta.html ancho=1100 alto=72…60902-111145-8f5eaf/tarjeta.png")
+  ⎿ no existe: tarjeta.html ancho=1100 al…ch/20260902-111145-8f5eaf/tarjeta.png
+  ⎿ 1 entrada
+  …
+  ENTREGA — lo que quedo en disco: OK  tarjeta.html — 120 bytes · estructura
+  completa (cierres y balanceo)
+
+  Salida de la ejecución: .
+  [100%] 1 passed in 0.00s
+
+  ✓ 101.8s · 4701 tokens · 23 pasos · objetivo 1/1
+cognia> scratchpad: ON · conservar al cerrar: no · carpeta:
+<workspace>/.cognia_scratch/<id>/
+ultimo:
+C:\Users\usuario\AppData\Local\Temp\claude\C--Users-usuario-Desktop\87ae9f1d-64
+56-4088-aad7-67d9cabced44\scratchpad\ws11\.cognia_scratch\20260902-111145-8f5ea
+f · borrado · 7 fichero(s)
+/scratchpad on|off · conservar on|off · ver
+cognia> renderizar: backend auto · playwright: si · sistema: edge (C:\Program Files
+(x86)\Microsoft\Edge\Application\msedge.exe)
+/renderizar <ruta o URL> [| ancho=N | alto=N | espera=MS | salida=X.png] ·
+backend auto|playwright|edge|chrome
+cognia> pasos: ILIMITADOS · el agente cierra cuando el modelo da la tarea por terminada
+(o Ctrl-C)
+/pasos ilimitados | limitados
+cognia> Hasta luego.
+```
+
+Contrafactual de pasos ilimitados (`cognia hacer --pasos 2 --json` con una tarea de cuatro
+pasos secuenciales): con `COGNIA_PASOS_ILIMITADOS=0` cerró en 44.4 s con
+`(presupuesto de 12 pasos agotado sin cierre) RESULTADO leer_archivo c.…` (ok=False); con ilimitados (default) cerró en
+95.2 s, ok=True, a.txt/b.txt/c.txt en disco, y la traza dice
+`Presupuesto de pasos: 2 (techo 40) · pasos ILIMITADOS: el techo no corta`.
+
+`renderizar` en crudo sobre una página con `console.error` + `undefinedFn()`: Playwright 1,9 s
+(2 errores de JS, título, canvas 200x100 con 2 colores, texto visible), Edge headless 0,6 s
+(1 error `Uncaught ReferenceError`, título y texto por `--dump-dom`).
+
+### Verificación
+
+- `tests/test_pasos_ilimitados_scratch_render.py`: 19 tests (bucle con/sin flag, válvula,
+  scratchpad abrir/cerrar/conservar/nunca fuera de su carpeta, entrega sin lo temporal,
+  renderizar con Playwright y con Edge, fuentes envueltas, error accionable, catálogo y
+  puertas, neutralización de ACCION).
+- Dirigidos del área: 308 passed (queda `test_deepagents_bucle::test_p1…`, que falla igual
+  con `git stash`).
+- Gate del camino feliz: 4/5 (flaky conocido: la tarea `escribir` repetida 3/3 escribe
+  `nota.txt` donde debe) y después **5/5 en 1,5 min**.
+- Suite completa (14.937 tests, backend :8080 vivo): corrió hasta el 98 % (14.647 tests) y se
+  bloqueó en `test_wiring_huerfanos_cognia.py`; los 16 ficheros restantes pasaron aparte (1 fallo
+  previo: `test_wp2_tools::test_borrar_archivo_fuera_rechazado`). Del tramo corrido, 86 F mapeadas
+  por orden de coleccion a 39 ficheros; re-corridos: 23 fallos, de los que 13 eran NUEVOS y mios,
+  arreglados (4 `test_agent_step_budget` + 4 `test_cierre_ejecucion` + 1 flujoteca leian el fuente
+  de `_run_agent_task` y veian el envoltorio del scratchpad -> `__wrapped__` al cuerpo; 4
+  `test_catalogo_nodos`: `renderizar` sin cajon en la paleta -> categoria "web"). Los otros 10 estan
+  en la lista de 62 fallos previos de la corrida de 4.24. El fichero que se bloqueo tarda 25 s con el
+  backend muerto y >540 s tambien con `git stash` y backend recien reiniciado: es el sueno de
+  `Cognia()` (research/hobby con el 9B), no esta tanda. Dirigidos tras los arreglos: 171 passed.

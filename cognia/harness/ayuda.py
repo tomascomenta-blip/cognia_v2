@@ -342,6 +342,12 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         # compuerta que CORRE lo construido antes de entregarlo. Va con
         # /bucle y /offload, que son sus hermanos (higiene del lazo).
         "/revision",
+        # 2026-09-02: /pasos (techo de pasos del bucle), /scratchpad (carpeta
+        # temporal de pruebas) y /renderizar (captura aislada) son mandos del
+        # ARNES por el mismo criterio que /bucle y /revision: gobiernan COMO
+        # trabaja el agente, no QUE hace. Sin esta linea /pasos caia en
+        # "Agente y tareas" (26 > 25) y /scratchpad en "Otros".
+        "/pasos", "/scratchpad", "/renderizar",
         # /deshacer-borrado (papelera del agente, 2026-08-25) va JUNTO a
         # /deshacer, que es su hermano: uno revierte lo que el agente
         # ESCRIBIO y el otro saca de la papelera lo que BORRO. Sin esta

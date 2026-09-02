@@ -2,6 +2,48 @@
 
 ---
 
+## [4.25.0] - 2026-09-02
+
+### Pasos ilimitados, captura aislada y scratchpad por tarea
+
+Tres pedidos del dueño, entregados como puertas del CLI (`/pasos`, `/renderizar`,
+`/scratchpad`), con config persistida, on/off y aviso de degradación.
+
+**Pasos ilimitados (default ON).** El agente ya no cierra por presupuesto de pasos, techo
+de tarea ni gobernador de progreso: para cuando el modelo responde sin tool calls (da su
+trabajo por terminado), cuando el dueño corta con Ctrl-C o cuando alguien puso un reloj de
+pared (`COGNIA_PARED_S`). Las guardas siguen AVISANDO al modelo (bucle, racha de fallos,
+meseta) pero no matan la tarea. Una sola válvula queda, y está medida: con el 9B y
+`--pasos 2` el modelo hizo 60 apéndices seguidos sobre `c.txt` durante 10 minutos con el aviso
+del guardia ignorado cada vez. Seis bloqueos SEGUIDOS ignorados, o tres re-avisos de racha
+de fallos, cierran con motivo claro ("ciclo degenerado"): eso no es "el modelo cree que
+terminó", es girar. `/pasos limitados` vuelve al presupuesto de antes;
+`COGNIA_PASOS_ILIMITADOS=0` también.
+
+**`renderizar` (tool nueva, en el catálogo core).** Abre HTML/SVG/Markdown/JS/CSS/imágenes/
+URLs en un navegador AISLADO —sin ventana, sin robar el foco, sin tocar la sesión del dueño—
+y devuelve la captura PNG, los errores de consola/JS y un resumen de lo visible (título,
+texto, canvas). Playwright primero; si no está o falla, Edge/Chrome del sistema en modo
+headless por línea de comandos (el log del navegador da los errores; `--dump-dom` el texto).
+Medido: Playwright 1,9 s, Edge 0,6 s; ambos reportan el `Uncaught ReferenceError` de la
+página de prueba. `/renderizar <ruta>` la teclea a mano; `/renderizar backend edge` la fija.
+
+**Scratchpad por tarea (default ON).** Cada `/hacer` abre `<workspace>/.cognia_scratch/<id>/`
+y se lo dice al modelo en el primer turno: ahí van los tests de usar-y-tirar, scripts de
+prueba y capturas; se BORRA al terminar la tarea (también si falla o se corta). Lo escrito
+ahí no cuenta como ENTREGA ni como "fichero suelto". `/scratchpad conservar on` lo deja para
+inspeccionar; `/scratchpad ver` lo lista. Verificado tecleando: el modelo escribió su test en
+el scratchpad, lo corrió con `node`/`pytest`, y al cerrar solo quedó `tarjeta.html` en disco.
+
+**Dos defectos de paso.** (1) Las skills auto-capturadas son trazas del protocolo de texto
+(`8. ACCION: leer_archivo kanban.js`); inyectadas como guía al modelo en régimen nativo, lo
+imitaba como prosa y el bucle cerraba "sin usar herramientas" (dos de cuatro tareas tecleadas).
+Ahora se vuelven descripción (`usar la tool leer_archivo con: kanban.js`). (2) `COGNIA_EFIMERO=1`
+no cubría el estado del agente (`~/.cognia_agent_state.json`): las pruebas se colaban como
+contexto previo de la tarea siguiente. Ya ni se lee ni se escribe en sesión efímera.
+
+---
+
 ## [4.24.0] - 2026-09-02
 
 ### Las tareas se ven como el chat: prosa entera, tokens en vivo, sin ruido

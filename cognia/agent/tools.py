@@ -104,6 +104,11 @@ CORE_TOOLS = frozenset({
     "leer_archivo", "escribir_archivo", "editar_archivo", "apendar_archivo",
     "borrar_archivo", "listar", "buscar", "ejecutar", "ejecutar_fondo", "tests",
     "generar_codigo", "delegar_subtarea", "recordar", "calcular",
+    # renderizar (2026-09-02, pedido del dueno): captura AISLADA de lo que el
+    # agente escribe (HTML/SVG/MD/JS/CSS/URL) sin abrir ventana. Entra al core
+    # porque hoy es IMPOSIBLE, no incomodo: pantalla_captura es opt-in y
+    # fotografia la sesion del dueno, no la pagina del agente.
+    "renderizar",
 })
 
 
@@ -4123,6 +4128,16 @@ if os.environ.get("COGNIA_BROWSER") == "1":
         # Flag puesto por el dueno: el silencio seria capacidad desconectada.
         print(f"[cognia] COGNIA_BROWSER=1 pero browser_tool no cargo: {_exc}",
               file=sys.stderr)
+
+
+# ── Renderizador aislado (2026-09-02): siempre registrado ────────────────
+# Playwright y, si falla, Edge/Chrome headless por CLI. Sin ventana ni foco.
+try:
+    from cognia.agent import renderizador as _renderizador
+    _renderizador.register(tool)
+except Exception as _exc_rz:
+    # Sin la tool el agente no puede COMPROBAR lo que dibuja: que se vea.
+    print(f"[cognia] renderizador no cargo: {_exc_rz}", file=sys.stderr)
 
 
 # ── Ingenieria inversa de repos (opt-in COGNIA_REPO_REVERSE=1) ──────────

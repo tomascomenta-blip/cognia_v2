@@ -127,12 +127,13 @@ NUCLEO: frozenset = frozenset({
     "/recordatorios", "/remoto", "/resume", "/resumen-sesion", "/resumir", "/rutinas", "/salir",
     "/sesiones", "/skill", "/skills", "/tarea-borrar", "/tarea-crear", "/tarea-lista",
     "/tarea-ok", "/tareas", "/tema", "/tutor", "/update", "/ver", "/web-buscar", "/web-fetch",
-    "/yo",
+    "/yo", "/pasos", "/scratchpad",
 })
 
 #: Util de verdad, pero de nicho: perfiles de maquina, planes y metas, grafo,
 #: aprendizaje, arnes de consola, cifrado, reportes. Lo revela `/avanzado`.
 AVANZADO: frozenset = frozenset({
+    "/renderizar",
     "/compilar",
     "/activar", "/agente estado", "/analiticas", "/aprende-repo", "/aprender", "/aprendiendo",
     "/aprendiendo-buscar", "/autoprueba", "/backup", "/bloquear", "/buscar-memoria",

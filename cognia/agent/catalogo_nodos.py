@@ -216,7 +216,9 @@ CATEGORIAS: tuple = (
 
     {"id": "web", "nombre": "Web e investigacion",
      "color": "#5699ff", "color_osc": "#7ab4ff", "icono": "globe",
-     "tools": ("http_get", "web_buscar", "web_abrir", "consultar_oraculo")},
+     "tools": ("http_get", "web_buscar", "web_abrir", "consultar_oraculo",
+               # renderizar (2026-09-02): captura aislada de HTML/URL, cabe con la web
+               "renderizar")},
 
     {"id": "memoria", "nombre": "Memoria y notas",
      "color": "#9b6dd5", "color_osc": "#b48ce4", "icono": "brain",
