@@ -263,8 +263,31 @@ def correr_tarea(tarea, dir_ronda, python_cli, cwd_cli=None, extra_env=None,
     return reg
 
 
+def otras_rondas_vivas():
+    """Runners o agentes `cognia hacer` ya corriendo en esta maquina (no este).
+
+    EL BANCO NO COMPARTE MAQUINA: una ronda que arranca encima de otra
+    contamina las dos (medido: la misma version paso de 0,544 a 0,418 solo por
+    compartir la GPU). Y paso dos veces hoy por cadenas de shell mal escritas.
+    Mejor que el runner se niegue a arrancar que confiar en el script de turno.
+    """
+    try:
+        pr = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | "
+             "Where-Object { $_.ProcessId -ne %d -and ($_.CommandLine -like '*banco_largo.runner*' "
+             "-or $_.CommandLine -like '*-m cognia hacer*') } | "
+             "ForEach-Object { $_.ProcessId }" % os.getpid()],
+            capture_output=True, text=True, timeout=30)
+        return [x.strip() for x in (pr.stdout or "").splitlines() if x.strip()]
+    except Exception:
+        return []
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="banco_largo.runner")
+    ap.add_argument("--forzar", action="store_true",
+                    help="arranca aunque haya otra ronda o un agente corriendo (contamina)")
     ap.add_argument("--ronda", required=True, help="nombre de la ronda (directorio de salida)")
     ap.add_argument("--python", default=PY_REPO, help="interprete con el cognia bajo prueba")
     ap.add_argument("--cwd-cli", default=None, help="cwd del proceso del CLI (para elegir repo o instalado)")
@@ -277,6 +300,14 @@ def main(argv=None):
                     help="relee el catalogo y corre las tareas nuevas hasta el deadline")
     ap.add_argument("--salida", default=str(RAIZ / "banco_largo" / "corridas"))
     args = ap.parse_args(argv)
+
+    vivas = otras_rondas_vivas()
+    if vivas and not args.forzar:
+        print("[banco] NO ARRANCO: ya hay %d proceso(s) de runner o de `cognia hacer` "
+              "corriendo (pids %s). Una ronda encima de otra contamina las dos. "
+              "Espera a que terminen o pasa --forzar." % (len(vivas), ", ".join(vivas[:6])),
+              flush=True)
+        return 3
 
     todas = _tareas_mod.cargar(estricto=False)
     ids = [x.strip() for x in args.tareas.split(",") if x.strip()]
