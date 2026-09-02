@@ -188,10 +188,20 @@ Lo que se aprendió y se cambió, en orden de impacto:
    reintentaban tres veces, y **escrituras enormes** que se cortan a media cadena: los
    tres tienen aviso al primer síntoma.
 
-ARK con 45 minutos y el código final: 0,77, contrato expuesto, crafteo y guardado
-funcionando, pero la simulación no avanzaba y se paró a los 15 minutos por el tope de
-pasos que fijaba el banco. Las dos causas están corregidas (el runner ya no pasa
-`--pasos` con reloj; la sonda del tick) y ARK se está repitiendo.
+**ARK, tres intentos con 45 minutos y el código final.** v1: 0,77, parado a los 15 min
+por el tope de 80 pasos del banco. v2 (sin `--pasos`): 0,53, parado a los 14 min por
+«techo 42» — la heurística de pasos volvió a mandar. v3 (con reloj, el presupuesto inicial
+es el techo de 120): **0,77 con 75 pasos y cierre natural a los 25 min**, contrato
+expuesto, ciclo día/noche, guardado y límites en verde; siguen fallando la recolección con
+pilas y peso, el crafteo a mano y la domesticación, y el canvas no anima aunque el lazo
+se lo dijo 29 veces con la sonda del tick. **ARK no está resuelto**: con este modelo local
+y 45 minutos, el harness llega a la mitad de los sistemas funcionando. Es el techo actual,
+medido, no una promesa.
+
+**4.23.0 publicada** (https://pypi.org/project/cognia-ai/4.23.0/) tras el gate del camino
+feliz **5/5**, instalada en un venv limpio (`site-packages`, no la copia local), con los
+módulos nuevos importables y una tarea real ejecutada desde el CLI instalado (crea
+`calc.py` + `test_calc.py` y corre pytest).
 
 ---
 
