@@ -163,12 +163,37 @@ def _t_mcp(args: str, ctx: dict) -> str:
         if not isinstance(argumentos, dict):
             return ("RESULTADO mcp ERROR: los argumentos tienen que ser un "
                     "objeto JSON, no " + type(argumentos).__name__)
+    # UN SERVIDOR QUE NO CONECTA NO SE REINTENTA (2026-09-01). Medido en la
+    # ronda de 20 min: el modelo llamo tres veces seguidas a un servidor MCP
+    # que no conectaba (para abrir su propia pagina), las tres fallaron con el
+    # mismo error y la racha de fallos cerro la tarea. Un fallo de CONEXION
+    # es del entorno, no de los argumentos: repetirlo no lo arregla. Se
+    # recuerda por proceso y las llamadas siguientes vuelven en el acto con
+    # la alternativa concreta.
+    if servidor in _CAIDOS:
+        return (f"RESULTADO mcp ERROR: el servidor '{servidor}' no esta disponible "
+                f"en esta tarea ({_CAIDOS[servidor][:120]}). No lo reintentes: usa "
+                "ejecutar / leer_archivo / escribir_archivo. Para abrir y comprobar "
+                "una pagina no hace falta: el arnes la abre en un navegador tras "
+                "cada escritura y te devuelve los errores.")
     try:
         cli = _conectar(servidor)
-        salida = cli.llamar(herramienta, argumentos)
     except KeyError as exc:
         return f"RESULTADO mcp ERROR: {exc}"
+    except Exception as exc:
+        _CAIDOS[servidor] = f"{type(exc).__name__}: {exc}"
+        return (f"RESULTADO mcp ERROR: no pude conectar con '{servidor}' "
+                f"({type(exc).__name__}: {exc}). Ese servidor queda descartado "
+                "para esta tarea: no lo reintentes, usa ejecutar / leer_archivo. "
+                "Para abrir y comprobar una pagina no hace falta: el arnes la "
+                "abre en un navegador tras cada escritura y te devuelve los errores.")
+    try:
+        salida = cli.llamar(herramienta, argumentos)
     except Exception as exc:
         return (f"RESULTADO mcp ERROR: '{herramienta}' en '{servidor}' fallo: "
                 f"{type(exc).__name__}: {exc}")
     return f"RESULTADO mcp {servidor}.{herramienta}: {salida}"
+
+
+# Servidores MCP que fallaron al conectar en este proceso: nombre -> motivo.
+_CAIDOS: dict = {}
