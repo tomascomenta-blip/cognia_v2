@@ -59,6 +59,19 @@ nunca mostró. Los scripts de usar-y-tirar se cuentan por su nombre y al tercero
 **Canvas quieto.** El lazo toma dos muestras del canvas y dice si «se mueve» o está
 «QUIETO (nada cambia)». Informa, no sentencia.
 
+**La racha de fallos avisa antes de cortar.** Tres herramientas fallidas seguidas es lo
+normal depurando; ese corte mató una CLI a los 252 s y un juego a los 410 s con tres
+cuartos del reloj sin usar. Ahora la primera racha manda los errores literales y exige
+cambiar de enfoque; solo la racha doble sin un éxito cierra (6, o 12 si son ejecuciones).
+
+**Con reloj, el techo de pasos sube a 120.** Una tarea agotó su techo de 40 a los 518 s
+con once minutos de reloj y avanzando. Con `COGNIA_PARED_S` los pasos no son el recurso
+escaso: manda el reloj.
+
+**Un servidor MCP que no conecta no se reintenta.** Tres llamadas seguidas a un servidor
+caído alimentaban la racha de fallos. El servidor queda descartado para la tarea y la
+respuesta trae la alternativa concreta.
+
 ---
 
 ## [4.22.0] - 2026-09-01
