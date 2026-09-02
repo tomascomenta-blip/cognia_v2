@@ -147,6 +147,16 @@ def preparar_fuente(fuente: str, tmpdir: Path) -> tuple:
                          "[| espera=MS] [| salida=captura.png]")
     if re.match(r"^https?://", f, re.I):
         return f, "url", ""
+    if re.match(r"^file:", f, re.I):
+        # El modelo escribe file:///C:/... con naturalidad (cazado 2026-09-02:
+        # "el sandbox no ve mis archivos" era esto). Se vuelve ruta local.
+        from urllib.parse import unquote, urlparse
+        u = urlparse(f)
+        f = unquote(u.path)
+        if re.match(r"^/[A-Za-z]:", f):
+            f = f[1:]
+        if u.netloc and not re.match(r"^[A-Za-z]:", f):
+            f = "//" + u.netloc + f
     p = Path(f)
     if not p.is_absolute():
         p = Path(os.getcwd()) / p
@@ -222,10 +232,24 @@ def _con_playwright(uri: str, png: Path, ancho: int, alto: int, espera_ms: int) 
                                       "--use-gl=swiftshader", "--no-sandbox"])
         try:
             pg = nav.new_page(viewport={"width": ancho, "height": alto})
-            pg.on("console", lambda m: (errores if m.type == "error" else avisos)
-                  .append(("consola: " if m.type == "error" else "aviso: ") + m.text[:220]))
+            def _consola(m):
+                try:
+                    url = (m.location or {}).get("url", "") if hasattr(m, "location") else ""
+                except Exception:
+                    url = ""
+                if "favicon" in (url or "").lower():
+                    return      # el 404 del favicon no es un error de la pagina
+                (errores if m.type == "error" else avisos).append(
+                    ("consola: " if m.type == "error" else "aviso: ") + m.text[:220]
+                    + (" [%s]" % url[-60:] if url and m.text.startswith("Failed to load") else ""))
+            pg.on("console", _consola)
             pg.on("pageerror", lambda e: errores.append("excepcion: " + str(e)[:300]))
-            pg.goto(uri, wait_until="load", timeout=TIMEOUT_NAV_S * 1000)
+            try:
+                pg.goto(uri, wait_until="load", timeout=TIMEOUT_NAV_S * 1000)
+            except Exception as exc:
+                if "ERR_CONNECTION" in str(exc) or "ERR_NAME" in str(exc):
+                    raise NoAlcanzable(uri, str(exc)[:160])
+                raise
             pg.wait_for_timeout(espera_ms)
             resumen = pg.evaluate(_JS_RESUMEN)
             pg.screenshot(path=str(png), full_page=False)
@@ -259,6 +283,8 @@ def _resumen_dom(ruta_exe: str, uri: str, perfil: Path, espera_ms: int) -> dict:
         return {}
     if not dom.strip():
         return {}
+    if 'id="main-frame-error"' in dom or "ERR_CONNECTION" in dom or "ERR_NAME_NOT_RESOLVED" in dom:
+        return {"error_navegador": True}
     m = re.search(r"<title[^>]*>(.*?)</title>", dom, re.S | re.I)
     titulo = _html.unescape(m.group(1).strip()) if m else ""
     cuerpo = dom.split("<body", 1)[1] if "<body" in dom else dom
@@ -309,8 +335,28 @@ def _con_sistema(ruta_exe: str, uri: str, png: Path, ancho: int, alto: int,
         resumen = _resumen_dom(ruta_exe, uri, perfil2, espera_ms)
     finally:
         shutil.rmtree(perfil2, ignore_errors=True)
+    if resumen.get("error_navegador"):
+        # Edge fotografio SU pagina de error ("no se puede obtener acceso"):
+        # eso no es la pagina del agente y decir "sin errores" mentiria.
+        try:
+            png.unlink()
+        except Exception:
+            pass
+        raise NoAlcanzable(uri, "el navegador no pudo cargar la URL")
     return {"errores": errores[:8], "avisos": avisos[:4], "resumen": resumen,
             "consola_observada": "CONSOLE" in log}
+
+
+class NoAlcanzable(Exception):
+    """La URL no responde (servidor local no arrancado, puerto equivocado)."""
+
+    def __init__(self, uri: str, detalle: str = ""):
+        self.uri, self.detalle = uri, detalle
+        super().__init__(
+            "no se pudo conectar a %s (%s). Si es tu servidor local: arrancalo "
+            "con ejecutar_fondo, espera unos segundos, comprueba el puerto con "
+            "ver_salida y vuelve a renderizar. Si es un fichero, pasa su ruta "
+            "en vez de la URL." % (uri, detalle or "conexion rechazada"))
 
 
 def _firma_png(png: Path) -> str:
@@ -372,6 +418,10 @@ def renderizar(fuente: str, salida=None, ancho: int = ANCHO_DEF, alto: int = ALT
                     res = _con_sistema(exe, uri, png, ancho, alto, espera_ms)
                     usado = nombre + "-headless"
                 break
+            except NoAlcanzable as exc:
+                # No se cae al otro backend: el fallo es de la URL, no del
+                # navegador, y el segundo solo fotografiaria la pagina de error.
+                raise ValueError(str(exc))
             except Exception as exc:
                 intentos.append("%s: %s: %s" % (b, type(exc).__name__, str(exc)[:160]))
                 if pedido in ("playwright", "edge", "chrome"):
@@ -460,7 +510,10 @@ def register(tool) -> None:
                "toca la sesion del usuario, y devuelve la ruta de la captura PNG, "
                "los errores de consola/JS y un resumen de lo visible (titulo, texto, "
                "canvas). Usa Playwright y, si falla, Edge/Chrome del sistema. Usala "
-               "para COMPROBAR que lo que escribiste se ve y no revienta.",
+               "para COMPROBAR que lo que escribiste se ve y no revienta. Acepta "
+               "rutas relativas al workspace, absolutas y file://; para una URL "
+               "http://localhost:PUERTO el servidor tiene que estar arrancado "
+               "antes (ejecutar_fondo) o devuelve 'no se pudo conectar'.",
           params=[
               {"nombre": "fuente", "tipo": "string", "requerido": True,
                "descripcion": "ruta del fichero (html, svg, md, js, css, png…) o URL"},

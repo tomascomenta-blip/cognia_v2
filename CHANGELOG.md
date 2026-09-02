@@ -2,6 +2,26 @@
 
 ---
 
+## [4.25.1] - 2026-09-02
+
+### `renderizar`: file://, servidor local caído y el favicon
+
+Cazado en la primera tarea real del dueño con 4.25.0: el agente escribió "el sandbox de
+renderizar no ve mis archivos y el servidor local no es alcanzable" y cambió de vía. Tres causas:
+
+- Una URI `file:///C:/…` se trataba como ruta y devolvía "no existe". Ahora se acepta (y también
+  las rutas relativas al workspace, que ya funcionaban).
+- Con el servidor local caído, Playwright fallaba y la tool caía a Edge, que fotografiaba SU
+  página de error ("no se puede obtener acceso") y decía "sin errores de consola". Ahora un
+  `ERR_CONNECTION_*` devuelve un error accionable, sin captura: "no se pudo conectar a URL: si es
+  tu servidor local, arráncalo con ejecutar_fondo, espera, comprueba el puerto con ver_salida".
+- El 404 del favicon se colaba como "1 error de JS". Se filtra por la URL del recurso.
+
+La descripción de la tool le dice al modelo qué rutas valen y que el servidor debe estar
+arrancado antes.
+
+---
+
 ## [4.25.0] - 2026-09-02
 
 ### Pasos ilimitados, captura aislada y scratchpad por tarea

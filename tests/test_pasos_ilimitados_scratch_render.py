@@ -318,3 +318,17 @@ def test_la_guia_de_una_skill_capturada_no_lleva_el_protocolo_de_texto():
     assert "usar la tool ejecutar con: node --check app.js && echo OK" in out
     assert "usar la tool listar" in out and "prosa normal" in out
     assert neutralizar_acciones("") == "" and neutralizar_acciones("sin nada") == "sin nada"
+
+
+def test_renderizar_acepta_file_uri_y_no_fotografia_la_pagina_de_error(tmp_path):
+    from cognia.agent import renderizador as R
+    p = tmp_path / "p.html"
+    p.write_text("<!doctype html><title>T</title><p>hola</p>", encoding="utf-8")
+    uri, tec, _ = R.preparar_fuente(p.resolve().as_uri(), tmp_path)   # file:///C:/...
+    assert tec == "html" and uri == p.resolve().as_uri()
+    if not (R.playwright_disponible() or R.navegador_sistema()[0]):
+        pytest.skip("sin navegador")
+    with pytest.raises(ValueError) as exc:
+        R.renderizar("http://127.0.0.1:1/nada", salida=str(tmp_path / "x.png"), espera_ms=100)
+    assert "no se pudo conectar" in str(exc.value) and "ejecutar_fondo" in str(exc.value)
+    assert not (tmp_path / "x.png").exists()
