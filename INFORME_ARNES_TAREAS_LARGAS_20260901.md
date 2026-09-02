@@ -149,6 +149,52 @@ conserva en `banco_largo/corridas/r4_pypi/` para que el descarte sea auditable.
 
 ---
 
+## 4c. Segunda jornada: reloj realista (20 min) y el lazo corto
+
+El dueño lo dijo claro: el `cognia` publicado no le producía un juego HTML funcional. Con
+8 minutos ninguna tarea del banco cabe; se repitió la medida con **20 minutos por tarea**
+en cinco familias, brazo A = 4.22.0 publicada, brazo B = el código del final del día.
+
+| Tarea | 4.22.0 publicada | Código final |
+|---|---|---|
+| juego tower defense (canvas) | 0,70 · func 0,50 | **0,84 · func 1,00 · completado** |
+| node-cli-generador | 0,79 · func 0,71 | **0,98 · func 1,00 · completado** |
+| py-cli-tareas (SQLite) | 0,98 · completado | 0,93 · func 0,89 · completado |
+| py-servidor-api (stdlib) | 0,45 · func 0,00 (murió en el paso 3) | **0,86 · func 1,00 · completado** |
+| web-kanban | 1,00 · completado | 0,92 · func 0,75 |
+| **productos funcionales** | **2 / 5** | **4 / 5** |
+| **pruebas superadas** | **40 / 54 (0,741)** | **49 / 54 (0,907)** |
+| **nota global media** | **0,783** | **0,907** |
+
+Lo que se aprendió y se cambió, en orden de impacto:
+
+1. **Con reloj realista los asesinos ya no son el truncamiento: son los reguladores del
+   propio harness**, todos calibrados para tareas de ~8 pasos: la racha de 3 tools
+   fallidas (mató una CLI a los 252 s y un juego a los 410 s), el techo de 40 pasos
+   (agotado a los 518 s con la tarea avanzando), la meseta de coste que sumaba los 35k
+   tokens de prompt de cada paso, y el gobernador de progreso cerrando en mitad de un
+   ciclo de arreglos. Todos **avisan ahora antes de cortar**, y con reloj conocido el
+   techo de pasos sube a 120: el reloj o el humano son el límite.
+2. **Lazo corto** (`harness/lazo_corto.py`): cada fichero arrancable que el agente escribe
+   se corre en el acto (HTML en Chromium con el contrato del encargo, Python importado con
+   timeout, JS con `node --check`) y el error real vuelve en el mismo turno. Para un
+   producto web la unidad es la **página**, no el fragmento: tras escribir un `.js` se abre
+   el `.html` que lo carga. Y si el contrato promete `tick(ms)`, una simulación que no
+   avanza ni con tick es un fallo explícito, no un dato informativo.
+3. **Raíl duro**: el agente ejecutó `taskkill /f /im python.exe` y se mató a sí mismo, al
+   runner y a todo Python de la máquina. Ahora `ejecutar` veta las matanzas en masa del
+   intérprete y devuelve la alternativa (`matar_proceso <id>`, PID concreto).
+4. **Espiral de depuración** (siete `debug*.js` seguidos), **servidores MCP caídos** que se
+   reintentaban tres veces, y **escrituras enormes** que se cortan a media cadena: los
+   tres tienen aviso al primer síntoma.
+
+ARK con 45 minutos y el código final: 0,77, contrato expuesto, crafteo y guardado
+funcionando, pero la simulación no avanzaba y se paró a los 15 minutos por el tope de
+pasos que fijaba el banco. Las dos causas están corregidas (el runner ya no pasa
+`--pasos` con reloj; la sonda del tick) y ARK se está repitiendo.
+
+---
+
 ## 5. Lo que NO se hizo, y lo que sigue roto
 
 **No hecho**: las 25 tareas completas (se corrieron 10 representativas en cada ronda; las
