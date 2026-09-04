@@ -511,7 +511,22 @@ def test_p8_el_bucle_aplica_el_shim_antes_de_args_legacy():
     resp = [_resp_tools(("t1", "leer_archivo", {"file_path": "a.py"})), _resp_fin()]
     _correr(list(resp), lambda n, a, c: "RESULTADO leer_archivo a.py: hola",
             legacy=_legacy)
-    assert recibidos == [{"file_path": "a.py"}]          # sin harness: intactos
+    # Sin harness el shim no toca nada, pero desde 2026-09-04 el rescate de
+    # alias de harness/validacion_tool_call (hermes coerce_tool_args) resuelve
+    # `file_path` -> `path` ANTES de validar contra el schema: lo que antes
+    # llegaba "intacto" a args_legacy (y este salvaba juntando valores) llega
+    # ahora con el nombre real. Con el kill-switch apagado vuelve a ser intacto.
+    assert recibidos == [{"path": "a.py"}]
+    recibidos.clear()
+    import os
+    os.environ["COGNIA_VALIDAR_TOOL_CALLS"] = "0"
+    try:
+        resp = [_resp_tools(("t1", "leer_archivo", {"file_path": "a.py"})), _resp_fin()]
+        _correr(list(resp), lambda n, a, c: "RESULTADO leer_archivo a.py: hola",
+                legacy=_legacy)
+        assert recibidos == [{"file_path": "a.py"}]      # sin harness ni validacion: intactos
+    finally:
+        os.environ.pop("COGNIA_VALIDAR_TOOL_CALLS", None)
 
 
 def test_p8_system_con_sufijo_y_sin_perfil_byte_identico(monkeypatch):

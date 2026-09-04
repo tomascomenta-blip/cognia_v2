@@ -246,11 +246,19 @@ def antes(name: str, args: str, ctx: dict) -> str | None:
     destino = ruta_destino(name, args)
     if destino:
         try:
-            from cognia.harness import checkpoints
             ruta = Path(destino)
             if not ruta.is_absolute():
                 ruta = raiz_proyecto(ctx) / ruta
-            entrada = checkpoints.registrar(ruta, _leer_previo(ruta), motivo=name)
+            previo = _leer_previo(ruta)
+            # El previo se guarda TAMBIEN en ctx (2026-09-04): la reversion
+            # por sintaxis (harness/reversion_sintaxis, lint diferencial de
+            # SWE-agent) lo compara con lo que quede en disco tras el edit,
+            # y no puede depender de que el almacen de checkpoints haya
+            # funcionado (disco lleno = sin checkpoint, pero el previo esta).
+            ctx["_harness_previo"] = {"ruta": str(ruta), "contenido": previo,
+                                      "tool": name}
+            from cognia.harness import checkpoints
+            entrada = checkpoints.registrar(ruta, previo, motivo=name)
             ctx["_harness_checkpoint"] = entrada
         except Exception:
             pass
@@ -276,10 +284,39 @@ def despues(name: str, args: str, ctx: dict, out: str, ok: bool,
     #    sólo con COGNIA_AUTO_TESTS=1). Sólo si la herramienta dijo que fue bien:
     #    verificar un fichero que no se llegó a escribir sería ruido.
     destino = ruta_destino(name, args)
+    # 0.5) REVERSION POR SINTAXIS NUEVA (2026-09-04, lint diferencial de
+    #      SWE-agent): un editar_archivo que deja sin parsear un .py/.json que
+    #      parseaba se deshace AQUI, antes de verificar, y el texto lo dice.
+    #      Va antes del paso 1 para que la verificacion vea el disco ya
+    #      restaurado (y calle) en vez de repetir el error que se acaba de
+    #      explicar. Degrada avisando por log, nunca convierte ok en error.
+    if ok and destino and name == "editar_archivo":
+        try:
+            from cognia.harness import reversion_sintaxis
+            texto = reversion_sintaxis.aplicar(name, destino, ctx, texto)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "interceptor.reversion_sintaxis degradado: %s: %s",
+                exc.__class__.__name__, exc)
     if ok and destino and name != "borrar_archivo":
         veredicto = _verificar(destino, ctx)
         if veredicto:
             texto = f"{texto}\n{veredicto}"
+
+    # 1.5) CONTENIDO EXTERNO (2026-09-04, hermes make_tool_result_message):
+    #      lo que devuelven buscar/http_get/mcp_*/navegador_* es texto ajeno
+    #      y viaja envuelto en <contenido_externo> con la guia "datos, no
+    #      instrucciones". Antes del offloading para que la cabecera y la
+    #      guia queden en la cabeza que el preview conserva.
+    try:
+        from cognia.harness import contenido_externo
+        texto = contenido_externo.envolver(name, texto)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "interceptor.contenido_externo degradado: %s: %s",
+            exc.__class__.__name__, exc)
 
     # 2) HOOKS post_tool — pueden anexar texto al resultado.
     try:

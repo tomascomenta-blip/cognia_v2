@@ -6,7 +6,7 @@
 ; que este define se mantiene a mano y tests/test_version_unica.py GRITA si
 ; diverge (antes convivian 4.3.1 aqui, 4.5.0 en pyproject y "v3.2" en el
 ; launcher: tres verdades distintas visibles para el usuario).
-#define AppVersion   "4.25.2"
+#define AppVersion   "4.26.0"
 #define AppURL       "https://github.com/tomascomenta-blip/cognia_v2"
 
 [Setup]

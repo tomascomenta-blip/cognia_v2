@@ -2,6 +2,73 @@
 
 ---
 
+## [4.26.0] - 2026-09-04
+
+### Seis mecanismos portados de hermes-agent, SWE-agent, mini-swe-agent y DeepSeek-Coder
+
+Se clonaron los cuatro repos en `Desktop/harnesses/`, se leyó su código (informes en
+`harnesses/informes/*.md`, inventario propio en `cognia-inventario.md`) y se portó lo que
+Cognia NO tenía, cada pieza como módulo nuevo en `cognia/harness/` con kill-switch por env,
+tests sin modelo (85) y cableado real. Los huecos salieron de comparar los 41 módulos del
+arnés contra los mecanismos de los otros cuatro, no de una lista de deseos.
+
+**1. `comandos_interactivos` (SWE-agent `ToolFilterConfig.blocklist` +
+`command_cancelled_timeout_template`).** `ejecutar "vim x"`, `"python"` sin script,
+`"less"`, `"npm run dev"`, `"pause"`… no fallaban: se colgaban hasta el timeout y el modelo
+leía "timeout tras 30s". Ahora `_shell` los rechaza ANTES con la alternativa en el mensaje,
+`_correr_proceso` cierra `stdin` (un `input()` muere con EOFError en vez de esperar) y el
+timeout nombra la causa probable (ENTRADA o SERVIDOR) y la salida (`ejecutar_fondo`).
+`COGNIA_INTERACTIVOS=0` apaga la lista.
+
+**2. `reversion_sintaxis` (SWE-agent "lint diferencial": `flake8_utils` + `edit` con
+`undo_edit`).** Un `editar_archivo` que deja sin parsear un `.py`/`.json` que ANTES parseaba
+se revierte al instante (vía el checkpoint recién registrado, o directo si el almacén falló) y
+el resultado dice el error y que el disco volvió al estado previo. Antes el fichero se quedaba
+roto y el modelo editaba encima o lo reescribía entero. Solo `editar_archivo`: la escritura
+"por partes" deja a propósito ficheros a medias. `COGNIA_REVERTIR_SINTAXIS=0` apaga.
+
+**3. `validacion_tool_call` (SWE-agent `FunctionCallingParser` con códigos de error +
+`RETRY_WITH_OUTPUT`; mini `parse_toolcall_actions`).** `escribir_archivo({"path": "x.py"})`
+sin `contenido` ESCRIBÍA un fichero vacío con "ok" (`args_legacy` es tolerante por diseño).
+Ahora, tras el shim de familia y antes de `args_legacy`, la llamada se valida contra su
+schema: `falta_argumento`, `argumento_vacio`, `argumento_inesperado`, `tipo_incorrecto`. El
+error vuelve como turno tool con la firma (`escribir_archivo(path*, contenido*)`), la tool NO
+corre y, si era la única llamada del paso, el paso se devuelve al presupuesto.
+`COGNIA_VALIDAR_TOOL_CALLS=0` apaga.
+
+**4. `contenido_externo` (hermes `make_tool_result_message` +
+`_neutralize_delimiters`).** `buscar`, `http_get`, `mcp_*`, `navegador_*` devolvían texto
+ajeno con la misma autoridad que un RESULTADO del arnés. Ahora viaja dentro de
+`<contenido_externo origen="...">` con la guía "datos, no instrucciones"; un cierre de
+etiqueta dentro del contenido se neutraliza. `COGNIA_CONTENIDO_EXTERNO=0` apaga.
+
+**5. `autotest_permisos` (lección de hermes #4739: el allowlist "definido y nunca
+cargado").** Self-test del gate al arrancar el régimen nativo: el sentinel bloquea `rm -rf /`,
+`format c:`, `del /q`, permite `dir`/`git status`, las reglas persistentes cargan,
+`es_destructivo` reconoce un borrado y la lista de interactivos responde. Milisegundos, sin
+modelo; cualquier fallo se imprime como `[warn_cl]gate de permisos: ...` antes de darle tools
+al modelo.
+
+**6. `extraccion_codigo` (DeepSeek-Coder `extract_program(last_only)`,
+`estimate_pass_at_k`, `_truncate_code_at_stopwords`).** `ultimo_bloque` línea a línea (no
+regex DOTALL), `cortar_en_stopwords` y el estimador insesgado `pass_at_k` de Chen et al. para
+que los bancos de Cognia reporten un número comparable con los papers. Sin cablear en el
+loop a propósito: son utilidades para bancos/verificador.
+
+**Lo que se miró y NO se portó, con motivo:** `coerce_tool_args` de hermes (Cognia
+transporta todo como texto; la coerción vive en cada tool), ejecución paralela de tools de
+lectura (en local el cuello es el modelo), `todo_list` del modelo (deepagents midió que no
+mueve el reward; Cognia ya tiene el canal de estado desde el disco), `TrajectoryCompressor`
+(tooling de datasets), la llamada de gracia sin tools al agotar presupuesto de hermes
+(`handle_max_iterations`: candidata para la próxima pasada, no cambia lo que queda en disco).
+
+**Banco de tres tareas con tests ocultos** (`harnesses/banco/`): bugfix con casos límite
+escondidos, feature de CLI con dos opciones nuevas, implementación desde especificación.
+Mismo modelo para todos los harnesses (Qwen3.8-27B Ridge en `:8080`, ctx 65k, MTP). El
+juez ejecuta; nadie opina. Resultados en `harnesses/informes/SINTESIS.md`.
+
+---
+
 ## [4.25.3] - 2026-09-02
 
 ### Autopsia de la sesión Tank.io (14:33 → 16:57): cinco fallos del CLI

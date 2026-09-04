@@ -15776,3 +15776,9 @@ cwd≠workspace: `no existe: tankio.html`).
 - Por qué el chat streaming de 15:25 no produjo nada en 6 minutos (no hay rastro en el log; con
   el enrutado nuevo ese mensaje ya no va al chat).
 - VLM en :8081 con timeout durante la revisión profunda ("NO juzgo"): entorno, no CLI.
+
+## 2026-09-04 — 4.26.0 publicada en PyPI: seis mecanismos portados de hermes-agent, SWE-agent, mini-swe-agent y DeepSeek-Coder
+- Clonados e inspeccionados los cuatro repos (`Desktop/harnesses/informes/*.md`); inventario propio de los 41 módulos del arnés (`limites.py` muerto; huecos verificados con grep).
+- Portes con kill-switch por env y 87 tests sin modelo: `comandos_interactivos` (blocklist + stdin cerrado + pista de timeout), `reversion_sintaxis` (editar_archivo que rompe un .py que parseaba se revierte), `validacion_tool_call` (schema antes de ejecutar + rescate de alias `ruta`->`path`; antes `escribir_archivo` sin `contenido` escribía un fichero VACÍO con "ok"), `contenido_externo` (web/MCP envuelto como datos), `autotest_permisos` (self-test del gate al arrancar), `extraccion_codigo` (pass@k + último bloque).
+- Banco de 3 tareas con tests ocultos, mismo Qwen3.8-27B: mini 25/26, hermes 26/26, Cognia sin/con portes 25/26 (n=1; los portes no dispararon; Cognia hace 2-4x más turnos que hermes: `ejecutar`/`tests` fallidos, cortes de razonamiento, mesetas). Trampas del banco cazadas: hermes leyó los ocultos desde `..`; cadena huérfana tras kill por memoria; test oculto injusto en t3.
+- Compuertas: suite completa 14.935 passed / 52 failed, TODOS crónicos (contrafactual con `git stash` sobre cada fichero fallido: mismo conteo con y sin los cambios; 2 fixtures ajustados porque mandaban argumentos placeholder que la validación ahora rechaza, y uno que fijaba el contrato viejo de "alias intactos"); e2e camino feliz 5/5 en 3,0 min; wheel importado en venv limpio; instalador puesto en 4.26.0 (iba en 4.25.2).

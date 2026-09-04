@@ -2166,6 +2166,13 @@ def _correr_proceso(args, ctx, timeout, **kw):
     Devuelve un CompletedProcess (returncode, stdout, stderr en bytes) y
     re-lanza TimeoutExpired como run(): los llamadores no cambian."""
     from cognia.harness.timeout_tool import _matar_arbol
+    # STDIN CERRADO (2026-09-04, portado de mini-swe-agent/SWE-agent, ver
+    # harness/comandos_interactivos): sin esto el hijo hereda el stdin del
+    # arnes y un `input()` inesperado se queda esperando hasta el timeout.
+    # Con DEVNULL recibe EOF al instante y muere con EOFError, que es un
+    # error que el modelo SI puede leer. Quien de verdad quiera stdin lo
+    # pasa explicito en kw (ninguna tool de hoy lo hace).
+    kw.setdefault("stdin", subprocess.DEVNULL)
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          env=_env_utf8(), **kw)
     registro = ctx.get("_procesos_tool") if isinstance(ctx, dict) else None
@@ -2256,6 +2263,21 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
     if not permitido:
         # BLOQUEADO != exit 0: el ctx["_exit"] se queda en None a proposito.
         return msg
+    # COMANDOS QUE ESPERAN A UN HUMANO (2026-09-04, portado de SWE-agent
+    # blocklist/blocklist_standalone): `vim`, `less`, `python` sin script,
+    # `npm run dev`... no fallan, se cuelgan hasta el timeout y el modelo solo
+    # veia "timeout tras 30s". Se rechazan ANTES con la alternativa en el
+    # mensaje. No es seguridad (eso es el sentinel de arriba): es "esto no
+    # puede funcionar sin teclado". Degrada avisando, nunca en silencio.
+    try:
+        from cognia.harness import comandos_interactivos as _ci
+        _motivo_ci = _ci.motivo_bloqueo(cmd)
+    except Exception as _exc_ci:
+        _motivo_ci = None
+        logging.getLogger(__name__).warning(
+            "comandos_interactivos degradado: %s: %s", type(_exc_ci).__name__, _exc_ci)
+    if _motivo_ci:
+        return f"RESULTADO ejecutar ERROR: {_motivo_ci}"
     if cwd:
         _cw = Path(cwd)
         if not _cw.is_dir():
@@ -2280,8 +2302,15 @@ def _shell(cmd: str, ctx: dict, timeout: int = 30, cwd: str = "") -> str:
     except subprocess.TimeoutExpired:
         # Timeout accionable en vez de un stacktrace generico: el modelo necesita
         # saber que debe ACOTAR el comando (ruta/test mas especifico) y reintentar.
-        return (f"RESULTADO ejecutar ERROR: timeout tras {timeout}s. "
-                f"Acota el comando (ruta/target mas especifico) y reintenta.")
+        # 2026-09-04 (SWE-agent command_cancelled_timeout_template): ademas se
+        # nombra la causa probable -- esperaba ENTRADA o es un SERVIDOR -- y la
+        # salida (ejecutar_fondo), que es lo que el modelo no sabia deducir.
+        try:
+            from cognia.harness import comandos_interactivos as _ci
+            return f"RESULTADO ejecutar ERROR: {_ci.pista_timeout(cmd, timeout)}"
+        except Exception:
+            return (f"RESULTADO ejecutar ERROR: timeout tras {timeout}s. "
+                    f"Acota el comando (ruta/target mas especifico) y reintenta.")
     _marcar_exit(ctx, r.returncode)      # el UNICO sitio que escribe un exit real
     out = (_decodificar_bytes(r.stdout) + _decodificar_bytes(r.stderr)).strip()
     code = "" if r.returncode == 0 else f" (exit {r.returncode})"

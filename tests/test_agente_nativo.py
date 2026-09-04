@@ -326,8 +326,14 @@ def test_las_tools_que_se_repiten_por_diseno_no_cortan_la_tarea():
     Es el bucle de desarrollo de cualquier cosa larga -- y por eso estaba en
     la lista de exentas de guardia_bucle.py desde el principio, sin que el
     corte del bucle nativo la mirara."""
+    # Argumentos VALIDOS segun el schema de cada tool (2026-09-04): desde
+    # harness/validacion_tool_call una llamada sin su `required` no se ejecuta
+    # (vuelve como error de formato), asi que el placeholder {"x": "1"} de antes
+    # ya no llegaba a run_tool y el test media otra cosa.
+    args_validos = {"tests": {"ruta": "tests/test_x.py"}, "ver_salida": {"id": 1},
+                    "procesos": {}}
     for tool in ("tests", "ver_salida", "procesos"):
-        tc = ToolCall(id="t", nombre=tool, argumentos={"x": "1"},
+        tc = ToolCall(id="t", nombre=tool, argumentos=args_validos[tool],
                       argumentos_crudos="{}")
         repite = RespuestaChat(texto="", finish_reason="tool_calls",
                                usage={}, tool_calls=[tc])

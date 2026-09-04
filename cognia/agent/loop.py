@@ -3176,6 +3176,47 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     print_fn(f"[warn_cl]shim de tool-calls de la familia no "
                              f"aplicado ({type(_exc_shim).__name__}: "
                              f"{_exc_shim}); args intactos[/warn_cl]")
+            # VALIDACION CONTRA EL SCHEMA ANTES DE EJECUTAR (2026-09-04,
+            # portado de SWE-agent FunctionCallingParser + RETRY_WITH_OUTPUT
+            # y mini-swe-agent parse_toolcall_actions; ver
+            # harness/validacion_tool_call). Va DESPUES del shim de familia
+            # (que renombra alias tipo file_path->path) y ANTES de args_legacy,
+            # que es "tolerante por diseno" y convertia {"path": "x.py"} sin
+            # `contenido` en "x.py | " -> un fichero VACIO escrito con "ok".
+            # Si la llamada no cumple la firma: el error con codigo y la firma
+            # vuelven como turno tool, la tool NO corre, y si era la unica
+            # llamada del paso, el paso se devuelve al presupuesto (no fue
+            # una accion, fue un error de uso). Degrada avisando.
+            # Primero el RESCATE de alias (hermes coerce_tool_args: `ruta` ->
+            # `path`, `cmd` -> `comando`, una sola propiedad con otro nombre),
+            # que es lo que el puente viejo cubria por accidente juntando
+            # valores; solo lo que no se pueda resolver sin ambiguedad se
+            # rechaza con la firma.
+            try:
+                from cognia.harness import validacion_tool_call as _vtc
+                _args_tc = _vtc.normalizar(tc.nombre, _args_tc)
+                _err_formato = _vtc.validar(tc.nombre, _args_tc)
+            except Exception as _exc_vtc:
+                _err_formato = None
+                print_fn(f"[warn_cl]validacion de tool calls no disponible "
+                         f"({type(_exc_vtc).__name__}: {_exc_vtc}); sin "
+                         f"validar[/warn_cl]")
+            if _err_formato:
+                _cod_f, _txt_f = _err_formato
+                print_fn(f"[warn_cl]{tc.nombre}: llamada mal formada "
+                         f"({_cod_f}); no se ejecuta, se le devuelve la firma"
+                         f"[/warn_cl]")
+                history.append(_txt_f)
+                trace.append({"action": tc.nombre,
+                              "args": str(getattr(tc, "argumentos_crudos", "") or "")[:200],
+                              "ok": False, "result_head": _txt_f[:160]})
+                mensajes.append(mensaje_tool(tc.id, _txt_f))
+                if _pres is not None and len(resp.tool_calls) == 1:
+                    try:
+                        _pres.refund(MOTIVO_REINTENTO_FORMATO)
+                    except Exception:
+                        pass
+                continue
             args_str = args_legacy(tc.nombre, _args_tc)
             if _ev is not None:
                 _emitir(_ev.ToolInicio(tool=tc.nombre, args=args_str[:120],

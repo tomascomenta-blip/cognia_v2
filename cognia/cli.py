@@ -28044,6 +28044,17 @@ def _run_agent_task_cuerpo(ai, task: str, _print_fn, max_steps: int = None,
             from cognia.agent.tool_schemas import args_legacy, schemas_para
             for _avz in verificar_arranque(_perfil_modelo):
                 _print_fn(f"[warn_cl]chequeo de arranque: {_avz}[/warn_cl]")
+            # SELF-TEST DEL GATE DE PERMISOS (2026-09-04, leccion del allowlist
+            # "definido y nunca cargado" de Hermes #4739): milisegundos, sin
+            # modelo. Si el sentinel no bloquea `rm -rf /` o las reglas no
+            # cargan, se dice ANTES de darle tools al modelo.
+            try:
+                from cognia.harness import autotest_permisos as _atp
+                for _prob in _atp.autotest():
+                    _print_fn(f"[warn_cl]gate de permisos: {_prob}[/warn_cl]")
+            except Exception as _exc_atp:
+                _print_fn(f"[warn_cl]self-test del gate no disponible "
+                         f"({type(_exc_atp).__name__}: {_exc_atp})[/warn_cl]")
             # max_turns con piso 8: la heuristica corta (2-4 pasos) esta
             # calibrada al 3B; el nativo cierra solo cuando termina y el
             # tope es proteccion, no racionamiento.
