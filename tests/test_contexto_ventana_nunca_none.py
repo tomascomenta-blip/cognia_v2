@@ -83,6 +83,9 @@ def _correr(perfil, pasos_tool=12, razon_chars=12000, serie=None, avisos=None,
 
 @pytest.fixture(autouse=True)
 def _limpio(monkeypatch):
+    # Estos tests fijan el camino VIEJO de compactacion/emergencia; la memoria
+    # larga (default on desde 2026-09-04) reconstruye antes y los dejaria sin objeto.
+    monkeypatch.setenv("COGNIA_MEMORIA_LARGA", "0")
     monkeypatch.delenv("COGNIA_STREAM", raising=False)
     monkeypatch.delenv("COGNIA_COMPACT", raising=False)
     monkeypatch.delenv("COGNIA_PARED_S", raising=False)

@@ -571,6 +571,9 @@ Comandos:
   remoto             Servidor de control remoto desde el movil
   tutor              Tutor web que ensena cualquier tema (localhost:8899)  [--lan]
   hacer "<tarea>"    Ejecuta una tarea con el agente y sale (sin REPL).
+                     [--retomar] continua la tarea a medias de este directorio.
+  memoria            Memoria de largo plazo del agente: buscar "<q>" | stats | tipos
+  sesion             Sesiones de tarea: lista | retomar | nueva
                      stdout = el resultado, stderr = el progreso -> sirve en
                      tuberias y scripts. [--pasos N] [--json] [--silencioso]
   rlm <ruta> "<pregunta>"  Pregunta sobre contexto mas grande que la ventana
@@ -735,6 +738,11 @@ def main() -> None:
         if _informe:
             print(_informe)
         sys.exit(0 if _res.get("ok") else 1)
+    elif cmd in ("memoria", "sesion", "session"):
+        # MEMORIA LARGA (2026-09-04): inspeccionar la memoria externa del agente
+        # y las sesiones/checkpoints de tarea sin abrir el REPL.
+        from cognia.memoria_larga.cli import main as _ml_main
+        sys.exit(_ml_main(["sesion" if cmd == "session" else cmd] + sys.argv[2:]))
     elif cmd in ("hacer", "do"):
         # El agente SIN el REPL: automatizar, encadenar por tuberia y MEDIR el
         # CLI de verdad. Hasta hoy /hacer solo existia dentro del REPL, y el

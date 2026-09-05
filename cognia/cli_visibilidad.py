@@ -175,7 +175,7 @@ LABORATORIO: frozenset = frozenset({
     "/predecir", "/proximos-pasos", "/quiz-stats", "/receta", "/recomendar",
     "/reflexion-profunda", "/reporte-json", "/reporte-semanal", "/resolver-conflicto",
     "/sesion-stats", "/sintetizar", "/sugerir", "/temas", "/template", "/template-guia",
-    "/templates", "/transferir", "/tx", "/velocidad", "/ver-criticas", "/verificar-kg",
+    "/templates", "/transferir", "/tx", "/checkpoint", "/velocidad", "/ver-criticas", "/verificar-kg",
     "/vigilar", "/vocabulario", "/vocabulario-guardar", "/y-si",
 })
 

@@ -307,3 +307,31 @@ def _deshacer_edicion(args: str, ctx: dict) -> str:
     except ValueError:
         return "ERROR deshacer_edicion: 'n' tiene que ser un numero (o vacio)."
     return f"RESULTADO deshacer_edicion: {checkpoints.deshacer(n)}"
+
+
+# ── MEMORIA LARGA (2026-09-04): la puerta del modelo a la memoria externa ─────
+# Solo se anuncia con COGNIA_MEMORIA_LARGA=1 (ver _OPTIN_NOMBRES en agent/tools):
+# el A/B del repo midio que inflar el catalogo degrada, asi que no entra en CORE.
+@tool(
+    "memoria_buscar",
+    "memoria_buscar <consulta> [tipo=decision|error|codigo|restriccion] [historial=1]"
+    "  -- busca en la memoria de largo plazo de esta tarea (lo que salio de la ventana)",
+    desc=(
+        "Recupera de la memoria externa de la tarea lo que ya no esta en la "
+        "conversacion: decisiones, restricciones del dueno, errores y sus "
+        "soluciones, codigo leido, ficheros tocados. Usala cuando dudes de algo "
+        "que se dijo o se hizo antes de la ultima reconstruccion del contexto. "
+        "Con historial=1 trae tambien las versiones anteriores de una decision."
+    ),
+    params=[
+        {"nombre": "consulta", "tipo": "string", "requerido": True,
+         "descripcion": "que buscas, con tus propias palabras"},
+        {"nombre": "tipo", "tipo": "string", "requerido": False, "clave": True,
+         "descripcion": "limitar a un tipo: decision, restriccion, error, solucion, codigo, fichero"},
+        {"nombre": "historial", "tipo": "string", "requerido": False, "clave": True,
+         "descripcion": "1 para incluir versiones superadas (historial de una decision)"},
+    ],
+)
+def _memoria_buscar(args: str, ctx: dict) -> str:
+    from cognia.memoria_larga import herramienta_buscar
+    return herramienta_buscar(args, ctx)

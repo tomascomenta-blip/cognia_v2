@@ -390,6 +390,8 @@ _OPTIN_NOMBRES = {
     # proposito: el A/B del repo midio que inflar el catalogo degrada al
     # modelo, asi que una tool nueva tiene que ganarse el sitio midiendo.
     "recuperar": "COGNIA_OFFLOAD",
+    # Memoria larga (2026-09-04): la busqueda en la memoria externa de la tarea.
+    "memoria_buscar": "COGNIA_MEMORIA_LARGA",
     "consultar_oraculo": "COGNIA_ORACULO",
     "buscar_herramientas": "COGNIA_TOOLSEARCH",
     "deshacer_edicion": "COGNIA_UNDO_TOOL",

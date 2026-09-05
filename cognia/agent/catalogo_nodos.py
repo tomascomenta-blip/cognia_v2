@@ -238,7 +238,7 @@ CATEGORIAS: tuple = (
 
     {"id": "contexto", "nombre": "Contexto largo",
      "color": "#00b7bc", "color_osc": "#3fd0d4", "icono": "layers",
-     "tools": ("recuperar",),
+     "tools": ("recuperar", "memoria_buscar"),
      "prefijos": ("ctx_", "rlm_")},
 
     {"id": "medios", "nombre": "Imagen, sonido y 3D",

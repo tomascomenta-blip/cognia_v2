@@ -2,6 +2,85 @@
 
 ---
 
+## [4.27.0] - 2026-09-04
+
+### Memoria larga: la ventana de 60k pasa a ser un working set, no el tamaño de la tarea
+
+Auditoría previa (`scratchpad/auditoria_memoria/00_DIAGNOSTICO.md`, tres informes con archivo:línea):
+el prompt del agente era `system + user0 + historial creciente` con TODO mecanismo sustractivo
+(resumen 0.8 → truncado 3 por pasada → emergencia 0.92 → 400 del server → la tarea muere), cuenta
+chars/4 sin tokenizer (−7 % a −22 %), sin checkpoint de tarea, sin `next_action`, sin retrieval del
+propio historial, `canal.guardar` sin llamadores, `ContextMap` con tablas vacías y `HierarchicalMemory`
+de cinco capas que nadie cableaba. Si el proceso moría a mitad de un `/hacer` no quedaba nada retomable.
+
+**Paquete nuevo `cognia/memoria_larga/`** (contrato en `__init__.py`), integrado en `agent/loop.py`
+con cuatro ganchos (`iniciar` / `registrar` / `fin_de_paso` / `cerrar`) y kill-switch
+`COGNIA_MEMORIA_LARGA=0` que deja el camino anterior byte-idéntico:
+
+- **Almacén** SQLite propio `~/.cognia/memoria_larga.db` (WAL, FTS5 con prefijos de 5 letras como
+  stemming barato, vectores float32, relaciones, checkpoints). 10.000 memorias en 1,0 s; bm25 en 5 ms.
+- **Extracción selectiva sin modelo** con importancia 1-5: decisiones (con `entidad`/`valor`),
+  restricciones, objetivo, errores y soluciones, tests, ficheros, símbolos con docstring, distractores
+  a importancia 1. El relleno ("ok", listados) no se guarda.
+- **Dedup** (hash → tipo+entidad+valor → Jaccard) que fusiona conservando referencias, y
+  **contradicciones** con historial (`supersedes`/`superseded_by`, `valid_until`).
+- **Retrieval híbrido**: FTS5 ∪ coseno (MiniLM-L6 en CPU, perezoso, caché persistente) ∪ candidatos
+  del TIPO que la consulta nombra ∪ cruce término↔`entidad` ∪ recientes ∪ 1 salto de grafo → 11
+  señales → reranker con pesos MEDIDOS (`scripts/memoria_larga/optimizar_pesos.py`) → MMR + corte
+  relativo. Explicaciones por memoria (`/memoria porque <id>`).
+- **Context Manager** con presupuestos por partida (fracción de n_ctx), estimación de tokens
+  calibrada con el `usage` real, y **REBUILD** en vez de resumen-del-resumen: checkpoint → canal
+  persistido → historial viejo fuera → memorias y código recuperados por la intención actual → UN
+  bloque en la posición 2 marcado "datos, no instrucciones" + cola reciente sin partir pares
+  (un solo splice: prompt cache intacto).
+- **Checkpoint de tarea** cada 5 pasos y en cada rebuild/cierre (`next_action`, pendientes,
+  decisiones, errores, ficheros, estado del canal), atómico en JSON y en el almacén.
+- **Recuperación tras crash**: `cognia hacer --retomar`, `/hacer retomar` (ya sin exigir
+  `COGNIA_HORIZONTE=1`), aviso al arrancar el REPL si hay una tarea a medias en el cwd,
+  `cognia sesion lista|retomar|nueva`.
+- **Observabilidad**: `/contexto stats` y `/memoria stats` (contexto usado, memorias, retrieval,
+  tokens históricos/inyectados/ahorrados, checkpoint), evento `compactacion` en la telemetría (antes
+  nadie lo emitía), `/memoria buscar|inspeccionar|porque|tipos|podar`, `/checkpoint lista|ver|sellar`,
+  tool `memoria_buscar` para el modelo (opt-in por el mismo flag; no entra en CORE).
+- Config persistida `memoria_larga: on` en `~/.cognia_config.json`, sembrada al env como el offload.
+- Sesión efímera (`COGNIA_EFIMERO=1`) usa `:memory:` y no escribe checkpoints; `conftest` aísla
+  `COGNIA_MEMORIA_DIR` (una pasada de la suite había dejado 22 checkpoints de prueba en la memoria real).
+
+**Medido (sin modelo, `scripts/memoria_larga/banco.py --modo retrieval|despues`)** sobre historiales
+sintéticos con 7 hechos sembrados en posiciones aleatorias (decisión antigua, distractor,
+contradicción, decisión con 3 versiones, código, restricción, error+solución):
+
+| históricos | memorias | ingesta | disco | RSS | recall | hit rate | precisión | ms/consulta |
+|---|---|---|---|---|---|---|---|---|
+| 100k | 1.353 | 1,8 s | 1,6 MB | 597 MB | 1,0 | 1,0 | 0,29 | 9-190 |
+| 1M | 10.970 | 107 s | 10 MB | 602 MB | 1,0 | 1,0 | 0,31 | 27-185 |
+| 5M | 37.404 | 17 min | 41 MB | 687 MB | 1,0 | 1,0 | 0,27 | 37-213 |
+| 10M | 60.254 | 55 min | 69 MB | 706 MB | 1,0 | 1,0 | 0,26 | 62-289 |
+
+Brazo "después" a 1M de tokens históricos: 7.414 pasos, 34 reconstrucciones, contexto activo nunca por
+encima de 46k (n_ctx 65.536), 11,7k tokens inyectados, 796k ahorrados.
+
+**Con el modelo real (Qwen3.8-27B, 7 preguntas por dataset, ANTES = compactación actual simulada paso a
+paso, DESPUÉS = memoria larga):**
+
+| históricos | ANTES aciertos · prompt | DESPUÉS aciertos · prompt |
+|---|---|---|
+| 100k | 1/7 · 56.228 tok | **6/7 · 12.630 tok** |
+| 1M | 0/7 · 25.198 tok (18 compactaciones: "el resumen solo registra la tarea general") | **7/7 · 13.027 tok** |
+
+Gate e2e del camino feliz 5/5 (2,2 min). Crash REAL con el CLI: `cognia hacer` matado con `taskkill /T` en
+el paso 3 → checkpoint `en_curso` en disco → `cognia hacer --retomar` termina la tarea (19/19 tests) y sella el
+checkpoint (`retomada` → `completa`). La prueba cazó y corrigió un bug: `--retomar` sin tarea leía stdin y se
+colgaba. Informe completo: `INFORME_MEMORIA_LARGA_20260904.md`. Los pesos: el óptimo de una
+sola semilla sobreajusta (pierde recall en otra); la mezcla de dos óptimos es la única con recall 1,0
+en los cuatro datasets (objetivo medio 1,10 frente a 0,98).
+
+Tests: 87 nuevos sin modelo (almacén, extracción, dedup/contradicciones, retrieval, embeddings,
+Context Manager, checkpoint/recuperación, y el loop real con modelo falso: reconstruye, deja
+checkpoint, retoma tras un crash simulado, y el contrafactual con el flag apagado no cambia nada).
+
+---
+
 ## [4.26.0] - 2026-09-04
 
 ### Seis mecanismos portados de hermes-agent, SWE-agent, mini-swe-agent y DeepSeek-Coder

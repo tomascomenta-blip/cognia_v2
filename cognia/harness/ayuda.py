@@ -229,7 +229,11 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     # registro append-only de UNA tarea, con sus gates y su provenance. Y /tx
     # dejaba "Agente y tareas" en 26 con el tope en 25.
     "Horizonte largo (TX)": (
-        "/tx", "/libro",
+        # /checkpoint (2026-09-04, memoria larga): los checkpoints de TAREA
+        # contestan la misma pregunta que /tx y /libro -- que recuerda una
+        # tarea larga y desde donde se retoma -- y "Agente y tareas" volveria
+        # a 26 con el tope en 25.
+        "/tx", "/libro", "/checkpoint",
         "/horizonte",
     ),
     "Codigo y ficheros": (

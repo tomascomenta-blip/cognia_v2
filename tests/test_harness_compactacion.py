@@ -269,12 +269,16 @@ def test_telemetria_de_la_puerta():
 
 # ── el disparo bajo streaming (est sin prompt_tokens) ────────────────────────
 
-def test_bucle_compacta_aunque_el_stream_no_traiga_prompt_tokens():
+def test_bucle_compacta_aunque_el_stream_no_traiga_prompt_tokens(monkeypatch):
     """Regresion (cazada TECLEANDO en el REPL, 2026-08-23): bajo streaming el
     usage estimado por timings/frames viene SIN prompt_tokens, el presupuesto
     de contexto contaba solo lo apendeado en el turno y la compactacion no
     disparaba nunca. Con el fallback (historial entero a chars/4) el bucle
     compacta de verdad: aparece el mensaje-resumen en el historial."""
+    # Este test fija el camino VIEJO (resumen por compactacion.compactar). Con la
+    # memoria larga encendida (default desde 2026-09-04) el bucle reconstruye el
+    # contexto antes de que ese camino dispare: se apaga aqui a proposito.
+    monkeypatch.setenv("COGNIA_MEMORIA_LARGA", "0")
     from cognia.agent import loop as loop_mod
     from cognia.agent.chat_client import (RespuestaChat, ToolCall,
                                           mensaje_assistant, mensaje_tool)

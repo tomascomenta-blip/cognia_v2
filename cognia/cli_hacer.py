@@ -61,13 +61,18 @@ def main(argv: list = None) -> int:
                     help="stdout = un objeto JSON con resultado y metadatos")
     ap.add_argument("--silencioso", "-s", action="store_true",
                     help="sin progreso en stderr")
+    ap.add_argument("--retomar", action="store_true",
+                    help="continuar la tarea a medias de este directorio desde su ultimo checkpoint (memoria larga)")
     ap.add_argument("--cwd", default=None,
                     help="directorio de trabajo del agente (por defecto, este)")
     args = ap.parse_args(argv)
 
-    tarea = _leer_tarea(args.tarea)
-    if not tarea:
-        print('Uso: cognia hacer "<tarea>"   (o pasarla por stdin)',
+    # Con --retomar NO se lee stdin: la tarea sale del checkpoint. Sin esta guarda
+    # `_leer_tarea` se quedaba esperando una tubería que nadie cerraba (cazado en la
+    # prueba de crash real del 2026-09-04: 3 horas colgado con salida vacía).
+    tarea = "" if getattr(args, "retomar", False) else _leer_tarea(args.tarea)
+    if not tarea and not getattr(args, "retomar", False):
+        print('Uso: cognia hacer "<tarea>"   (o pasarla por stdin, o --retomar)',
               file=sys.stderr)
         return 2
 
@@ -129,12 +134,37 @@ def _hacer(args, tarea: str, progreso) -> int:
 
     codigo = 0
     respuesta = ""
+    # MEMORIA LARGA (2026-09-04): sembrar el flag como hace el REPL (el catalogo
+    # de tools y agent/loop leen el env) y, con --retomar, cargar el ultimo
+    # checkpoint de TAREA de este directorio como guidance.
+    guidance = None
+    try:
+        _cli._aplicar_config_memoria_larga()
+    except Exception as exc:
+        progreso(f"[cognia] memoria larga: config no propagada ({type(exc).__name__}: {exc})")
+    if getattr(args, "retomar", False):
+        try:
+            from cognia.memoria_larga import recuperacion as _rec
+            cp = _rec.tarea_pendiente(os.getcwd())
+            if not cp:
+                print("[cognia] no hay ninguna tarea a medias en este directorio que retomar", file=sys.stderr)
+                return 1
+            tarea = str(cp.get("tarea") or tarea)
+            guidance = _rec.prompt_de_retomada(cp)
+            _rec.sellar(cp, "retomada")
+            progreso(f"[cognia] retomando {cp.get('task_id')} desde el checkpoint #{cp.get('n')} (paso {cp.get('paso')})")
+        except Exception as exc:
+            print(f"[cognia] no pude retomar: {type(exc).__name__}: {exc}", file=sys.stderr)
+            return 1
+    elif not tarea:
+        return 2
     try:
         with contextlib.redirect_stdout(sys.stderr):
             # Doble cinturon: cualquier print() suelto del camino del agente
             # (los hay) va a stderr y NO ensucia el resultado.
             respuesta = _cli._run_agent_task(ai, tarea, progreso,
-                                             max_steps=args.pasos)
+                                             max_steps=args.pasos,
+                                             **({"guidance": guidance} if guidance else {}))
     except KeyboardInterrupt:
         print("[cognia] interrumpido", file=sys.stderr)
         return 130

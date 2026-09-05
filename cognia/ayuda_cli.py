@@ -31,7 +31,11 @@ GRUPOS = [
     ]),
     ("Trabajar", [
         ("hacer", '"<tarea>"', "el agente hace la tarea y sale — sirve en tuberías "
-                               "y scripts  [--pasos N] [--json] [-s]"),
+                               "y scripts  [--pasos N] [--json] [-s] [--retomar]"),
+        ("memoria", 'buscar "<q>" | stats', "la memoria de largo plazo del agente "
+                                            "(lo que salió de la ventana)"),
+        ("sesion", "lista | retomar | nueva", "checkpoints de tarea: retomar tras un "
+                                             "crash o empezar limpio"),
         ("responder", '"<pregunta>"', "responde con CONFIANZA; si no le alcanza, "
                                       "investiga y cita  [--segundos N]"),
         ("rlm", '<ruta> "<pregunta>"', "pregunta sobre un contexto más grande que "

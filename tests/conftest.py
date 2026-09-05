@@ -137,6 +137,16 @@ def _papelera_aislada(tmp_path, monkeypatch):
     monkeypatch.setenv("COGNIA_PAPELERA_DIR", str(tmp_path / "papelera_test"))
 
 
+# ── La MEMORIA LARGA del agente nunca toca ~/.cognia desde tests ───────
+# bucle_nativo abre ~/.cognia/memoria_larga.db y escribe checkpoints de tarea en
+# ~/.cognia/tareas/<task_id>/ en cada /hacer (memoria_larga/integracion.py).
+# Medido el 2026-09-04: una pasada de la suite dejo 22 checkpoints y 6 tareas
+# de prueba en la memoria REAL del dueno. Cada test tiene su directorio.
+@_pytest.fixture(autouse=True)
+def _memoria_larga_aislada(tmp_path, monkeypatch):
+    monkeypatch.setenv("COGNIA_MEMORIA_DIR", str(tmp_path / "memoria_larga_test"))
+
+
 # ── Los JSONL del disyuntor NUNCA se escriben desde tests ──────────────
 # Mismo motivo que la telemetria: los lazos de program_creator persisten sus
 # intentos y disparos en .disciplina/pc_*.jsonl (2026-08-01, para que la

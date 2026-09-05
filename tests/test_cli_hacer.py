@@ -201,3 +201,21 @@ class TestNoContaminaElProcesoQueLoLlama:
         cli_hacer.main(["algo", "--cwd", str(tmp_path)])
         assert os.getcwd() == antes
 
+
+
+def test_retomar_sin_tarea_no_lee_stdin_ni_se_cuelga(monkeypatch, tmp_path, capsys):
+    """--retomar sin tarea a medias sale con 1 SIN leer stdin (2026-09-04: la prueba
+    de crash real quedo 3 horas colgada esperando una tuberia)."""
+    import io
+    from cognia import cli_hacer
+    monkeypatch.setenv("COGNIA_MEMORIA_DIR", str(tmp_path / "mem"))
+    monkeypatch.chdir(tmp_path)
+
+    class _StdinQueSeQueja(io.StringIO):
+        def read(self, *a, **k):
+            raise AssertionError("--retomar leyo stdin")
+
+    monkeypatch.setattr("sys.stdin", _StdinQueSeQueja())
+    rc = cli_hacer.main(["--retomar"])
+    assert rc == 1
+    assert "no hay ninguna tarea a medias" in capsys.readouterr().err

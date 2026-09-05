@@ -73,6 +73,11 @@ KNOWN_BARE_SQLITE = {
     # Pool/wrapper layer — these legitimately own the raw sqlite3 connection.
     "storage/db_pool.py",
     "cognia/database.py",
+    # memoria_larga (2026-09-04): almacen PROPIO (~/.cognia/memoria_larga.db, WAL,
+    # FTS5) fuera de cognia_memory.db a proposito: el pool esta atado a esa DB y
+    # sus stalls documentados son justo lo que la memoria larga evita. Una
+    # conexion por instancia con lock; documentado en el docstring del modulo.
+    "cognia/memoria_larga/almacen.py",
     # coordinator/* run as a separate service process (per CLAUDE.md scope note).
     "coordinator/contributor.py",
     "coordinator/federated_store.py",

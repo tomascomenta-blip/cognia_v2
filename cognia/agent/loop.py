@@ -1479,6 +1479,20 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
     _nudges_verif = 0          # nudges de parada verificada ya inyectados
     _ts_1a_edicion = None      # epoch de la primera escritura del turno
     _reint_backend = 0         # reintentos por error transitorio del backend
+    # MEMORIA LARGA (2026-09-04, cognia/memoria_larga): el historial de la
+    # tarea vive FUERA de la conversacion (SQLite + FTS5 + vectores) y cuando
+    # la ventana se llena el contexto se RECONSTRUYE (estado verificado +
+    # memorias recuperadas + cola reciente) en vez de resumir el resumen.
+    # Cuatro ganchos: iniciar / registrar / fin_de_paso / cerrar. Con
+    # COGNIA_MEMORIA_LARGA=0 `_ml` es None y todo lo de abajo es byte-identico
+    # al camino anterior (es el contrafactual del banco).
+    _ml = None
+    try:
+        from cognia.memoria_larga import integracion as _ml_mod
+        _ml = _ml_mod.iniciar(task, ctx, perfil, print_fn, schemas)
+    except Exception as _e_ml:
+        print_fn(f"[warn_cl]memoria larga no cargada ({type(_e_ml).__name__}: "
+                 f"{_e_ml}); el loop sigue con su compactacion[/warn_cl]")
     # REVISION PROFUNDA ANTES DE ENTREGAR (harness/revision_profunda.py). La
     # compuerta de arriba (parada_verificada) es POLITICA: mira si hay evidencia
     # y, si no, le pide al MODELO que verifique. Esta EJECUTA: cuando el turno
@@ -2362,9 +2376,16 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         if not _ps.hay_sitio_para_trabajar(perfil.get("n_ctx"),
                                            _tokens_prompt(mensajes)):
             _cabe = _ps.disponible(perfil.get("n_ctx"), _tokens_prompt(mensajes))
-            _lib = (_compactar_por_resumen(mensajes, perfil.get("n_ctx"),
-                                           10 ** 9, _estado, print_fn)
-                    or _recortar_mensajes(mensajes, perfil.get("n_ctx"), 10 ** 9))
+            _lib = 0
+            if _ml is not None:
+                # Reconstruccion FORZADA antes de llamar (memoria larga).
+                _lib = (_ml.fin_de_paso(mensajes, _tokens_prompt(mensajes), None,
+                                        forzar=True, estado_canal=_estado,
+                                        canal_mod=_canal, trace=trace) or 0) * 4
+            if not _lib:
+                _lib = (_compactar_por_resumen(mensajes, perfil.get("n_ctx"),
+                                               10 ** 9, _estado, print_fn)
+                        or _recortar_mensajes(mensajes, perfil.get("n_ctx"), 10 ** 9))
             if _lib:
                 print_fn(f"[warn_cl]la ventana solo dejaba {_cabe} tokens de "
                          f"salida (hacen falta {_ps.MINIMO_UTIL}): compacto "
@@ -2747,9 +2768,18 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                         # should_compress justo por esto).
                         # F4: primero la compactacion por resumen (una sola
                         # pasada); None o 0 -> el truncado de siempre.
-                        _liberados = _compactar_por_resumen(
-                            mensajes, perfil.get("n_ctx"), 10 ** 9,
-                            _estado, print_fn) or 0
+                        _liberados = 0
+                        if _ml is not None:
+                            # El 400 de contexto es el caso central de la
+                            # memoria larga: reconstruir, no morder.
+                            _liberados = (_ml.fin_de_paso(
+                                mensajes, _tokens_prompt(mensajes), None,
+                                forzar=True, estado_canal=_estado,
+                                canal_mod=_canal, trace=trace) or 0) * 4
+                        if not _liberados:
+                            _liberados = _compactar_por_resumen(
+                                mensajes, perfil.get("n_ctx"), 10 ** 9,
+                                _estado, print_fn) or 0
                         if not _liberados:
                             _liberados = _recortar_mensajes(
                                 mensajes, perfil.get("n_ctx"), 10 ** 9)
@@ -3054,6 +3084,12 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
 
         idx_turno = len(mensajes)   # desde aca: lo apendeado en ESTE turno
         mensajes.append(mensaje_assistant(resp))
+        if _ml is not None:
+            try:
+                _ml.registrar_respuesta(resp, pasos)
+            except Exception as _e_mlr:
+                print_fn(f"[warn_cl]memoria larga: turno assistant no registrado "
+                         f"({type(_e_mlr).__name__}: {_e_mlr})[/warn_cl]")
         # ¿Fue este paso de PURA LECTURA? Se decide con los nombres de las
         # tools que de verdad corrieron, no con la intencion del modelo.
         _paso_solo_lectura = True
@@ -3547,6 +3583,15 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
                     intencion=_intencion_de(resp))
             except Exception:
                 resultado_msg = resultado
+            if _ml is not None:
+                # Extraccion INCREMENTAL: cada resultado de tool pasa por las
+                # reglas de memoria ahora, no cuando ya salio de la ventana.
+                try:
+                    _ml.registrar("tool", resultado, tool=tc.nombre,
+                                  ok=bool(tool_ok), paso=pasos)
+                except Exception as _e_mlt:
+                    print_fn(f"[warn_cl]memoria larga: resultado de {tc.nombre} "
+                             f"no registrado ({type(_e_mlt).__name__}: {_e_mlt})[/warn_cl]")
             mensajes.append(mensaje_tool(tc.id, resultado_msg))
             if _aviso_guardia:
                 mensajes.append({"role": "user", "content": _aviso_guardia})
@@ -3685,8 +3730,22 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
         # sola invalidacion de la KV cache por compactacion, contra una por
         # mordisco del modo viejo. None = modo 'truncado' o fallo del resumen
         # en este turno: el camino de abajo sigue byte-identico de fallback.
-        _lib_resumen = _compactar_por_resumen(
-            mensajes, perfil.get("n_ctx"), est, _estado, print_fn)
+        # MEMORIA LARGA primero (2026-09-04): si el contexto activo supera su
+        # umbral, se RECONSTRUYE (checkpoint + canal + memorias recuperadas +
+        # cola reciente, un solo splice). Devuelve tokens liberados; se pasa
+        # como chars por la misma moneda del camino de abajo, que resta
+        # `_lib_resumen // 4` y NO reinyecta el canal (ya viaja en el bloque).
+        _lib_ml = None
+        if _ml is not None:
+            _lib_ml = _ml.fin_de_paso(
+                mensajes, est, resp, estado_canal=_estado, canal_mod=_canal,
+                trace=trace,
+                prompt_tokens_real=(resp.usage or {}).get("prompt_tokens"))
+        if _lib_ml:
+            _lib_resumen = int(_lib_ml) * 4
+        else:
+            _lib_resumen = _compactar_por_resumen(
+                mensajes, perfil.get("n_ctx"), est, _estado, print_fn)
         if _lib_resumen:
             _libero_algo = True
             est -= _lib_resumen // 4
@@ -3909,6 +3968,16 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             ctx["_estado_verificado"] = _estado
         except Exception:
             pass
+    if _ml is not None:
+        # Checkpoint de CIERRE (completa/incompleta) + ultimo registro. Es lo
+        # que `cognia hacer --retomar` y `/hacer retomar` leen tras un crash.
+        try:
+            _ml.cerrar(result_text, ok, estado_canal=_estado, canal_mod=_canal,
+                       trace=trace)
+            ctx["_ml_stats"] = _ml.stats.a_dict()
+        except Exception as _e_mlc:
+            print_fn(f"[warn_cl]memoria larga: cierre sin checkpoint "
+                     f"({type(_e_mlc).__name__}: {_e_mlc})[/warn_cl]")
     _envelope = {}
     if _salida is not None:
         try:

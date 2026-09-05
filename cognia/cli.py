@@ -3325,7 +3325,8 @@ _CMD_DESCRIPTIONS = {
     "/contexto-auto":   "Auto-indexar cada turno de conversacion   on|off",
     "/limpiar":         "Limpiar pantalla",
     "/resumir":         "Resume la conversacion actual y guarda en memoria",
-    "/memoria":         "Estado de memoria y KG   [agente on|off|estado: memoria como DATO en /hacer]",
+    "/memoria":         "Memoria de largo plazo del agente. Uso: /memoria [buscar <q> [historial] | inspeccionar <id> | porque <id> | stats | tipos | podar [N] | agente on|off|estado]",
+    "/checkpoint":      "Checkpoints de TAREA (para destruir el contexto y continuar, o retomar tras un crash). Uso: /checkpoint [lista [N] | ver [task_id] | sellar]",
     "/modulos":         "Módulos activos en tiempo real",
     "/exportar":        "Exportar historial (json|md|csv)   <formato> [archivo]",
     "/exportar-stats":  "Ver estadisticas del historial",
@@ -6237,6 +6238,26 @@ def _slash_contexto_stats(ai, args):
     print("Total punteros: %d" % total)
 
 
+def _slash_memoria_larga(args: str) -> None:
+    """/memoria buscar|inspeccionar|porque|stats|tipos|podar (cognia/memoria_larga)."""
+    try:
+        from cognia.memoria_larga.cli import slash_memoria
+        print(slash_memoria(args, os.getcwd()))
+    except Exception as exc:
+        _aviso_degradado("memoria_larga", f"{type(exc).__name__}: {exc}")
+        print(f"memoria larga no disponible: {type(exc).__name__}: {exc}")
+
+
+def _slash_checkpoint_tarea(args: str) -> None:
+    """/checkpoint lista|ver|sellar (checkpoints de TAREA de la memoria larga)."""
+    try:
+        from cognia.memoria_larga.cli import slash_checkpoint
+        print(slash_checkpoint(args, os.getcwd()))
+    except Exception as exc:
+        _aviso_degradado("memoria_larga", f"{type(exc).__name__}: {exc}")
+        print(f"checkpoints no disponibles: {type(exc).__name__}: {exc}")
+
+
 def _slash_contexto_auto(ai, args):
     global _CONTEXT_AUTO
     a = (args or "").strip().lower()
@@ -8708,6 +8729,10 @@ _CONFIG_DEFAULTS: dict = {
     # COGNIA_OFFLOAD=0 gana a la config (apagado de emergencia); se cambia
     # con /offload on|off|umbral|preview.
     "offload":          "on",
+    # MEMORIA LARGA (2026-09-04): el historial vive fuera de la ventana y el
+    # contexto se reconstruye en vez de resumirse. COGNIA_MEMORIA_LARGA=0 en el
+    # env gana (apagado de emergencia / contrafactual del banco).
+    "memoria_larga":    "on",
     "offload_umbral":   "2000",
     "offload_cabeza":   "15",
     # Reparto por tool (2026-08-30): lo que el agente pidio por su nombre (un
@@ -14577,6 +14602,21 @@ def _slash_offload(arg: str = "") -> None:
     _print_line("\n".join(_estado_subsistema(
         "offload de salidas grandes", bool(est["activo"]), filas,
         fuente=fuente, avisos=avisos)))
+
+
+def _aplicar_config_memoria_larga() -> None:
+    """Propaga la config de la memoria larga al entorno SIN pisar lo que el
+    usuario puso a mano: agent/loop y el catalogo de tools (memoria_buscar es
+    opt-in por COGNIA_MEMORIA_LARGA) leen el env, y sin sembrarlo la config
+    diria 'on' con el subsistema muerto (la clase de bug del flag TX)."""
+    try:
+        cfg = _load_config()
+        valor = "1" if str(cfg.get("memoria_larga", "on")).lower() in ("on", "1", "true") else "0"
+        if not os.environ.get("COGNIA_MEMORIA_LARGA", "").strip():
+            os.environ["COGNIA_MEMORIA_LARGA"] = valor
+            _marcar_env_sembrada("COGNIA_MEMORIA_LARGA")
+    except Exception as exc:
+        _aviso_degradado("memoria_larga", f"config no propagada: {type(exc).__name__}: {exc}")
 
 
 def _aplicar_config_compactacion() -> None:
@@ -22985,6 +23025,8 @@ def _repl_sesion():
     # COGNIA_COMPACT del entorno, y sin propagar la config el modo persistido
     # con /compactar no llegaria nunca al bucle.
     _aplicar_config_compactacion()
+    # MEMORIA LARGA: misma razon (agent/loop y el catalogo de tools leen el env).
+    _aplicar_config_memoria_larga()
     # FOOTER DE CONTEXTO (barra_estado): umbral critico y mini-barra de
     # bloques por config -> env; el de aviso solo si el dueno lo fijo (vacio
     # = acoplado al umbral de compactacion, que ya quedo sembrado arriba).
@@ -23100,6 +23142,18 @@ def _repl_sesion():
         ai.observe = _observe_efimero
         _init_lines.append(
             "[OK] Sesion efimera: no se guarda nada (COGNIA_EFIMERO=1)")
+
+    # MEMORIA LARGA (2026-09-04): si en este directorio quedo una tarea a
+    # medias (checkpoint 'en_curso' de un /hacer que murio), se dice al
+    # arrancar: es la puerta de la recuperacion tras crash.
+    try:
+        if not _es_efimero():
+            from cognia.memoria_larga import recuperacion as _rec_ml0
+            _aviso_ml = _rec_ml0.aviso_al_arrancar(os.getcwd())
+            if _aviso_ml:
+                _init_lines.append(_aviso_ml)
+    except Exception as _e_ml0:
+        _init_lines.append(f"[warn] memoria larga: no pude mirar checkpoints ({type(_e_ml0).__name__}: {_e_ml0})")
 
     # Restore conversation continuity across restarts: seed the in-memory
     # _history (multi-turn prompt context) from persisted chat_history so the
@@ -23709,6 +23763,13 @@ def _repl_sesion():
                 _slash_compactar_sesion()
             elif raw == "/memoria agente" or raw.startswith("/memoria agente "):
                 _slash_memoria_agente(raw[len("/memoria agente"):].strip())
+            elif raw.startswith("/memoria ") and raw.split()[1].lower() in (
+                    "buscar", "b", "inspeccionar", "ver", "i", "porque", "por-que",
+                    "explicar", "stats", "estado", "tipos", "podar"):
+                # MEMORIA LARGA (2026-09-04, cognia/memoria_larga/cli.py)
+                _slash_memoria_larga(raw[len("/memoria "):])
+            elif raw == "/checkpoint" or raw.startswith("/checkpoint "):
+                _slash_checkpoint_tarea(raw[len("/checkpoint"):].strip())
             elif raw == "/memoria":
                 _run(raw, ai.introspect, color="listado")
             elif raw == "/modulos":
@@ -25008,6 +25069,37 @@ def _repl_sesion():
                 # por el MISMO flag que el modo: sin COGNIA_HORIZONTE=1 el
                 # subcomando no existe y '/hacer retomar' se comporta como
                 # siempre (tarea literal) — cero regresion flag-off.
+                if _tarea == "retomar" and os.environ.get("COGNIA_HORIZONTE") != "1":
+                    # MEMORIA LARGA (2026-09-04): retomar desde el ultimo checkpoint
+                    # de TAREA de este directorio (lo escribe cada /hacer, sin
+                    # flags). El delta va como guidance; la tarea original como
+                    # history[0]. El checkpoint viejo se sella 'retomada' ANTES
+                    # de relanzar (misma regla que la rama de horizonte).
+                    try:
+                        from cognia.memoria_larga import recuperacion as _rec_ml
+                        _cp_ml = _rec_ml.tarea_pendiente(os.getcwd())
+                    except Exception as _e_ml:
+                        _cp_ml = None
+                        _print_line(f"[warn_cl]retomar no disponible: {_escape(str(_e_ml))}[/warn_cl]")
+                    if _cp_ml:
+                        _tarea = str(_cp_ml.get("tarea") or "")
+                        _print_line(f"[detail]Retomando tarea {_cp_ml.get('task_id')} desde el "
+                                    f"checkpoint #{_cp_ml.get('n')} (paso {_cp_ml.get('paso')}): "
+                                    f"{_escape(_tarea[:120])}[/detail]")
+                        _guia_ml = _rec_ml.prompt_de_retomada(_cp_ml)
+                        _rec_ml.sellar(_cp_ml, "retomada")
+
+                        def _turno_retomar_ml(_t=_tarea, _raw=raw, _g=_guia_ml):
+                            _r = _run_agent_task(ai, _t, _print_line, guidance=_g)
+                            if _r:
+                                _show_response(_r, _ACCENT, respuesta_final=True)
+                            _session_log.append({"input": _raw, "output": _r, "elapsed": 0})
+                        if not _lanzar_en_fondo("hacer", _turno_retomar_ml):
+                            _turno_retomar_ml()
+                        continue
+                    _print_line("[warn_cl]No hay ninguna tarea a medias en este directorio "
+                                "(/checkpoint lista muestra las que hay).[/warn_cl]")
+                    continue
                 if _tarea == "retomar" and os.environ.get("COGNIA_HORIZONTE") == "1":
                     try:
                         from cognia.agent.estado_tarea import (
@@ -26077,6 +26169,9 @@ def _repl_sesion():
                 _slash_inicio_dia("")
 
             # ── /contexto / /contexto-mapa / /contexto-stats / /contexto-auto ──────
+            elif raw == "/contexto stats":
+                # Observabilidad de la memoria larga (= /memoria stats)
+                _slash_memoria_larga("stats")
             elif raw == "/contexto" or raw.startswith("/contexto "):
                 _slash_contexto(ai, raw[len("/contexto "):] if raw.startswith("/contexto ") else "")
             elif raw == "/contexto-mapa":
