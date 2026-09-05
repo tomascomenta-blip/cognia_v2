@@ -506,6 +506,21 @@ def fase_producto(art, presupuesto_restante_s: float) -> dict:
     base["fases"] = res.get("fases") or {}
     base["fallo_duro"] = res.get("fallo_duro")
     base["indeterminado"] = res.get("indeterminado")
+    # GUION DEL PROPIO AGENTE (2026-09-04): si junto a la pagina hay
+    # `<pagina>.guion.txt` (los pasos de renderizar: teclas, clics, asserts), la
+    # revision lo CORRE ademas del contrato generico. Es la prueba que el
+    # agente escribio para su producto, persistida, y la que mejor sabe que
+    # deberia pasar: un assert que falla o un error de JS nuevo reprueban.
+    # Corre salvo que la pagina ni compile (sin_stubs es heuristica: un guion que
+    # pasa sobre una pagina "corta" es evidencia mejor que la heuristica).
+    if (base["lenguaje"] or "").lower() == "html" and base["entrypoint"]:
+        if base["fallo_duro"] == "compila":
+            base["fases"]["guion"] = {"ok": None, "corrio": False,
+                                      "detalle": "no corrido: la pagina no compila"}
+        else:
+            base["fases"]["guion"] = _fase_guion_html(base["entrypoint"])
+            if base["fases"]["guion"].get("ok") is False and not base["fallo_duro"]:
+                base["fallo_duro"] = "guion"
     arranca = base["fases"].get("arranca") or {}
     if base["fallo_duro"]:
         fallo = base["fases"].get(base["fallo_duro"]) or {}
@@ -517,7 +532,45 @@ def fase_producto(art, presupuesto_restante_s: float) -> dict:
     else:
         base["ok"] = True
         base["detalle"] = arranca.get("detalle") or "arranca"
+    # El guion propio que PASA tambien se dice (antes solo se veia el contrato
+    # generico y desde fuera "no habia guion" y "el guion paso" eran iguales).
+    g = base["fases"].get("guion") or {}
+    if g.get("corrio") and g.get("ok") and base["fallo_duro"] != "guion":
+        base["detalle"] += f" | guion propio OK ({g.get('pasos', 0)} pasos, {Path(g.get('guion', '')).name})"
     return base
+
+
+def ruta_guion_de(entrypoint) -> Path:
+    """`<pagina>.guion.txt` junto a la pagina (index.html -> index.html.guion.txt)."""
+    p = Path(str(entrypoint))
+    return p.with_name(p.name + ".guion.txt")
+
+
+def _fase_guion_html(entrypoint: str) -> dict:
+    """Corre el guion persistido de la pagina, si existe. ok=None si no hay guion o no
+    se pudo correr (no reprueba por un fallo del instrumento); ok=False si un assert
+    falla o el guion provoca errores de JS."""
+    ruta = ruta_guion_de(entrypoint)
+    if not ruta.is_file():
+        return {"ok": None, "corrio": False, "detalle": f"sin guion propio ({ruta.name} no existe)"}
+    try:
+        texto = ruta.read_text(encoding="utf-8")
+    except OSError as exc:
+        return {"ok": None, "corrio": False, "detalle": f"guion ilegible: {exc}"}
+    try:
+        from cognia.agent import renderizador_guion as _RG
+        rg = _RG.correr_guion(Path(entrypoint).resolve().as_uri(), texto, captura_final=False, mapa=False)
+    except Exception as exc:
+        return {"ok": None, "corrio": False, "detalle": f"guion no corrido ({type(exc).__name__}: {exc})"}
+    if rg.get("error"):
+        return {"ok": None, "corrio": False, "detalle": f"guion no corrido: {rg['error']}"}
+    fallidos = (rg.get("asserts") or {}).get("fallidos") or []
+    errores = rg.get("errores") or []
+    ok = not fallidos and not errores
+    detalle = _RG.texto_guion(rg)
+    return {"ok": ok, "corrio": True, "guion": str(ruta), "pasos": len(rg.get("pasos", [])),
+            "asserts_fallidos": fallidos, "errores_js": errores[:4],
+            "detalle": ("guion propio OK: " if ok else "GUION PROPIO FALLA: ") + _recortar(detalle, 1500)}
 
 
 # -- La revision --------------------------------------------------------------

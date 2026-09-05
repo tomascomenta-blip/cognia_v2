@@ -238,7 +238,7 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
     ),
     "Codigo y ficheros": (
         "/leer", "/proyecto", "/listar", "/buscar", "/escribir", "/editar",
-        "/ejecutar", "/powershell", "/monitor", "/monitores", "/centinela",
+        "/ejecutar", "/ejecutar-guion", "/powershell", "/monitor", "/monitores", "/centinela",
         "/shells",
         "/shell-kill", "/diff", "/cat", "/mapa-codigo", "/indexar-codigo",
         "/mcp", "/backup", "/worktree",   # worktree es git, no gestion de tareas

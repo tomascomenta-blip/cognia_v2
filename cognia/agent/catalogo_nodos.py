@@ -206,7 +206,7 @@ CATEGORIAS: tuple = (
 
     {"id": "ejecucion", "nombre": "Ejecutar y procesos",
      "color": "#e44d26", "color_osc": "#ff7755", "icono": "terminal",
-     "tools": ("ejecutar", "ejecutar_fondo", "ver_salida", "matar_proceso",
+     "tools": ("ejecutar", "ejecutar_fondo", "ejecutar_guion", "ver_salida", "matar_proceso",
                "procesos", "abrir")},
 
     {"id": "pantalla", "nombre": "Pantalla y raton",

@@ -410,9 +410,14 @@ def _firma_png(png: Path) -> str:
 # ---------------------------------------------------------------------------
 
 def renderizar(fuente: str, salida=None, ancho: int = ANCHO_DEF, alto: int = ALTO_DEF,
-               espera_ms: int = ESPERA_DEF_MS, backend: str = "", scratch=None) -> dict:
+               espera_ms: int = ESPERA_DEF_MS, backend: str = "", scratch=None,
+               guion: str = "", vars_: str = "") -> dict:
     """Renderiza `fuente` y devuelve un dict con png, backend, errores, resumen.
-    Lanza ValueError con mensaje accionable si nada puede renderizar."""
+    Lanza ValueError con mensaje accionable si nada puede renderizar.
+
+    Con `guion` (pasos: tecla/clic/escribir/espera/captura/var/assert...) o `vars`
+    (expresiones JS a vigilar) la captura pasa a ser una PRUEBA interactiva
+    (renderizador_guion.correr_guion): solo Playwright, y el dict trae `guion`."""
     ancho = max(200, min(4000, int(ancho or ANCHO_DEF)))
     alto = max(150, min(4000, int(alto or ALTO_DEF)))
     espera_ms = max(0, min(ESPERA_MAX_MS, int(espera_ms or 0)))
@@ -433,6 +438,31 @@ def renderizar(fuente: str, salida=None, ancho: int = ANCHO_DEF, alto: int = ALT
                             if tec != "url" else "url")[:40]
             png = base / ("captura_%s_%s.png" % (nombre, time.strftime("%H%M%S")))
         png.parent.mkdir(parents=True, exist_ok=True)
+        if (guion or "").strip() or (vars_ or "").strip():
+            # PRUEBA INTERACTIVA (2026-09-04): teclas, clics, variables antes y
+            # despues, asserts y capturas intermedias. Solo Playwright: el
+            # backend de sistema saca una foto y no puede tocar la pagina.
+            if not playwright_disponible():
+                raise ValueError("un guion interactivo necesita Playwright (pip install playwright && "
+                                 "playwright install chromium); el backend de sistema solo captura")
+            from cognia.agent import renderizador_guion as _RG
+            exprs = [v.strip() for v in re.split(r"[,;]\s*(?=[A-Za-z_$(])", vars_ or "") if v.strip()] if vars_ else []
+            rg = _RG.correr_guion(uri, guion or "", vars_iniciales=exprs, ancho=ancho, alto=alto,
+                                  espera_ms=espera_ms, salida_base=png.parent, prefijo=png.stem)
+            if rg.get("error"):
+                raise ValueError(rg["error"])
+            png_final = Path(rg.get("captura_final") or (rg["capturas"][-1] if rg.get("capturas") else str(png)))
+            mapa = rg.get("mapa") or {}
+            out = {"png": str(png_final), "backend": "playwright-guion", "tecnologia": tec, "uri": uri,
+                   "consola_observada": True, "errores": rg.get("errores", []), "avisos": [],
+                   "resumen": {"titulo": mapa.get("titulo", ""), "texto": mapa.get("texto", ""),
+                               "chars": len(mapa.get("texto", "") or "")},
+                   "firma": _firma_png(png_final) if png_final.is_file() else "", "intentos": [],
+                   "ancho": ancho, "alto": alto, "guion": rg}
+            _ULTIMO.update({"backend": "playwright-guion", "fuente": fuente, "png": str(png_final),
+                            "errores": len(out["errores"]), "ts": time.time(),
+                            "detalle": "guion de %d pasos, %d capturas" % (len(rg.get("pasos", [])), len(rg.get("capturas", [])))})
+            return out
         intentos, usado, res = [], "", None
         orden = (["playwright", "sistema"] if pedido in ("auto", "playwright")
                  else ["sistema", "playwright"])
@@ -507,7 +537,11 @@ def texto_resultado(r: dict) -> str:
         partes.append(r["firma"])
     if r.get("intentos"):
         partes.append("(backend(s) que fallaron antes: %s)" % "; ".join(r["intentos"]))
-    return " · ".join(p for p in partes if p)
+    texto = " · ".join(p for p in partes if p)
+    if r.get("guion"):
+        from cognia.agent import renderizador_guion as _RG
+        texto += "\nGUION INTERACTIVO:\n" + _RG.texto_guion(r["guion"])
+    return texto
 
 
 def ultimo() -> dict:
@@ -526,7 +560,7 @@ def ultimo() -> dict:
 # pipe, ese string entero era la "fuente" y la tool contestaba "no existe:
 # tankio.html espera=2000" en cada intento con un parametro opcional; el
 # modelo lo resumio como "renderizar devuelve 'no existe'" y dejo de mirar.
-_RE_CLAVE = re.compile(r"(?:\|\s*|\s+)(ancho|alto|espera|salida|backend)\s*=\s*", re.I)
+_RE_CLAVE = re.compile(r"(?:\|\s*|\s+)(ancho|alto|espera|salida|backend|vars|guion)\s*=\s*", re.I)
 
 
 def partir_args(args: str) -> tuple:
@@ -549,8 +583,10 @@ def partir_args(args: str) -> tuple:
 def register(tool) -> None:
     @tool("renderizar",
           "renderizar <ruta o URL> [| ancho=N] [| alto=N] [| espera=MS] [| salida=X.png]"
+          " [| vars=expr1,expr2] [| guion=tecla ArrowRight*3; clic #boton; captura; assert score>0]"
           "  -- abre HTML/SVG/MD/JS/CSS/imagen en un navegador AISLADO (sin ventana), "
-          "guarda una captura PNG y devuelve errores de consola y lo visible",
+          "guarda una captura PNG y devuelve errores de consola y lo visible; con guion/vars "
+          "PRUEBA la pagina: teclas, clics, texto, variables antes y despues, asserts",
           desc="Renderiza una pagina o fichero (HTML, SVG, Markdown, JS con canvas, "
                "CSS, imagen o URL) en un navegador headless que NO abre ventana ni "
                "toca la sesion del usuario, y devuelve la ruta de la captura PNG, "
@@ -559,7 +595,17 @@ def register(tool) -> None:
                "para COMPROBAR que lo que escribiste se ve y no revienta. Acepta "
                "rutas relativas al workspace, absolutas y file://; para una URL "
                "http://localhost:PUERTO el servidor tiene que estar arrancado "
-               "antes (ejecutar_fondo) o devuelve 'no se pudo conectar'.",
+               "antes (ejecutar_fondo) o devuelve 'no se pudo conectar'. "
+               "PARA PROBAR INTERACCION (juegos, formularios, botones) pasa un guion: pasos "
+               "separados por ';' entre tecla <Tecla>[*N], teclas a,b,c, mantener <Tecla> <ms>, "
+               "clic <selector|x,y>, dobleclic, escribir <selector> \"texto\", tipear \"texto\", "
+               "raton x,y, arrastrar x1,y1 x2,y2, scroll <y>, espera <ms>, esperar <selector|\"texto\">, "
+               "captura [nombre], var <expresion JS>, js <codigo>, assert <expresion JS | texto contiene "
+               "\"x\" | canvas cambia | sin errores>, recargar. Con vars=window.score,player.x cada "
+               "accion muestra el valor ANTES -> DESPUES; cada accion dice si la pantalla cambio y si "
+               "hubo errores de JS nuevos; al final devuelve el MAPA de controles (selectores clicables). "
+               "Si guardas ese guion en <pagina>.guion.txt junto a la pagina, la revision profunda lo "
+               "corre automaticamente antes de entregar.",
           params=[
               {"nombre": "fuente", "tipo": "string", "requerido": True,
                "descripcion": "ruta del fichero (html, svg, md, js, css, png…) o URL"},
@@ -571,17 +617,27 @@ def register(tool) -> None:
                "descripcion": "ms a esperar tras cargar antes de capturar (default 1500)"},
               {"nombre": "salida", "tipo": "string", "requerido": False, "clave": True,
                "descripcion": "ruta del PNG (default: el scratchpad de la tarea)"},
+              {"nombre": "vars", "tipo": "string", "requerido": False, "clave": True,
+               "descripcion": "expresiones JS a vigilar antes/despues de cada accion, separadas por coma "
+                              "(ej: window.score,document.title)"},
+              {"nombre": "guion", "tipo": "string", "requerido": False, "clave": True,
+               "descripcion": "pasos interactivos separados por ';' (tecla ArrowRight*3; clic #btn; "
+                              "escribir #nombre \"ana\"; espera 300; captura; assert window.score>0)"},
           ],
           timeout_s=TIMEOUT_NAV_S + 30)
     def _renderizar(args, ctx):
         fuente, o = partir_args(args)
+        if not fuente:
+            return ("RESULTADO renderizar ERROR: falta la fuente (ruta o URL). Uso: renderizar <ruta> "
+                    "[| vars=...] [| guion=...]")
         try:
             r = renderizar(fuente, salida=o.get("salida"),
                            ancho=int(o.get("ancho") or ANCHO_DEF),
                            alto=int(o.get("alto") or ALTO_DEF),
                            espera_ms=int(o.get("espera") or ESPERA_DEF_MS),
                            backend=o.get("backend", ""),
-                           scratch=(ctx or {}).get("_scratchpad") if isinstance(ctx, dict) else None)
+                           scratch=(ctx or {}).get("_scratchpad") if isinstance(ctx, dict) else None,
+                           guion=o.get("guion", ""), vars_=o.get("vars", ""))
         except ValueError as exc:
             return "RESULTADO renderizar ERROR: %s" % exc
         except Exception as exc:

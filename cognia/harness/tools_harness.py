@@ -309,6 +309,69 @@ def _deshacer_edicion(args: str, ctx: dict) -> str:
     return f"RESULTADO deshacer_edicion: {checkpoints.deshacer(n)}"
 
 
+# ── EJECUCION GUIONADA (2026-09-04): probar programas de consola que piden teclado ──
+@tool(
+    "ejecutar_guion",
+    "ejecutar_guion <comando> | entradas=1|4|q [| timeout=N] [| cwd=RUTA] [| pausa=MS]"
+    "  -- corre un programa de consola tecleandole las entradas UNA A UNA y devuelve lo que "
+    "imprimio tras cada una",
+    desc=(
+        "Prueba de punta a punta un programa de CONSOLA que pide teclado por input, sin "
+        "humano: lanza el comando, espera a que se quede esperando, le teclea la primera "
+        "entrada, captura lo que imprime, teclea la siguiente... y devuelve la salida "
+        "SEGMENTADA por entrada (>>> arranque, >>> entrada: '1', ...), el exit code y si "
+        "quedo colgado esperando mas. Usala para comprobar 'despues de teclear X mostro Y' "
+        "en menus, juegos de texto y asistentes; para paginas web usa renderizar con guion."
+    ),
+    params=[
+        {"nombre": "comando", "tipo": "string", "requerido": True,
+         "descripcion": "el comando a correr (ej: python juego.py)"},
+        {"nombre": "entradas", "tipo": "string", "requerido": True, "clave": True,
+         "descripcion": "las entradas en orden separadas por | (ej: 1|4|5|q); vacio = solo Enter"},
+        {"nombre": "timeout", "tipo": "integer", "requerido": False, "clave": True,
+         "descripcion": "segundos totales (default 60)"},
+        {"nombre": "cwd", "tipo": "string", "requerido": False, "clave": True,
+         "descripcion": "directorio de trabajo"},
+        {"nombre": "pausa", "tipo": "integer", "requerido": False, "clave": True,
+         "descripcion": "ms de silencio que indican que el programa espera teclado (default 400)"},
+    ],
+    timeout_s=180,
+)
+def _ejecutar_guion(args: str, ctx: dict) -> str:
+    from cognia.agent import ejecucion_guionada as _EG
+    s = (args or "").strip()
+    opts = {}
+    while True:
+        ms = list(re.finditer(r"(?:\|\s*|\s+)(entradas|timeout|cwd|pausa)\s*=\s*", s, re.I))
+        if not ms:
+            break
+        m = ms[-1]
+        opts[m.group(1).lower()] = s[m.end():].strip().strip("|").strip()
+        s = s[:m.start()].strip().rstrip("|").strip()
+    comando = s
+    if not comando:
+        return "RESULTADO ejecutar_guion ERROR: falta el comando. Uso: ejecutar_guion <comando> | entradas=1|2|q"
+    # Mismo gate que `ejecutar`: es un comando de shell con los permisos del usuario.
+    try:
+        from cognia.agent.sentinel import evaluar_shell
+        permitido, msg = evaluar_shell(comando, ctx, cwd=opts.get("cwd", ""))
+        if not permitido:
+            return msg
+    except Exception as exc:
+        return f"RESULTADO ejecutar_guion ERROR: el gate de permisos no respondio ({type(exc).__name__}: {exc})"
+    try:
+        timeout = int(opts.get("timeout") or 60)
+        pausa = int(opts.get("pausa") or 400)
+    except ValueError:
+        return "RESULTADO ejecutar_guion ERROR: timeout y pausa tienen que ser numeros"
+    entradas = _EG.partir_entradas(opts.get("entradas", ""))
+    cwd = opts.get("cwd") or ((ctx or {}).get("workspace") if isinstance(ctx, dict) else None)
+    if cwd and not os.path.isdir(cwd):
+        return f"RESULTADO ejecutar_guion ERROR: cwd='{cwd}' no es un directorio"
+    r = _EG.correr_guionado(comando, entradas, cwd=cwd, timeout_s=max(5, min(timeout, 170)), pausa_ms=max(100, pausa))
+    return "RESULTADO ejecutar_guion:\n" + _EG.texto_guionado(r, comando)
+
+
 # ── MEMORIA LARGA (2026-09-04): la puerta del modelo a la memoria externa ─────
 # Solo se anuncia con COGNIA_MEMORIA_LARGA=1 (ver _OPTIN_NOMBRES en agent/tools):
 # el A/B del repo midio que inflar el catalogo degrada, asi que no entra en CORE.

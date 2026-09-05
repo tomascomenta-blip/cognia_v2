@@ -2,6 +2,45 @@
 
 ---
 
+## [4.28.0] - 2026-09-05
+
+### `renderizar` pasa de foto a PRUEBA; `ejecutar_guion` para programas de consola; la revisión corre el guion propio
+
+Pedido del dueño: "chequear incluso después de input o acciones que usualmente necesitan interacción
+humana, renderizar después de ciertas teclas, mostrar ciertas variables antes y después de las teclas,
+y dar mayor capacidad de prueba al CLI".
+
+**`renderizar <ruta> | vars=... | guion=...`** (`cognia/agent/renderizador_guion.py`, Playwright):
+un guion son pasos separados por `;`: `tecla <Tecla>[*N]`, `teclas a,b,c`, `mantener <Tecla> <ms>`,
+`clic <selector|x,y>`, `dobleclic`, `escribir <selector> "texto"`, `tipear "texto"`, `raton x,y`,
+`arrastrar x1,y1 x2,y2`, `scroll <y>`, `espera <ms>`, `esperar <selector|"texto">`, `captura [nombre]`,
+`var <expr JS>`, `js <código>`, `assert <expr JS | texto contiene "x" | canvas cambia | sin errores>`,
+`recargar`. Cada acción devuelve si la PANTALLA cambió (fracción de píxeles, reutilizando
+`frames_gate`), el valor ANTES → DESPUÉS de cada variable vigilada, los errores de JS nuevos, las
+capturas intermedias y el veredicto de cada assert; al final, el MAPA DE INTERACCIÓN (botones, enlaces,
+inputs con un selector usable, si hay canvas, si escucha teclado) y el texto visible. Teclas con alias en
+castellano (derecha, espacio, intro…). Con el backend de sistema se dice que hace falta Playwright.
+
+**`ejecutar_guion <comando> | entradas=1|4|q [| timeout=N] [| cwd=RUTA] [| pausa=MS]`**
+(`cognia/agent/ejecucion_guionada.py`): corre un programa de consola que pide teclado tecleándole las
+entradas UNA A UNA (espera a que el programa se quede callado) y devuelve la salida SEGMENTADA por
+entrada (`>>> arranque`, `>>> entrada: '1'`…), el exit code, si quedó esperando (TIMEOUT dicho) y si hay
+un error de Python. Lee stdout por trozos (un prompt `input("opcion> ")` no lleva salto de línea).
+Pasa por el mismo sentinel que `ejecutar`. Entra en CORE_TOOLS como pareja de `renderizar | guion=`.
+
+**La revisión profunda corre el guion propio** (`revision_profunda._fase_guion_html`): si junto a la
+página hay `<pagina>.guion.txt`, antes de entregar se ejecuta además del contrato genérico; un assert
+que falla o un error de JS reprueban (`fallo_duro='guion'`), sin guion la fase queda en `ok=None` con
+el motivo. El rol del agente nativo y la descripción de `renderizar` lo dicen: "lo que construiste se
+PRUEBA sin humano… si guardas el guion en `<pagina>.guion.txt`, la revisión final lo corre por ti".
+
+Puertas: `/renderizar <ruta> | vars=… | guion=…` (la misma tool tecleada), `/ejecutar-guion <comando> |
+entradas=…`. Tests: 22 nuevos (parser, Playwright real sobre una página con canvas/teclado/botón/input,
+programa de consola real con menú, tool por `run_tool`, sentinel, revisión con guion que pasa y que falla).
+Informe de estrategias: `INFORME_PRUEBAS_E2E_20260905.md`.
+
+---
+
 ## [4.27.0] - 2026-09-04
 
 ### Memoria larga: la ventana de 60k pasa a ser un working set, no el tamaño de la tarea

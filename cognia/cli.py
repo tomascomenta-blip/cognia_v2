@@ -3343,7 +3343,8 @@ _CMD_DESCRIPTIONS = {
     "/expandir":        "Ver COMPLETO (crudo, sin colores) el output de una tool del turno; el render los colapsa a 3 lineas. Uso: /expandir [N | lista | on | off | lineas <n>]",
     "/pasos":           "Pasos del agente: ilimitados (cierra cuando el modelo termina, default) o con presupuesto. Uso: /pasos [estado | ilimitados | limitados]",
     "/scratchpad":      "Carpeta temporal para tests y pruebas de usar-y-tirar; se borra sola al cerrar /hacer. Uso: /scratchpad [estado | on | off | conservar on|off | ver]",
-    "/renderizar":      "Renderiza HTML/SVG/MD/JS/CSS/URL en un navegador AISLADO (sin ventana) y guarda una captura PNG. Uso: /renderizar <ruta o URL> | estado | backend auto|playwright|edge|chrome",
+    "/renderizar":      "Renderiza HTML/SVG/MD/JS/CSS/URL en un navegador AISLADO y guarda una captura; con guion PRUEBA la pagina (teclas, clics, vars antes/despues, asserts). Uso: /renderizar <ruta o URL> [| vars=expr,expr] [| guion=tecla ArrowRight*3; clic #btn; captura; assert score>0] | estado | backend auto|playwright|edge|chrome",
+    "/ejecutar-guion":  "Prueba un programa de CONSOLA tecleandole entradas una a una y muestra lo que imprimio tras cada una. Uso: /ejecutar-guion <comando> | entradas=1|4|q [| timeout=N] [| cwd=RUTA]",
     "/pegado":          "Pastes largos del prompt colapsados a '[pegado #N: +X lineas]' (se expanden al enviar). Uso: /pegado [lista | N | on | off | umbral <lineas> [<chars>]]",
     "/enlaces":         "Rutas de fichero clicables (hyperlink OSC 8 file://) en el render de tools y /offload. Uso: /enlaces [estado | on | off]",
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
@@ -24916,6 +24917,14 @@ def _repl_sesion():
                             except (OSError, PermissionError) as _ee:
                                 _print_line(f"[err_cl]Error al editar: {_ee}[/err_cl]")
 
+            elif raw == "/ejecutar-guion" or raw.startswith("/ejecutar-guion "):
+                # EJECUCION GUIONADA (2026-09-04): la misma tool que usa el agente.
+                _arg_eg = raw[len("/ejecutar-guion"):].strip()
+                if not _arg_eg:
+                    _print_line("[warn_cl]Uso: /ejecutar-guion <comando> | entradas=1|4|q [| timeout=N] [| cwd=RUTA][/warn_cl]")
+                else:
+                    from cognia.agent.tools import run_tool as _rt_eg
+                    _print_line(_rt_eg("ejecutar_guion", _arg_eg, {"workspace": os.getcwd()}))
             elif raw.startswith("/ejecutar "):
                 _cmd = raw[len("/ejecutar "):].strip()
                 _BLOCKED = [

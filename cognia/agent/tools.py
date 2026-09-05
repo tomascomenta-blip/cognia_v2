@@ -109,6 +109,10 @@ CORE_TOOLS = frozenset({
     # porque hoy es IMPOSIBLE, no incomodo: pantalla_captura es opt-in y
     # fotografia la sesion del dueno, no la pagina del agente.
     "renderizar",
+    # ejecutar_guion (2026-09-04, pedido del dueno: "mayor capacidad de prueba"):
+    # probar programas de consola que piden teclado, entrada a entrada. Es la
+    # pareja de `renderizar | guion=` para lo que no es una pagina.
+    "ejecutar_guion",
 })
 
 
