@@ -3345,6 +3345,9 @@ _CMD_DESCRIPTIONS = {
     "/scratchpad":      "Carpeta temporal para tests y pruebas de usar-y-tirar; se borra sola al cerrar /hacer. Uso: /scratchpad [estado | on | off | conservar on|off | ver]",
     "/renderizar":      "Renderiza HTML/SVG/MD/JS/CSS/URL en un navegador AISLADO y guarda una captura; con guion PRUEBA la pagina (teclas, clics, vars antes/despues, asserts). Uso: /renderizar <ruta o URL> [| vars=expr,expr] [| guion=tecla ArrowRight*3; clic #btn; captura; assert score>0] | estado | backend auto|playwright|edge|chrome",
     "/ejecutar-guion":  "Prueba un programa de CONSOLA tecleandole entradas una a una y muestra lo que imprimio tras cada una. Uso: /ejecutar-guion <comando> | entradas=1|4|q [| timeout=N] [| cwd=RUTA]",
+    "/probar":          "PRUEBA lo que sea por su tipo (la misma tool `probar` del agente): pagina, imagen, audio, video, pdf/docx/xlsx/3d, json/yaml/csv, .py (lint+ejecucion, GUI en el escritorio propio, consola con entradas), comando con ventana, carpeta. Uso: /probar <ruta|URL|comando|carpeta> [| pasos=...] [| entradas=1|q] | ayuda [tema] | estado",
+    "/pruebas":         "Familia de herramientas de prueba del agente (pagina_*, captura_*, audio_*, video_*, app_*, formato_*, pdf_*, ...): estado, on/off (config pruebas_tools, env COGNIA_PRUEBAS) y listado por tema. Uso: /pruebas [estado | on | off | tools [tema]]",
+    "/escritorio":      "El ESCRITORIO PROPIO de Cognia (escritorio virtual 'Cognia' donde lanza y prueba apps graficas sin molestar al usuario). Uso: /escritorio [estado | on | off | ir | volver | ventanas | limpiar [borrar] | foco nunca|inactivo|siempre | inactividad <seg> | nombre <texto>]",
     "/pegado":          "Pastes largos del prompt colapsados a '[pegado #N: +X lineas]' (se expanden al enviar). Uso: /pegado [lista | N | on | off | umbral <lineas> [<chars>]]",
     "/enlaces":         "Rutas de fichero clicables (hyperlink OSC 8 file://) en el render de tools y /offload. Uso: /enlaces [estado | on | off]",
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
@@ -3518,6 +3521,48 @@ def _invalidar_caches_de_nivel() -> None:
 # Detailed per-command help
 # ---------------------------------------------------------------------------
 _CMD_DETAILS = {
+    "/probar": (
+        "FAMILIA DE PRUEBAS (cognia/agent/pruebas_tools.py, 2026-09-07). `probar <objetivo>` es "
+        "la misma tool que usa el agente: decide la prueba por el TIPO. html/svg/md/css/js -> "
+        "renderizar (captura + errores de consola + validacion del HTML); png/jpg/gif -> "
+        "captura_inspeccionar (vacia o con contenido, colores, fotogramas); wav/mp3 -> "
+        "audio_inspeccionar (pico, RMS, silencio, clipping); mp4/gif -> video_inspeccionar; "
+        "pdf/docx/xlsx/obj/glb -> lectores; json/yaml/toml/xml/csv/ini/sql -> formato_validar; "
+        ".py -> sintaxis + pyflakes y luego, segun lo que importa, app_probar (pygame/tkinter/Qt: "
+        "ventana en el escritorio propio), ejecutar_guion (input()), tests (pytest) o ejecutar; "
+        "un comando que abre ventana -> app_probar; una carpeta -> inventario de lo probable. "
+        "Con `| pasos=tecla derecha*3; clic \"Boton\"; captura` prueba interaccion. "
+        "`probar ayuda <tema>` lista las ~65 tools especializadas (web, imagen, audio, video, "
+        "app, formato, documentos, python, consola, red). Config: pruebas_tools (on/off), "
+        "env COGNIA_PRUEBAS. Diagnostico: /pruebas estado."),
+    "/pruebas": (
+        "ON/OFF y estado de la familia de pruebas del agente. Viene ENCENDIDA por defecto: "
+        "probar lo que uno hizo es parte de hacerlo (solo `probar` entra al catalogo core; el "
+        "resto se descubre con `probar ayuda <tema>`). `/pruebas off` la apaga (config "
+        "pruebas_tools=false, env COGNIA_PRUEBAS=0; las tools ya cargadas se van al reiniciar y "
+        "`probar` responde DESHABILITADA). `/pruebas tools [tema]` lista las tools por tema. "
+        "Sub-familias: pagina_* (Playwright persistente: js, texto, clic, red, enlaces rotos, "
+        "responsive, fotogramas, accesibilidad, servir), captura_* (inspeccionar, diff, recortar, "
+        "mosaico, cuadricula, comparar color, describir con VLM, OCR), audio_*/video_* (ffprobe, "
+        "ffmpeg, soundfile), formato_validar/diff_texto/sql_probar/pdf_*/docx_*/xlsx_*/modelo3d_*/"
+        "py_lint/py_importar/py_perfilar/py_cobertura/http_solicitud/puerto_esperar/"
+        "esperar_fichero/consola_sesion/tui_probar, app_* (apps graficas). Extra pip: "
+        "cognia-ai[pruebas]."),
+    "/escritorio": (
+        "ESCRITORIO PROPIO de Cognia (cognia/agent/escritorio_propio.py, 2026-09-07): un "
+        "escritorio virtual de Windows llamado 'Cognia' (los de Win+Ctrl+D). Las apps que el "
+        "agente lanza con app_lanzar/app_probar se mudan ahi nada mas abrir su ventana, asi que "
+        "el usuario sigue en su escritorio y Cognia trabaja en el suyo. Desde ahi se fotografia "
+        "la ventana (PrintWindow, funciona aunque este en el otro escritorio), se le teclea por "
+        "mensajes de Windows, se lee su interfaz por UI Automation y se cierra. Para lo que "
+        "exige foco real (clics en pygame/Tk, atajos ctrl+x, juegos con raw input) cambia al "
+        "escritorio de Cognia, usa entrada real y VUELVE, gobernado por `foco`: nunca | inactivo "
+        "(solo si el usuario lleva `inactividad` segundos sin tocar el equipo, default 90) | "
+        "siempre. Subcomandos: estado, on/off, ir, volver, ventanas, limpiar [borrar], foco, "
+        "inactividad <seg>, nombre <texto>. Config: escritorio_propio, escritorio_foco, "
+        "escritorio_inactividad_s, escritorio_nombre; env COGNIA_ESCRITORIO=0 lo apaga. "
+        "Requiere pyvda (pip install pyvda); sin el, las apps se lanzan en el escritorio actual "
+        "y /escritorio estado lo dice."),
     "/deshacer-borrado": (
         "PAPELERA DEL AGENTE (cognia/harness/papelera.py, 2026-08-25). La tool "
         "borrar_archivo ya no destruye: mueve a ~/.cognia/papelera/<dia>/<lote>/ "
@@ -4844,6 +4889,128 @@ def _slash_renderizar(arg: str = "") -> None:
         return
     from cognia.agent.tools import run_tool as _rt
     _print_line(_rt("renderizar", v, {"_scratchpad": _scratch_actual()}))
+
+
+def _slash_probar(arg: str = "") -> None:
+    """`/probar`: la MISMA tool `probar` del agente (familia de pruebas), tecleada a mano."""
+    v = (arg or "").strip()
+    if not v:
+        _print_line("[info_dim]/probar <ruta o URL o comando o carpeta> [| pasos=tecla derecha*3; clic #btn; captura] "
+                    "[| entradas=1|q] · /probar ayuda [tema] · /probar estado[/info_dim]")
+        v = "ayuda"
+    from cognia.agent.tools import run_tool as _rt
+    _print_line(_rt("probar", v, {"_scratchpad": _scratch_actual(), "workspace": os.getcwd()}))
+
+
+def _slash_pruebas(arg: str = "") -> None:
+    """`/pruebas`: on/off y estado de la familia de pruebas (config `pruebas_tools`)."""
+    v = (arg or "").strip().lower()
+    if v in ("", "estado"):
+        from cognia.agent.tools import run_tool as _rt
+        cfg = _load_config()
+        _print_line(f"[ok_cl]pruebas: {'ON' if cfg.get('pruebas_tools', True) else 'OFF'} en config[/ok_cl] "
+                    f"[info_dim]· env COGNIA_PRUEBAS={os.environ.get('COGNIA_PRUEBAS', '(sin poner)')} · "
+                    f"/pruebas on|off · /pruebas tools [tema] · /probar <objetivo>[/info_dim]")
+        _print_line(_rt("pruebas_estado", "", {}))
+        return
+    if v in ("on", "off"):
+        cfg = _load_config()
+        cfg["pruebas_tools"] = (v == "on")
+        _save_config(cfg)
+        os.environ["COGNIA_PRUEBAS"] = "1" if v == "on" else "0"
+        if v == "on":
+            from cognia.harness import familias as _fam
+            r = _fam.activar("pruebas")
+            if not r.get("ok"):
+                _aviso_degradado("pruebas", r.get("detalle", "no cargo"))
+            _print_line(f"[ok_cl]pruebas ON[/ok_cl] [info_dim]· {r.get('detalle', '')}[/info_dim]")
+        else:
+            _print_line("[ok_cl]pruebas OFF[/ok_cl] [info_dim]· las tools ya cargadas se van al reiniciar; "
+                        "`probar` responde DESHABILITADA[/info_dim]")
+        return
+    if v.startswith("tools"):
+        from cognia.agent import pruebas_tools as _pt
+        _print_line(_pt.ayuda(v.split(None, 1)[1] if " " in v else ""))
+        return
+    _print_line("[warn_cl]Uso: /pruebas [estado | on | off | tools [tema]][/warn_cl]")
+
+
+def _slash_escritorio(arg: str = "") -> None:
+    """`/escritorio`: el escritorio virtual propio de Cognia (escritorio_propio)."""
+    from cognia.agent import escritorio_propio as _ep
+    v = (arg or "").strip()
+    bajo = v.lower()
+    partes = bajo.split()
+    op = partes[0] if partes else "estado"
+    if op == "estado":
+        e = _ep.estado()
+        est = "ACTIVO" if e["activo"] else ("apagado" if not e["configurado"] else "no disponible")
+        _print_line(f"[ok_cl]escritorio propio: {est}[/ok_cl] [info_dim]· nombre '{e['nombre']}' · "
+                    f"{'existe (n' + str(e['numero']) + ')' if e['existe'] else 'aun no creado'}"
+                    f"{' · ES EL ACTUAL' if e['es_actual'] else ''} · foco: {e['foco']} "
+                    f"(inactividad {e['inactividad_s']}s{', dueno inactivo ' + str(e.get('dueno_inactivo_s')) + 's' if 'dueno_inactivo_s' in e else ''})[/info_dim]")
+        if e.get("motivo"):
+            _print_line(f"[warn_cl]{e['motivo']}[/warn_cl]")
+        if e["ventanas"]:
+            for w in e["ventanas"]:
+                _print_line(f"[info_dim]  ventana {w['titulo']!r} (pid {w['pid']})[/info_dim]")
+        u = e.get("ultimo") or {}
+        if u.get("accion"):
+            _print_line(f"[info_dim]ultimo: {u['accion']} {u.get('detalle', '')}{' · error: ' + u['error'] if u.get('error') else ''}[/info_dim]")
+        # "limpiar borrar" y no "[borrar]": el render lee [borrar] como etiqueta de estilo y lo traga (visto tecleandolo)
+        _print_line("[info_dim]/escritorio on|off · ir · volver · ventanas · limpiar borrar · foco nunca|inactivo|siempre · "
+                    "inactividad <seg> · nombre <texto>[/info_dim]")
+        return
+    if op in ("on", "off"):
+        cfg = _load_config(); cfg["escritorio_propio"] = (op == "on"); _save_config(cfg)
+        os.environ["COGNIA_ESCRITORIO"] = "1" if op == "on" else "0"
+        _print_line(f"[ok_cl]escritorio propio {op.upper()}[/ok_cl]")
+        return
+    if op == "foco":
+        val = partes[1] if len(partes) > 1 else ""
+        if val not in ("nunca", "inactivo", "siempre"):
+            _print_line("[warn_cl]foco: nunca | inactivo | siempre[/warn_cl]")
+            return
+        cfg = _load_config(); cfg["escritorio_foco"] = val; _save_config(cfg)
+        _print_line(f"[ok_cl]escritorio foco {val}[/ok_cl]")
+        return
+    if op == "inactividad":
+        try:
+            n = int(partes[1])
+        except Exception:
+            _print_line("[warn_cl]inactividad <segundos>[/warn_cl]")
+            return
+        cfg = _load_config(); cfg["escritorio_inactividad_s"] = max(5, n); _save_config(cfg)
+        _print_line(f"[ok_cl]escritorio inactividad {max(5, n)}s[/ok_cl]")
+        return
+    if op == "nombre":
+        nombre = v.split(None, 1)[1].strip() if " " in v else ""
+        if not nombre:
+            _print_line("[warn_cl]nombre <texto>[/warn_cl]")
+            return
+        cfg = _load_config(); cfg["escritorio_nombre"] = nombre; _save_config(cfg)
+        _print_line(f"[ok_cl]escritorio nombre '{nombre}'[/ok_cl]")
+        return
+    try:
+        if op == "ir":
+            _ep.ir()
+            _print_line("[ok_cl]en el escritorio de Cognia (vuelve con /escritorio volver o Win+Ctrl+Izquierda)[/ok_cl]")
+        elif op == "volver":
+            _print_line("[ok_cl]de vuelta[/ok_cl]" if _ep.volver() else "[warn_cl]no habia a donde volver[/warn_cl]")
+        elif op == "ventanas":
+            vs = _ep.ventanas_en_escritorio()
+            _print_line("[info_dim]" + ("; ".join(f"{t!r} (pid {p}, hwnd {h})" for h, p, t in vs) or "ninguna") + "[/info_dim]")
+        elif op == "limpiar":
+            r = _ep.limpiar(cerrar_ventanas=True, borrar=("borrar" in partes))
+            _print_line(f"[ok_cl]limpiado: {r['cerradas']} ventana(s) cerradas"
+                        f"{', escritorio borrado' if r['borrado'] else ''}[/ok_cl]"
+                        + (f" [warn_cl]{r['error']}[/warn_cl]" if r.get("error") else ""))
+        else:
+            _print_line("[warn_cl]Uso: /escritorio [estado | on | off | ir | volver | ventanas | limpiar [borrar] | "
+                        "foco nunca|inactivo|siempre | inactividad <seg> | nombre <texto>][/warn_cl]")
+    except Exception as exc:
+        _aviso_degradado("escritorio", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]escritorio: {_escape(str(exc))}[/err_cl]")
 
 
 class _VerboseFilter(logging.Filter):
@@ -8666,6 +8833,13 @@ _CONFIG_PATH = Path.home() / ".cognia_config.json"
 
 _CONFIG_DEFAULTS: dict = {
     "persona":          "casual",
+    # Familia de PRUEBAS (2026-09-07): encendida por defecto (/pruebas on|off).
+    "pruebas_tools":    True,
+    # Escritorio propio de Cognia (/escritorio): on, politica de foco y umbral.
+    "escritorio_propio": True,
+    "escritorio_foco":  "inactivo",     # nunca | inactivo | siempre
+    "escritorio_inactividad_s": 90,
+    "escritorio_nombre": "Cognia",
     "idioma":           "auto",
     "max_historial":    "50",
     "tema_kg":          "",
@@ -23868,6 +24042,12 @@ def _repl_sesion():
                 _slash_scratchpad(raw[len("/scratchpad "):] if raw.startswith("/scratchpad ") else "")
             elif raw == "/renderizar" or raw.startswith("/renderizar "):
                 _slash_renderizar(raw[len("/renderizar "):] if raw.startswith("/renderizar ") else "")
+            elif raw == "/probar" or raw.startswith("/probar "):
+                _slash_probar(raw[len("/probar "):] if raw.startswith("/probar ") else "")
+            elif raw == "/pruebas" or raw.startswith("/pruebas "):
+                _slash_pruebas(raw[len("/pruebas "):] if raw.startswith("/pruebas ") else "")
+            elif raw == "/escritorio" or raw.startswith("/escritorio "):
+                _slash_escritorio(raw[len("/escritorio "):] if raw.startswith("/escritorio ") else "")
             elif raw == "/pegado" or raw.startswith("/pegado "):
                 _slash_pegado(raw[len("/pegado "):] if raw.startswith("/pegado ") else "")
             elif raw == "/enlaces" or raw.startswith("/enlaces "):

@@ -214,10 +214,14 @@ necesites; cada resultado te vuelve como turno de tool. Cuando la tarea este
 HECHA y VERIFICADA, responde SIN llamar herramientas, con el resultado
 concreto: esa respuesta final cierra la tarea.
 - Verifica antes de cerrar: si la tarea pide ejecutar algo, ejecutalo de
-  verdad y mostra su salida real. Probalo sin humano: pagina con
-  `renderizar <ruta> | guion=tecla ...; assert ...`, consola con
-  `ejecutar_guion <cmd> | entradas=1|q`; el guion en `<pagina>.guion.txt` lo
-  corre la revision final.
+  verdad y mostra su salida real. Probalo sin humano: `probar <ruta|URL|
+  comando>` elige la prueba por el tipo (pagina, imagen, audio, video, pdf,
+  json, .py, app con ventana); pagina con `renderizar <ruta> | guion=tecla
+  ...; assert ...`, consola con `ejecutar_guion <cmd> | entradas=1|q`, app
+  grafica (pygame, tkinter, .exe) con `app_probar <cmd> | pasos=tecla
+  derecha*3; captura` en el escritorio propio; `probar ayuda <tema>` lista
+  mas tools (web, imagen, audio, video, app, formato, documentos, python,
+  consola, red). El guion en `<pagina>.guion.txt` lo corre la revision final.
 - Si una herramienta devuelve ERROR dos veces con los mismos argumentos,
   cambia de estrategia: el problema es la hipotesis, no la suerte.
 - Las rutas de archivo son relativas al directorio de trabajo actual.

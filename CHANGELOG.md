@@ -2,6 +2,79 @@
 
 ---
 
+## [4.29.0] - 2026-09-07
+
+### La familia de PRUEBAS: ~65 herramientas para que Cognia compruebe lo que hace, y un ESCRITORIO PROPIO
+
+Pedido del dueño: "añade aún más herramientas para que Cognia pueda testear y probar sus propios
+resultados; se queja mucho de cosas que no le dejan probar; que pueda ver y renderizar bien todo; y
+algo como Grok Bot: darle el control total de otro escritorio que sea de Cognia únicamente".
+
+**`probar <ruta|URL|comando|carpeta> [| pasos=...] [| entradas=...]`** (`cognia/agent/pruebas_tools.py`,
+en el catálogo core): la puerta única. Decide la prueba por el TIPO: html/svg/md/css/js → `renderizar`
+(+ validación del HTML); png/jpg/gif → `captura_inspeccionar`; wav/mp3 → `audio_inspeccionar`; mp4/gif →
+`video_inspeccionar`; pdf/docx/xlsx/obj/glb → lectores; json/yaml/toml/xml/csv/ini/sql → `formato_validar`;
+`.py` → sintaxis + pyflakes y luego `app_probar` (si importa pygame/tkinter/Qt), `ejecutar_guion` (si usa
+`input()`), `tests` (si tiene `test_`) o `ejecutar`; un comando con ventana → `app_probar`; una carpeta →
+inventario de lo probable. `probar ayuda <tema>` enseña las tools especializadas sin pagar sus schemas en
+cada turno. `pruebas_estado` diagnostica. Flag `COGNIA_PRUEBAS`, **encendido por defecto** (config
+`pruebas_tools`, `/pruebas on|off`): probar lo que uno hizo es parte de hacerlo.
+
+**Sub-familias** (cada una en su fichero, con `register(tool)` y `ultimo()`):
+- `pagina_*` (`pagina_tools.py`, 19): sesión PERSISTENTE de Playwright (hilo propio con cola: la API sync
+  no admite cambiar de hilo y `run_tool` corre cada tool en uno nuevo). `pagina_abrir`, `pagina_js`,
+  `pagina_texto`, `pagina_atributos` (caja + estilos computados), `pagina_clic/escribir/tecla/scroll/esperar`
+  (cada una dice si la pantalla cambió y los errores JS nuevos), `pagina_captura` (elemento o entera),
+  `pagina_consola`, `pagina_red` (peticiones y fallidas), `pagina_enlaces` (a/img/link/script rotos, img sin
+  alt), `pagina_responsive` (capturas por ancho + DESBORDA + mosaico), `pagina_fotogramas` (ANIMA / ESTÁTICA /
+  PARPADEA), `pagina_accesibilidad` (alt, labels, headings, contraste WCAG, lang, title), `pagina_servir`
+  (http.server para módulos ES/fetch), `pagina_cerrar`, `pagina_estado`.
+- `captura_*` (`captura_tools.py`, 8): `captura_inspeccionar` (tamaño, colores, brillo, VACÍA o con
+  contenido, GIF animado), `captura_diff` (% píxeles, caja, PNG rojo), `captura_recortar` (zoom de una región),
+  `captura_mosaico` (hoja de contactos), `captura_cuadricula` (rejilla con coordenadas para clics exactos),
+  `captura_comparar_color`, `captura_describir` (delega en `vlm_mirar` si la familia vlm está encendida),
+  `captura_texto` (OCR si hay tesseract; si no, dice cómo instalarlo).
+- `audio_*` / `video_*` (`medios_tools.py`, 7): `audio_inspeccionar` (ffprobe + pico/RMS dBFS, % silencio,
+  clipping, veredicto), `audio_espectrograma`, `audio_generar_prueba`, `video_inspeccionar`,
+  `video_fotogramas` (mosaico rotulado + detecta CONGELADO), `video_crear` (PNG → mp4/gif), `medios_estado`.
+- formatos y documentos (`formato_tools.py`, 18): `formato_validar` (html/css/js/json/yaml/toml/xml/svg/csv/
+  md/py/ini/sql/sh con línea del problema; el HTML detecta etiquetas sin cerrar y `src`/`href` locales
+  inexistentes), `diff_texto`, `sql_probar` (sobre :memoria: o una COPIA del .db), `pdf_inspeccionar`,
+  `pdf_ver`, `docx_texto`, `xlsx_leer` (celdas con error, fórmulas sin valor), `modelo3d_inspeccionar`,
+  `modelo3d_ver` (render sin GPU), `py_lint`, `py_importar`, `py_perfilar`, `py_cobertura`, `http_solicitud`,
+  `puerto_esperar`, `esperar_fichero`, `consola_sesion` (proceso interactivo persistente entre pasos),
+  `tui_probar` (pseudo-terminal winpty/pty + pantalla emulada con pyte tras cada tecla).
+- `app_*` (`app_tools.py`, 10): **apps GRÁFICAS** (pygame, tkinter, Qt, Electron, .exe). `app_lanzar` espera
+  la ventana y la muda al escritorio propio; `app_ver` (captura), `app_teclas` (tecla X*N, escribir, espera,
+  captura, esperar "texto", atajo), `app_clic` (x,y o por texto del control), `app_texto` y `app_arbol`
+  (UI Automation), `app_salida` (stdout/stderr, tracebacks), `app_cerrar`, `app_lista`, y **`app_probar`**:
+  lanzar → pasos con captura y % de cambio tras cada uno → mosaico → cierre, de un tiro.
+
+**El ESCRITORIO PROPIO** (`cognia/agent/escritorio_propio.py`, `/escritorio`): un escritorio virtual de
+Windows llamado "Cognia" (pyvda). Medido en este Windows 11 antes de escribir: `PrintWindow`
+(PW_RENDERFULLCONTENT) captura una ventana que está en OTRO escritorio; `PostMessage` de teclas al control
+con foco llega aunque la ventana esté allí; los clics por mensajes NO sirven en pygame/Tk (leen el cursor
+real), así que el clic prefiere entrada real cuando la política `foco` lo permite: `nunca` | `inactivo`
+(solo si el usuario lleva N segundos sin tocar el equipo, default 90, por `GetLastInputInfo`) | `siempre`,
+y vuelve siempre al escritorio del usuario. Solo se cierran ventanas lanzadas por Cognia. Sin pyvda o fuera
+de Windows degrada con causa visible.
+
+**Cableado**: `probar` en `CORE_TOOLS`; prefijos y nombres de la familia en `_OPTIN_PREFIJOS`/
+`_OPTIN_NOMBRES`; categoría "Probar y verificar" en el catálogo de nodos; familia `pruebas` en
+`/activar`; `/probar`, `/pruebas` y `/escritorio` en "Consola y arnes" de `/ayuda`; el prompt del agente
+nativo nombra `probar` y `app_probar`. Extra pip `cognia-ai[pruebas]`. Helper común
+`pruebas_comun.py` (args, rutas con scratchpad primero, resumen/diff/mosaico de imágenes, dependencias con
+el pip exacto).
+
+**Regresiones cazadas en los e2e** (con test): handles de 64 bits sin `restype` reventaban una captura de
+cada tres; `partir_args` dejaba una comilla colgando en `python "C:\ruta con espacios\x.py"`; una página
+blanca con texto se llamaba "casi blanca"; las rutas relativas no miraban el scratchpad de la tarea.
+
+Tests nuevos: `test_pruebas_familia.py`, `test_app_tools.py` (con e2e real opt-in `COGNIA_E2E_APP=1`),
+`test_pagina_tools.py`, `test_captura_tools.py`, `test_medios_tools.py`, `test_formato_tools.py`.
+
+---
+
 ## [4.28.0] - 2026-09-05
 
 ### `renderizar` pasa de foto a PRUEBA; `ejecutar_guion` para programas de consola; la revisión corre el guion propio

@@ -64,7 +64,11 @@ def test_core_es_chico():
     # sin humano, pareja de `renderizar | guion=`). Medido: gate del camino
     # feliz 5/5 y una tarea real en la que el agente se probo solo (ver
     # MANAGER_LOG 4.28.0). Si vuelve a subir, que se mida otra vez.
-    assert len(CORE_TOOLS) <= 16
+    # 17 desde 2026-09-07: entra `probar`, la puerta UNICA de la familia de
+    # pruebas (~65 tools que se descubren por `probar ayuda <tema>`, sin pagar
+    # sus schemas). Medido: gate del camino feliz 5/5 y 3 tareas reales en las
+    # que el agente eligio las tools nuevas para verificarse (MANAGER_LOG 4.29.0).
+    assert len(CORE_TOOLS) <= 17
 
 
 def test_optin_activo_entra_al_catalogo_sencillo(monkeypatch):

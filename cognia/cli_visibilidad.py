@@ -134,6 +134,11 @@ NUCLEO: frozenset = frozenset({
 #: aprendizaje, arnes de consola, cifrado, reportes. Lo revela `/avanzado`.
 AVANZADO: frozenset = frozenset({
     "/renderizar", "/ejecutar-guion",
+    # 2026-09-07: la familia de pruebas y el escritorio propio van con
+    # /renderizar y /ejecutar-guion (mandos del arnes). /probar no entra al
+    # NUCLEO porque el tope de 85 ya esta lleno; el agente la usa igual (es
+    # una tool del core) y /avanzado la revela.
+    "/probar", "/pruebas", "/escritorio",
     "/compilar",
     "/activar", "/agente estado", "/analiticas", "/aprende-repo", "/aprender", "/aprendiendo",
     "/aprendiendo-buscar", "/autoprueba", "/backup", "/bloquear", "/buscar-memoria",

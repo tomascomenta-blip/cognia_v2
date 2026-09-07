@@ -76,6 +76,20 @@ def _n_registradas() -> int:
 # tools en el registro. `peligrosa` marca las que tocan la máquina del usuario
 # fuera del workspace (la confirmación sigue siendo cosa del gate de cada tool).
 FAMILIAS = {
+    "pruebas": {
+        "que": "probar lo propio: páginas, imágenes, audio, vídeo, formatos, "
+               "documentos y apps gráficas en el escritorio propio de Cognia",
+        "flag": "COGNIA_PRUEBAS",
+        "prefijos": ("pagina_", "captura_", "audio_", "video_", "app_", "formato_",
+                     "pdf_", "docx_", "xlsx_", "modelo3d_"),
+        "nombres": ("probar", "pruebas_estado", "diff_texto", "sql_probar", "py_lint",
+                    "py_importar", "py_perfilar", "py_cobertura", "http_solicitud",
+                    "puerto_esperar", "esperar_fichero", "consola_sesion", "tui_probar",
+                    "medios_estado"),
+        "cargar": _carga_modulo("cognia.agent.pruebas_tools"), "peligrosa": True,
+        # Viene ENCENDIDA por defecto (2026-09-07): probar lo que uno hizo es
+        # parte de hacerlo. Se apaga con /pruebas off o COGNIA_PRUEBAS=0.
+    },
     "pantalla": {
         "que": "ver la pantalla, mover el ratón, teclear y pulsar teclas",
         "flag": "COGNIA_SCREEN", "prefijo": "pantalla_",
@@ -165,10 +179,10 @@ def _tools_de(nombre: str) -> list:
     """Las tools de esa familia que están AHORA en el registro."""
     from cognia.agent.tools import TOOLS
     fam = FAMILIAS.get(nombre) or {}
-    pref = fam.get("prefijo")
+    prefs = tuple(fam.get("prefijos") or ()) + ((fam.get("prefijo"),) if fam.get("prefijo") else ())
     exactos = set(fam.get("nombres") or ())
     return sorted(t for t in TOOLS
-                  if (pref and t.startswith(pref)) or t in exactos)
+                  if (prefs and t.startswith(prefs)) or t in exactos)
 
 
 def _instalable(nombre: str) -> bool:
@@ -185,6 +199,7 @@ def _instalable(nombre: str) -> bool:
         "documento": "cognia.agent.documento_tools",
         "escena": "cognia.lcd.tools_lcd",
         "repo": "cognia.agent.repo_reverse_tool",
+        "pruebas": "cognia.agent.pruebas_tools",
     }
     ruta = rutas.get(nombre)
     if ruta is None:

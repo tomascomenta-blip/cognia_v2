@@ -220,6 +220,18 @@ CATEGORIAS: tuple = (
                # renderizar (2026-09-02): captura aislada de HTML/URL, cabe con la web
                "renderizar")},
 
+    {"id": "pruebas", "nombre": "Probar y verificar",
+     "color": "#0f8a5f", "color_osc": "#3fd39a", "icono": "check",
+     # Familia de pruebas (2026-09-07, agent/pruebas_tools.py): la puerta
+     # `probar` + las sub-familias por prefijo. `py_lint`/`py_importar`/... van
+     # por nombre porque `py_` es de py_validar (core, categoria lectura).
+     "tools": ("probar", "pruebas_estado", "diff_texto", "sql_probar", "py_lint",
+               "py_importar", "py_perfilar", "py_cobertura", "http_solicitud",
+               "puerto_esperar", "esperar_fichero", "consola_sesion", "tui_probar",
+               "medios_estado"),
+     "prefijos": ("pagina_", "captura_", "audio_", "video_", "app_", "formato_",
+                  "pdf_", "docx_", "xlsx_", "modelo3d_")},
+
     {"id": "memoria", "nombre": "Memoria y notas",
      "color": "#9b6dd5", "color_osc": "#b48ce4", "icono": "brain",
      "tools": ("recordar", "memorizar", "cuaderno", "anotar", "notas",
@@ -387,10 +399,12 @@ def _flag_activo(flag: str) -> bool:
 # tienen comando propio en el REPL. Sin esto, la paleta le diria al dueno
 # "pon COGNIA_TX=1 y reinicia" cuando la casa tiene `/tx on`, que ademas
 # GUARDA el flag en la config (ver el final de cognia/agent/tools.py).
-_COMANDO_DE_FLAG = {"COGNIA_TX": "/tx on"}
+_COMANDO_DE_FLAG = {"COGNIA_TX": "/tx on", "COGNIA_PRUEBAS": "/pruebas on"}
 # Y que es cada uno, para el tooltip del cajon: las familias lo traen en su
 # campo `que`, estos no tienen quien se lo cuente.
 _QUE_DE_FLAG = {
+    "COGNIA_PRUEBAS": "probar lo propio: paginas, imagenes, audio, video, "
+                      "formatos, documentos y apps graficas en el escritorio propio",
     "COGNIA_TX": "agente de horizonte largo: decisiones, afirmaciones, "
                  "pendientes, lecciones y el libro",
     "COGNIA_MCP": "las herramientas de los servidores MCP que ya tienes "
@@ -487,8 +501,8 @@ def _fuentes_por_categoria() -> dict:
                 "instalada": bool(fila.get("instalada", True)),
             }
             destinos = set()
-            pref = fam.get("prefijo")
-            if pref:
+            prefs = tuple(fam.get("prefijos") or ()) + ((fam.get("prefijo"),) if fam.get("prefijo") else ())
+            for pref in prefs:
                 for cat in CATEGORIAS:
                     if _casa_con(cat, pref):
                         destinos.add(cat["id"])

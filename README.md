@@ -177,6 +177,8 @@ tab completa · ↑↓ historial · @ archivo · / comandos
 |---|---|
 | `<texto libre>` | Chat cognitivo (inferencia + memoria). |
 | `/hacer <tarea>` | **Agente autonomo**: ejecuta la tarea con herramientas reales (archivos, codigo, busqueda). |
+| `/probar <ruta\|URL\|comando\|carpeta>` | **Probar lo hecho** (4.29): renderiza paginas, inspecciona imagenes/audio/video, valida json/yaml/csv, lee pdf/docx/xlsx/3d, ejecuta `.py` con lint y prueba apps graficas con teclas y capturas. `/probar ayuda <tema>` lista las ~65 tools. |
+| `/escritorio` | El **escritorio virtual propio** de Cognia (Windows): ahi lanza y prueba apps graficas sin molestar al usuario. `/escritorio foco nunca\|inactivo\|siempre`. |
 | `/esfuerzo [nivel]` | Cuanto sistema despertar: bajo/medio/alto/maximo (gobierna el ruteo hibrido). |
 | `/modelo [3b\|7b]` | Ver/cambiar el modelo activo del fleet. |
 | `/largo <tema>` | Generacion larga por secciones con checkpoint (`--continuar`). |

@@ -15805,3 +15805,100 @@ cwd≠workspace: `no existe: tankio.html`).
 - Tarea real con el modelo (Qwen3.8-27B, `cognia hacer --json`, memoria/HOME aislados, 23:28→23:33, 326 s, ok=True): la orden pedía un juego `esquiva.html` y probarlo sin humano con `renderizar` + guion. El agente escribió el juego, corrió `renderizar` con guion DOS veces (la primera con 0,3 % de cambio de pantalla, la segunda tras añadir animación autónoma), guardó `esquiva.html.guion.txt` (`tecla ArrowRight; tecla ArrowRight; tecla ArrowRight; captura; assert window.puntos === 3; clic #reiniciar; assert window.puntos === 0`) y `esquiva.html.prueba.txt` con la salida real (`window.puntos: 0 -> 1 -> 2 -> 3 … clic #reiniciar -> 3 -> 0 · asserts: 2/2 OK, sin errores de consola`). La revisión profunda corrió el guion al cerrar.
 - Hueco cazado con esa tarea: cuando el guion propio PASA, la línea `[revision profunda]` no lo decía (solo el contrato genérico): "no había guion" y "el guion pasó" se veían igual. Arreglado: el detalle añade `| guion propio OK (7 pasos, esquiva.html.guion.txt)`; comprobado con `fase_producto` sobre el proyecto real y test ampliado (3 passed).
 - Compuertas 4.28.0: gate e2e camino feliz 5/5 (1,8 min) y otra vez 5/5 (2,0 min) tras acortar el rol. Suite completa 53 failed / 15.038 passed (25 min): 47 crónicos, 3 flaky por orden (pasan aislados: `test_el_paquete_reporta_la_version_de_pyproject`, `test_p12_tres_ediciones…`, `test_los_caminos_SIN_rich…`) y 3 míos, arreglados: `test_core_es_chico` (CORE pasa de 15 a 16 con `ejecutar_guion`, tope subido con la medición), `test_system_agente_nativo_no_engorda` (el rol subió a 2709 chars con la pista nueva; recortada a 2591), `test_ninguna_tool_del_registro_real_se_anuncia_como_si_no_llevara_args` (la desc decía "input()" y el anticuerpo lo leía como tool sin args). Wheel 4.28.0 instalado en un venv limpio fuera del repo: importa `renderizador_guion` y `ejecucion_guionada`, versión 4.28.0.
+
+---
+
+## 2026-09-07 — 4.29.0: la familia de PRUEBAS (~65 tools) y el ESCRITORIO PROPIO de Cognia
+
+**Pedido del dueño (00:05):** "añade aún más herramientas para que Cognia pueda testear y probar sus
+propios resultados; se queja mucho de cosas que no le dejan probar; que pueda ver y renderizar bien todo;
+y si se puede, algo como Grok Bot: darle el control total de otro escritorio que sea de Cognia únicamente;
+al terminar sube todo a PyPI". Apagado programado a las 06:30 (tarea de Windows `CogniaApagado0630`,
+corrió: el equipo se apagó a las 06:30:00 y el dueño lo encendió a las 06:55 y escribió "continua").
+
+**Qué se construyó** (detalle en CHANGELOG 4.29.0): `cognia/agent/pruebas_tools.py` (concentrador,
+`probar` en CORE_TOOLS, `probar ayuda <tema>`, `pruebas_estado`), `pruebas_comun.py` (helper),
+`pagina_tools.py` (19, Playwright persistente en hilo con cola), `captura_tools.py` (8), `medios_tools.py`
+(7), `formato_tools.py` (18), `app_tools.py` (10) + `escritorio_propio.py` (escritorio virtual "Cognia":
+pyvda + PrintWindow + PostMessage + UI Automation + modo foco con política nunca/inactivo/siempre).
+Puertas: `/probar`, `/pruebas`, `/escritorio`; familia `pruebas` en `/activar`; categoría "Probar y
+verificar" en el catálogo de nodos; extra pip `cognia-ai[pruebas]`. Flag `COGNIA_PRUEBAS` encendido por
+defecto (config `pruebas_tools`).
+
+**Medido antes de escribir el escritorio propio** (experimentos con tkinter y pygame en este Windows 11
+build 26200): pyvda crea/mueve; `PrintWindow(PW_RENDERFULLCONTENT)` captura una ventana que está en OTRO
+escritorio; teclas por `PostMessage` al hijo con foco llegan a Tk y a pygame (KEYDOWN 1073741918 = K_RIGHT
+en el log del sujeto); los CLICS por mensajes no sirven (pygame recibió `CLICK (0, 0)`, Tk no reaccionó):
+leen el cursor real. Por eso `app_clic` prefiere entrada real cuando la política lo permite.
+
+**Bugs cazados en los e2e, con test de regresión:** handles de 64 bits sin `restype` ("int too long to
+convert", 1 captura de cada 3); `partir_args` con comilla colgando en `python "C:\ruta con espacios\x.py"`
+(el modelo recibía "can't open file"); `resumen_imagen` llamaba "casi blanca" a una página con texto;
+`resolver_ruta` no miraba el scratchpad; `ruta_salida` anidaba `.cognia_scratch/<id>/.cognia_scratch/<id>`;
+`[borrar]` tragado por el markup del REPL (visto tecleándolo).
+
+**Tecleado en el REPL real** (por pseudo-terminal con la propia `tui_probar`, `python -m cognia`,
+150x50, 28,7 s):
+
+```
+ cognia➤ /pruebas
+pruebas: ON en config · env COGNIA_PRUEBAS=1 · /pruebas on|off · /pruebas tools [tema] · /probar <objetivo>
+RESULTADO pruebas_estado (flag COGNIA_PRUEBAS=1):
+  imagenes: 8 tools · audio y video: 7 tools · formatos y documentos: 18 tools · paginas web: 19 tools · apps graficas: 10 tools
+  navegador: playwright si · sistema edge · escritorio propio: activo · ffmpeg: si · node: si
+ cognia➤ /escritorio
+escritorio propio: ACTIVO · nombre 'Cognia' · existe (n2) · foco: inactivo (inactividad 90s, dueno inactivo 0s)
+ cognia➤ /probar ayuda video
+RESULTADO probar ayuda video (4 tools):
+  video_inspeccionar <ruta>            -- ffprobe: duracion, resolucion, fps, codecs, streams; vacio o roto
+  video_fotogramas <ruta> [| n=6] [| salida=X.png]  -- saca N fotogramas repartidos en un mosaico rotulado y dice si el video esta congelado
+  ...
+ cognia➤ /salir
+Hasta luego.
+```
+
+`/probar pagina.html` (html con `<img src="no_existe.png">` y un `<div>` sin cerrar):
+```
+RESULTADO probar (renderizar) ...pagina.html: captura en ...captura_pagina.html_003600.png (1100x720, html, playwright) · 1 error(es) de JS: consola: Failed to load resource: net::ERR_FILE_NOT_FOUND [.../no_existe.png] · titulo: Demo · texto visible (4 chars): Hola
+RESULTADO formato_validar ...pagina.html: 2 problema(s) (169 bytes, 3 lineas):
+  - linea 1: <img src="no_existe.png"> no existe junto al fichero
+  - linea 2: <div> (abierto en linea 1) sin cerrar antes de </body>
+```
+`/probar tono.wav`: `pcm_s16le 44100 Hz 1 canal(es), 1.0000 s, wav · pico -6.0 dBFS · RMS -9.0 dBFS · silencio 0.0% · clipping 0.00% · OK`.
+
+**Tareas humanas cotidianas con el modelo real** (`cognia hacer`, Qwen3.8-27B en :8080):
+
+1. *"Crea un juego Pong sencillo en pygame en pong.py y COMPRUEBA que funciona de verdad"* — 405 s,
+   EXIT 0. El modelo usó `app_lanzar` + `app_teclas` + `captura_diff` por su cuenta y escribió en la
+   respuesta: "Ventana "Pong - Cognia" se abre correctamente (816x639) · Al pulsar tecla up×10: pantalla
+   cambia (0.5%) · Proceso vivo, sin tracebacks en stdout · Cierre limpio con WM_CLOSE". 20 capturas +
+   `mosaico_todos.png` en el scratchpad. La revisión profunda: "tests OK: 3 passed · pong.py OK: arranco".
+2. *"Haz index.html con un contador (+1/-1) y compruébala de verdad"* — 416 s, EXIT 0. Usó `renderizar`
+   con guion ("contador 0→1→2→1→0→-1, 6/6 asserts OK, sin errores de consola"), `pagina_js`
+   (`animationName=pulso`, `running`), `pagina_fotogramas` ("píxeles cambian entre capturas
+   0.2/0.1/0.2/0.2/0.3%"), `pagina_enlaces` ("0 enlaces, 0 rotos"). Revisión profunda: "index.html OK".
+3. *"Genera tono.wav de 2 s a 440 Hz con numpy+wave, ejecútalo y comprueba que dura 2 s y suena a volumen
+   razonable"* — 144 s, EXIT 0. Además de su propia medición, el modelo usó `audio_inspeccionar`
+   ("pcm_s16le, 44100 Hz, 1 canal, 2.0000 s · pico -9.1 dBFS · RMS -12.1 dBFS · silencio 0.0% · clipping
+   0.00%") y `audio_espectrograma` ("senoidal continua, banda de energía presente"). Revisión profunda OK.
+
+**3/3 tareas cotidianas:** en las tres el modelo eligió por su cuenta las tools nuevas para verificar
+(app_lanzar/app_teclas/captura_diff · renderizar+guion/pagina_js/pagina_fotogramas/pagina_enlaces ·
+audio_inspeccionar/audio_espectrograma) en vez de "debería funcionar".
+
+**Gate de pre-release:** `scripts/e2e_happy_path.py` → **5/5 OK en 2,1 min** (escribir, calcular+guardar,
+json, apendar, python).
+
+**Suite completa** (`pytest tests/ --ignore=tests/test_e2e_inference.py`): la serial iba al 24 % tras una
+hora (casi todo espera, con el modelo y Roblox del dueño en marcha), así que corrió con `-n 4 --dist
+loadfile`: **15144 passed, 35 failed, 7 skipped en 22 min**. Los 35 repetidos en serie: 25 fallan; los
+mismos 25 en un worktree de HEAD (sin mis cambios): **20 ya fallaban** (crónicos: `test_dsh_tools_nuevas`
+x10, Ctrl+C del REPL, rlm, nemotron, qwen38, flujoteca, wp2 borrar, tui_puente, deepagents_bucle,
+contraste_paleta). Los 5 míos, arreglados: firmas tipadas (7 tools sin args → `_SIN_ARGS`), cubos de
+visibilidad (`/probar`, `/pruebas`, `/escritorio` en AVANZADO: el NUCLEO tiene tope 85 y está lleno),
+`test_core_es_chico` (16 → 17 con `probar`, medido con el gate), baseline de sqlite (formato_tools abre
+DBs temporales de prueba, justificado en el test), versión del instalador (`installer/cognia_setup.iss`
+4.29.0). Además la suite borró `generated_programs/permutation_patterns/` (tracked): restaurado con
+`git checkout`.
+
+**Publicación:** ver la entrada siguiente.

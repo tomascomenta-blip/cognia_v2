@@ -73,6 +73,12 @@ KNOWN_BARE_SQLITE = {
     # Pool/wrapper layer — these legitimately own the raw sqlite3 connection.
     "storage/db_pool.py",
     "cognia/database.py",
+    # formato_tools (2026-09-07): `sql_probar` y `formato_validar` de .sql abren
+    # DBs TEMPORALES de prueba (:memory: o una COPIA del .db del usuario que se
+    # borra al terminar), nunca la DB de Cognia. El pool no aplica: es un
+    # singleton por ruta que dejaria la copia abierta (no se podria borrar) y
+    # reutilizaria el :memory: entre pruebas (tablas de una prueba en la otra).
+    "cognia/agent/formato_tools.py",
     # memoria_larga (2026-09-04): almacen PROPIO (~/.cognia/memoria_larga.db, WAL,
     # FTS5) fuera de cognia_memory.db a proposito: el pool esta atado a esa DB y
     # sus stalls documentados son justo lo que la memoria larga evita. Una

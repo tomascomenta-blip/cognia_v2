@@ -113,6 +113,13 @@ CORE_TOOLS = frozenset({
     # probar programas de consola que piden teclado, entrada a entrada. Es la
     # pareja de `renderizar | guion=` para lo que no es una pagina.
     "ejecutar_guion",
+    # probar (2026-09-07, pedido del dueno: "mas herramientas para que pueda
+    # testear y probar sus propios resultados"): la puerta UNICA de la familia
+    # de pruebas. Entra al core porque una sola linea del catalogo abre ~60
+    # tools (pagina_*, captura_*, audio_*, video_*, app_*, formato_*, ...)
+    # que se descubren por `probar ayuda <tema>` y por el texto del resultado,
+    # sin pagar sus schemas en cada turno (el A/B del catalogo sigue mandando).
+    "probar",
 })
 
 
@@ -375,7 +382,25 @@ _OPTIN_PREFIJOS = (
     ("musica_", "COGNIA_MUSICA_TOOLS"),
     ("tresd_", "COGNIA_3D_TOOLS"),
     ("vlm_", "COGNIA_VLM_TOOLS"),
+    # Familia de PRUEBAS (2026-09-07, cognia/agent/pruebas_tools.py): default
+    # ENCENDIDA (config `pruebas_tools`), se apaga con COGNIA_PRUEBAS=0.
+    ("pagina_", "COGNIA_PRUEBAS"),
+    ("captura_", "COGNIA_PRUEBAS"),
+    ("audio_", "COGNIA_PRUEBAS"),
+    ("video_", "COGNIA_PRUEBAS"),
+    ("app_", "COGNIA_PRUEBAS"),
+    ("formato_", "COGNIA_PRUEBAS"),
+    ("pdf_", "COGNIA_PRUEBAS"),
+    ("docx_", "COGNIA_PRUEBAS"),
+    ("xlsx_", "COGNIA_PRUEBAS"),
+    ("modelo3d_", "COGNIA_PRUEBAS"),
 )
+# Las tools de la familia de pruebas SIN prefijo propio (py_ es de py_validar,
+# que es del core y no lleva flag): nombre exacto.
+PRUEBAS_NOMBRES = ("probar", "pruebas_estado", "diff_texto", "sql_probar", "py_lint",
+                   "py_importar", "py_perfilar", "py_cobertura", "http_solicitud",
+                   "puerto_esperar", "esperar_fichero", "consola_sesion", "tui_probar",
+                   "medios_estado")
 _OPTIN_NOMBRES = {
     "repo_a_prompt": "COGNIA_REPO_REVERSE",
     # MCP externos (2026-08-26): la puerta a los servidores MCP que el
@@ -414,6 +439,7 @@ _OPTIN_NOMBRES = {
     "resolver": "COGNIA_TX",
     "leccion": "COGNIA_TX",
 }
+_OPTIN_NOMBRES.update({n: "COGNIA_PRUEBAS" for n in PRUEBAS_NOMBRES})
 
 
 def flag_de_optin(name: str) -> str:
@@ -4173,6 +4199,50 @@ try:
 except Exception as _exc_rz:
     # Sin la tool el agente no puede COMPROBAR lo que dibuja: que se vea.
     print(f"[cognia] renderizador no cargo: {_exc_rz}", file=sys.stderr)
+
+
+# ── Familia de PRUEBAS (2026-09-07): default ENCENDIDA ────────────────────
+# Pedido del dueno: "anade aun mas herramientas para que Cognia pueda testear y
+# probar sus propios resultados; se queja de que no le dejan probar". Al
+# contrario que las familias multimodales, esta viene encendida: probar lo que
+# uno hizo no es una capacidad extra, es parte de hacerlo. Solo `probar` entra
+# en CORE_TOOLS (una linea del catalogo); el resto se descubre por
+# `probar ayuda <tema>`. Se apaga con COGNIA_PRUEBAS=0 o /pruebas off (config
+# `pruebas_tools`). El env se propaga para que visible_tools/flag_de_optin y los
+# subprocesos vean el mismo estado (leccion de tx/flag.py).
+def _pruebas_encendido() -> bool:
+    crudo = os.environ.get("COGNIA_PRUEBAS", "").strip().lower()
+    if crudo:
+        return crudo in ("1", "on", "true", "yes", "si")
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        ruta = _Path.home() / ".cognia_config.json"
+        if ruta.exists():
+            with ruta.open(encoding="utf-8") as fh:
+                return bool(_json.load(fh).get("pruebas_tools", True))
+    except Exception:
+        pass          # config ilegible = default, que es encendido
+    return True
+
+
+if _pruebas_encendido():
+    os.environ["COGNIA_PRUEBAS"] = "1"
+    try:
+        from cognia.agent import pruebas_tools as _pruebas_tools
+        _pruebas_tools.register(tool)
+        _solo_lectura = ("captura_", "audio_", "video_", "formato_", "pdf_", "docx_", "xlsx_",
+                         "modelo3d_", "pagina_")
+        for _t in list(TOOLS):
+            if flag_de_optin(_t) == "COGNIA_PRUEBAS":
+                ROLE_TOOLS["implementador"].add(_t)
+                if _t.startswith(_solo_lectura) or _t in ("probar", "pruebas_estado", "diff_texto",
+                                                          "py_lint", "py_importar", "medios_estado"):
+                    ROLE_TOOLS["investigador"].add(_t)
+    except Exception as _exc:
+        print(f"[cognia] familia de pruebas no cargo: {_exc}", file=sys.stderr)
+else:
+    os.environ["COGNIA_PRUEBAS"] = "0"
 
 
 # ── Ingenieria inversa de repos (opt-in COGNIA_REPO_REVERSE=1) ──────────

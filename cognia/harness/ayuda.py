@@ -352,6 +352,11 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         # trabaja el agente, no QUE hace. Sin esta linea /pasos caia en
         # "Agente y tareas" (26 > 25) y /scratchpad en "Otros".
         "/pasos", "/scratchpad", "/renderizar",
+        # 2026-09-07: /probar (la puerta unica de la familia de pruebas),
+        # /pruebas (su on/off y estado) y /escritorio (el escritorio propio
+        # donde Cognia prueba apps graficas) son mandos del ARNES por el
+        # mismo criterio: gobiernan COMO verifica el agente, no QUE hace.
+        "/probar", "/pruebas", "/escritorio",
         # /deshacer-borrado (papelera del agente, 2026-08-25) va JUNTO a
         # /deshacer, que es su hermano: uno revierte lo que el agente
         # ESCRIBIO y el otro saca de la papelera lo que BORRO. Sin esta

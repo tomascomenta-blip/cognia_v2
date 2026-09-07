@@ -244,7 +244,11 @@ _TIPADAS: dict = {
 
 # Tools sin argumentos: schema de objeto vacio y string legacy vacio.
 _SIN_ARGS = ("fecha", "notas", "git_estado", "git_log", "tarea_estado",
-             "ctx_info", "procesos")
+             "ctx_info", "procesos",
+             # Familia de pruebas (2026-09-07): las de estado/diagnostico y las
+             # que actuan sobre la sesion de pagina abierta no llevan args.
+             "pruebas_estado", "medios_estado", "pagina_enlaces",
+             "pagina_accesibilidad", "pagina_cerrar", "pagina_estado", "app_lista")
 
 
 def _descripcion_de(doc: str) -> str:
