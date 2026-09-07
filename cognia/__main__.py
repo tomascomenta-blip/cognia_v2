@@ -570,6 +570,7 @@ Comandos:
   voz                Asistente de voz Jarvis (requiere extra [voz])
   remoto             Servidor de control remoto desde el movil
   tutor              Tutor web que ensena cualquier tema (localhost:8899)  [--lan]
+  fases "<encargo>"  Construye un producto por FASES (plan, prototipo, completar, QA, visual, pulido, optimizar, red team, regresion, release) con juez y revert.
   hacer "<tarea>"    Ejecuta una tarea con el agente y sale (sin REPL).
                      [--retomar] continua la tarea a medias de este directorio.
   memoria            Memoria de largo plazo del agente: buscar "<q>" | stats | tipos
@@ -743,6 +744,11 @@ def main() -> None:
         # y las sesiones/checkpoints de tarea sin abrir el REPL.
         from cognia.memoria_larga.cli import main as _ml_main
         sys.exit(_ml_main(["sesion" if cmd == "session" else cmd] + sys.argv[2:]))
+    elif cmd == "fases":
+        # OBRA POR FASES (2026-09-07): construir un producto por fases con
+        # puertas de salida, juez y revert, sin abrir el REPL.
+        from cognia.cli_fases import main as _fases_main
+        sys.exit(_fases_main(sys.argv[2:]))
     elif cmd in ("hacer", "do"):
         # El agente SIN el REPL: automatizar, encadenar por tuberia y MEDIR el
         # CLI de verdad. Hasta hoy /hacer solo existia dentro del REPL, y el

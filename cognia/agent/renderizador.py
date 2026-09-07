@@ -575,7 +575,14 @@ def partir_args(args: str) -> tuple:
         if not ms:
             break
         m = ms[-1]
-        opts[m.group(1).lower()] = s[m.end():].strip().strip("|").strip().strip("\"'")
+        val = s[m.end():].strip().strip("|").strip()
+        # Solo se quitan las comillas que ENVUELVEN el valor entero. El strip
+        # ciego dejaba `assert typeof juego.tick==='function` (sin la comilla
+        # final) y el assert salia "no evaluable" (cazado en la primera obra
+        # por fases con el modelo real, 2026-09-07).
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'" and val.count(val[0]) == 2:
+            val = val[1:-1]
+        opts[m.group(1).lower()] = val
         s = s[:m.start()].strip().rstrip("|").strip()
     return s, opts
 

@@ -394,6 +394,12 @@ _OPTIN_PREFIJOS = (
     ("docx_", "COGNIA_PRUEBAS"),
     ("xlsx_", "COGNIA_PRUEBAS"),
     ("modelo3d_", "COGNIA_PRUEBAS"),
+    # Obra por fases (2026-09-07): las tools fases_* se anuncian SOLO mientras
+    # corre una obra (el pipeline pone COGNIA_FASES=1); sin el flag el filtro de
+    # visibilidad las recortaba aunque el pipeline las pasara en allowed_tools
+    # (cazado en la primera obra real: el modelo llamaba `fases_dod --help`
+    # como comando de shell porque no las veia como tools).
+    ("fases_", "COGNIA_FASES"),
 )
 # Las tools de la familia de pruebas SIN prefijo propio (py_ es de py_validar,
 # que es del core y no lleva flag): nombre exacto.
@@ -4387,6 +4393,19 @@ try:
 except Exception as _exc:
     # Sin flag que lo justifique: el silencio seria capacidad perdida.
     print(f"[cognia] tools RLM no cargaron: {_exc}", file=sys.stderr)
+
+
+# ── Tools de la OBRA POR FASES (2026-09-07, cognia/fases) ─────────────────
+# Siempre registradas (baratas, sin deps) y fuera de CORE_TOOLS: las anuncia el
+# pipeline via allowed_tools; fuera de una obra responden con causa visible.
+try:
+    from cognia.fases import tools_fases as _tools_fases
+    _tools_fases.register(tool)
+    for _t in _tools_fases.NOMBRES:
+        ROLE_TOOLS["implementador"].add(_t)
+        ROLE_TOOLS["investigador"].add(_t)
+except Exception as _exc:
+    print(f"[cognia] tools de fases no cargaron: {_exc}", file=sys.stderr)
 
 
 # ── Tools del ARNES (destiladas de los harnesses punteros, 2026-08-12) ─────

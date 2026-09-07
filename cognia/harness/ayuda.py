@@ -235,6 +235,8 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         # a 26 con el tope en 25.
         "/tx", "/libro", "/checkpoint",
         "/horizonte",
+        # /fases (2026-09-07): la obra por fases es la otra forma de tarea larga
+        "/fases",
     ),
     "Codigo y ficheros": (
         "/leer", "/proyecto", "/listar", "/buscar", "/escribir", "/editar",

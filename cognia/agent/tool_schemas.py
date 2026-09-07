@@ -248,7 +248,8 @@ _SIN_ARGS = ("fecha", "notas", "git_estado", "git_log", "tarea_estado",
              # Familia de pruebas (2026-09-07): las de estado/diagnostico y las
              # que actuan sobre la sesion de pagina abierta no llevan args.
              "pruebas_estado", "medios_estado", "pagina_enlaces",
-             "pagina_accesibilidad", "pagina_cerrar", "pagina_estado", "app_lista")
+             "pagina_accesibilidad", "pagina_cerrar", "pagina_estado", "app_lista",
+             "fases_estado")
 
 
 def _descripcion_de(doc: str) -> str:

@@ -15909,3 +15909,42 @@ lista 4.29.0 como última). Instalado `cognia-ai[pruebas]==4.29.0` en `~/.cognia
 dueño) y en `venv312`: desde fuera del repo, `pruebas_estado` responde con las 5 sub-familias, Playwright,
 escritorio propio activo, ffmpeg y node. Pendiente conocido: los 20 tests crónicos de HEAD listados
 arriba (ninguno de esta entrega).
+
+---
+
+## 2026-09-07 — 4.30.0: la OBRA POR FASES (`/fases`, `cognia fases`)
+
+**Pedido del dueño (mediodía):** el sistema "construir por fases": especificación → builder → tests
+funcionales y visuales → auditor → causa raíz → mejora → regresión → ¿mejor que la vieja? → aceptar o
+revertir; Definition of Done, Known Issues P0-P4, git como memoria de versiones, juez multidimensional,
+polish y red team, estado del proyecto con NO TOCAR, informe final de calidad.
+
+**Qué se construyó:** `cognia/fases/` (estado, dod, verificador, juez, versiones, pipeline, tools_fases) +
+`cognia/cli_fases.py`; puertas `/fases` y `cognia fases`; tools `fases_estado/dod/issue/hipotesis/estable`
+(flag `COGNIA_FASES`, encendido solo mientras corre una obra). Detalle en CHANGELOG 4.30.0. El ejecutor
+del agente se inyecta: el pipeline entero se prueba SIN modelo (`tests/test_fases.py`, 11 tests: el
+ejecutor falso construye bien → aceptar+commit; rompe la página → rechazar+revert real que borra la
+basura de la iteración y respeta los ficheros del dueño).
+
+**Obra real con el modelo (Qwen3.8-27B):** `cognia fases "Snake en canvas ... expone window.juego"`,
+50 min, 1 iteración por fase. Trazas literales del log:
+```
+[fases] Definicion de Hecho: 8 requisitos (8 ejecutables, 0 manuales) · tipo web · entrypoint index.html
+[fases] ══ FASE prototipo ... requisitos 3/8 OK (5 fallan) · errores de consola 0 → JUEZ: ACEPTAR (primera version)
+[fases] ══ FASE completar ... requisitos 4/8 OK → JUEZ: ACEPTAR · req_ok 3 -> 4 · req_fallan 5 -> 4
+[fases] ══ FASE robustez  ... 11 issue(s) cerrados → JUEZ: ACEPTAR · salida de robustez: CUMPLIDA (P0=0 P1=0)
+[fases] tiempo agotado tras robustez: la obra queda reanudable (/fases reanudar)
+git: v3 fase robustez aceptada · v2 completar · v1 prototipo · v0 base
+INFORME FINAL: 4/8 requisitos OK · 0 errores de consola · 3 aceptadas, 0 rechazadas · ESTADO: A MEDIAS (reanudable)
+```
+El planificador escribió por su cuenta guiones con asserts sobre `window.juego` para cada requisito.
+
+**Tres fallos cazados en esa obra, arreglados con test:**
+1. El primer intento se atascó: el modelo llamaba `fases_dod --help` como comando de shell porque el
+   filtro de visibilidad recortaba las tools `fases_*` (sin flag). Ahora llevan `COGNIA_FASES`.
+2. `renderizador.partir_args` quitaba la comilla FINAL del guion (`==='function` → assert "no evaluable").
+3. El juez aceptó una iteración en la que F5 pasó a OK y F4 a FALLA (el conteo no cambió): ahora la
+   regresión es POR requisito (`ok_ids`).
+Además el reloj: 50 min pedidos, 61 corridos; ahora cada iteración recibe `COGNIA_PARED_S` con lo que queda.
+
+**Suite dirigida:** test_fases + renderizador_guion + catálogo/visibilidad/ayuda/firmas: en verde.

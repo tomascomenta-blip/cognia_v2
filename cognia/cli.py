@@ -3362,6 +3362,7 @@ _CMD_DESCRIPTIONS = {
     "/ventana":         "Presupuesto de SALIDA real: cuantos tokens deja la ventana (n_ctx) despues del prompt — el techo que de verdad corta las tareas largas, no max_tokens. Uso: /ventana [estado | pensamiento auto|on|off | continuo on|off|<rondas>|tramo N]. Con 'continuo' la respuesta no se trunca: al llegar al tope sigue donde murio y se pega sin costura",
     "/compilar":           "Cognia se fabrica sus propias herramientas: de una frase a un comando del CLI, generado, injertado, evaluado ejecutandolo y registrado. Uso: /compilar [<descripcion> | ensayo <desc> | lista | ver <cmd> | retirar <cmd> | receta | copias | revertir <sello>]",
     "/grabar-clase":    "Graba tus clases y arma un cuaderno por materias con apuntes, imagenes y audio; detecta el cambio de asignatura solo. Uso: /grabar-clase [iniciar | parar | cierre | ver | vivo | widget | pausar | reanudar | mutear | desmutear | forzar | marcar | nota <txt> | importante <txt> | imagen <ruta> | audio <ruta> | pegar | formula <latex> | grafico <expr|datos> | imagen-buscar <consulta> | imagen-usar <n> | pdf | doc estado | refinar on|off|estado | materia <n> | materias <a,b,c> | apuntes | transcribir | olvidar]  (config: clases_refinado, clases_doc_tools, clases_vivo_app, clases_imagenes)",
+    "/fases":         "OBRA POR FASES: construye un producto por fases con puertas de salida (planificar, prototipo, completar, testing, visual, pulido, optimizacion, red team, regresion, release); cada iteracion la verifica el arnes con tools reales y un JUEZ acepta (commit) o revierte (git). Uso: /fases \"<encargo>\" [| minutos=N] [| iteraciones=N] [| fases=a,b] [| pasos=N] · estado | informe | dod | issues | versiones | reanudar | abandonar",
     "/horizonte":     "Modo HORIZONTE de /hacer: rondas de worker fresco con report de 5 campos (contrato ralph) + sello GoalContract. Uso: /horizonte [estado | on | off | rondas <n> | handoff <chars>]",
     "/memoria-limite":  "Ver/fijar tope de memoria: /memoria-limite <N recuerdos> [MB] (persiste)",
     # Recordatorios
@@ -3845,6 +3846,19 @@ _CMD_DETAILS = {
         "config; COGNIA_REPETICION_UMBRALES, COGNIA_REPETICION_UMBRAL_FICHERO, COGNIA_TOOL_TIMEOUT, "
         "COGNIA_TOOL_TIMEOUT_GRACIA, COGNIA_RAZONAMIENTO, COGNIA_RAZONAMIENTO_UMBRAL, "
         "COGNIA_RAZONAMIENTO_RACHA; COGNIA_THINKING=on impide que se apague el pensamiento."),
+    "/fases": (
+        "OBRA POR FASES (cognia/fases, 2026-09-07). El modelo construye; el arnes lo prueba con tools "
+        "reales; un juez compara con la ultima version aceptada; git guarda cada version aceptada y "
+        "REVIERTE la rechazada. Fases: planificar (Definicion de Hecho como JSON verificable: funcionales, "
+        "visuales, calidad), prototipo (flujo principal de punta a punta aunque sea feo), completar (un "
+        "requisito por vez), robustez (QA intenta romperlo y registra issues P0-P4, luego arregla), visual "
+        "(capturas reales, una sub-area por iteracion), pulido, optimizacion (medir antes/despues), red "
+        "team (solo lectura: hacerlo fallar), regresion (solo lo que falla), release (informe final). Cada "
+        "fase tiene un criterio de salida sobre metricas medidas, no sobre la opinion del modelo; con el "
+        "tope de iteraciones queda INCOMPLETA y se dice. El estado vive en <workspace>/.cognia_fases/ "
+        "(estado.json + ESTADO_PROYECTO.md) y es reanudable. Tools del agente: fases_estado, fases_dod, "
+        "fases_issue, fases_hipotesis, fases_estable. Config: fases_iteraciones (tope por fase). Fuera "
+        "del REPL: cognia fases \"<encargo>\" [--minutos N] [--iteraciones N] [--fases a,b] [--reanudar]."),
     "/horizonte": (
         "MODO HORIZONTE (agent/horizonte.py + estado_tarea.py; contrato RALPH de deepseek-harness "
         "tool-ralph). Con el modo encendido, cada /hacer corre en RONDAS: cada ronda es un worker "
@@ -8835,6 +8849,8 @@ _CONFIG_DEFAULTS: dict = {
     "persona":          "casual",
     # Familia de PRUEBAS (2026-09-07): encendida por defecto (/pruebas on|off).
     "pruebas_tools":    True,
+    # Obra por fases (2026-09-07): tope de iteraciones por fase (0 = el de cada fase).
+    "fases_iteraciones": 0,
     # Escritorio propio de Cognia (/escritorio): on, politica de foco y umbral.
     "escritorio_propio": True,
     "escritorio_foco":  "inactivo",     # nunca | inactivo | siempre
@@ -17468,6 +17484,77 @@ def _slash_compilar(arg: str = "", ai=None) -> None:
     _print_line("[detail]/compilar receta  para ver como lo hace[/detail]")
 
 
+def _slash_fases(arg: str = "", ai=None) -> None:
+    """`/fases`: la obra por fases (cognia/fases) desde el REPL."""
+    from cognia.fases import estado as _fe
+    from cognia.agent import pruebas_comun as _pc
+    v = (arg or "").strip()
+    ws = os.getcwd()
+    bajo = v.lower()
+    sub = bajo.split(None, 1)[0] if bajo else "estado"
+    if sub in ("estado", "informe", "dod", "issues", "versiones", "abandonar") and len(bajo.split()) <= 1:
+        est = _fe.cargar(ws)
+        if est is None:
+            _print_line("[info_dim]no hay obra por fases en este directorio. Arranca una con: "
+                        "/fases \"<encargo>\" [| minutos=N] [| iteraciones=N][/info_dim]")
+            return
+        if sub == "estado":
+            _print_line(_fe.render_md(est))
+        elif sub == "informe":
+            from cognia.fases.pipeline import informe_final
+            _print_line(informe_final(est)["texto"])
+        elif sub == "dod":
+            from cognia.agent.tools import run_tool as _rt
+            _print_line(_rt("fases_dod", "ver", {"workspace": ws}))
+        elif sub == "issues":
+            from cognia.agent.tools import run_tool as _rt
+            _print_line(_rt("fases_issue", "lista", {"workspace": ws}))
+        elif sub == "versiones":
+            from cognia.fases import versiones as _gv
+            for v_ in est.get("versiones", []):
+                m = v_.get("metricas", {})
+                _print_line(f"[info_dim]v{v_['n']} {v_['commit'][:8]} fase {v_['fase']} it {v_['iteracion']}: "
+                            f"{v_['decision'].upper()} · req {m.get('req_ok')}/{m.get('req_total')} · consola {m.get('consola_errores')}"
+                            f" · {'; '.join(v_.get('motivos', []))[:120]}[/info_dim]")
+            for l in _gv.log_versiones(ws):
+                _print_line(f"[info_dim]  git: {l}[/info_dim]")
+        elif sub == "abandonar":
+            import shutil as _sh
+            _sh.rmtree(_fe.dir_fases(ws), ignore_errors=True)
+            _print_line("[ok_cl]obra abandonada (estado borrado; los ficheros del producto y los commits quedan)[/ok_cl]")
+        return
+    if ai is None:
+        _print_line("[warn_cl]/fases necesita el agente del REPL[/warn_cl]")
+        return
+    encargo, o = _pc.partir_args(v, ("minutos", "iteraciones", "fases", "pasos"))
+    reanudar = encargo.lower() == "reanudar"
+    if reanudar:
+        encargo = ""
+        if _fe.cargar(ws) is None:
+            _print_line("[warn_cl]no hay obra que reanudar aqui[/warn_cl]")
+            return
+    if not encargo and not reanudar:
+        _print_line("[warn_cl]Uso: /fases \"<encargo>\" [| minutos=N] [| iteraciones=N] [| fases=planificar,prototipo] [| pasos=N] "
+                    "· estado | informe | dod | issues | versiones | reanudar | abandonar[/warn_cl]")
+        return
+    from cognia.cli_fases import correr_obra as _correr
+    cfg = _load_config()
+    iteraciones = int(o["iteraciones"]) if o.get("iteraciones", "").isdigit() else (int(cfg.get("fases_iteraciones") or 0) or None)
+    minutos = float(o["minutos"]) if o.get("minutos") else None
+    fases_ids = [f.strip() for f in o.get("fases", "").split(",") if f.strip()] or None
+    pasos = int(o["pasos"]) if o.get("pasos", "").isdigit() else None
+    try:
+        inf = _correr(ai, ws, encargo, _print_line, iteraciones=iteraciones, minutos=minutos, fases_ids=fases_ids, pasos=pasos)
+    except KeyboardInterrupt:
+        _print_line("[warn_cl]obra interrumpida: reanudable con /fases reanudar[/warn_cl]")
+        return
+    except Exception as exc:
+        _aviso_degradado("fases", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]fases: {_escape(str(exc))}[/err_cl]")
+        return
+    _print_line(inf["texto"])
+
+
 def _slash_horizonte(arg: str = "") -> None:
     """`/horizonte`: puerta del modo HORIZONTE (rondas de worker fresco con
     el contrato ralph de report de 5 campos + sello GoalContract).
@@ -24082,6 +24169,8 @@ def _repl_sesion():
             elif raw == "/ventana" or raw.startswith("/ventana "):
                 _slash_ventana(
                     raw[len("/ventana "):] if raw.startswith("/ventana ") else "")
+            elif raw == "/fases" or raw.startswith("/fases "):
+                _slash_fases(raw[len("/fases "):] if raw.startswith("/fases ") else "", ai)
             elif raw == "/horizonte" or raw.startswith("/horizonte "):
                 _slash_horizonte(
                     raw[len("/horizonte "):] if raw.startswith("/horizonte ") else "")

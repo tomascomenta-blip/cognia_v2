@@ -170,7 +170,7 @@ LABORATORIO: frozenset = frozenset({
     "/debate", "/digest", "/distill", "/distill run", "/diversidad", "/dormir", "/encolar",
     "/escalar", "/estilo_info", "/etiquetar", "/evaluar-idea", "/experimento", "/explicar",
     "/explorar", "/exportar-stats", "/fatiga", "/feedback-sesion", "/grabar", "/hecho",
-    "/hechos-solidos", "/hermes", "/hibrido", "/hipotesis", "/horizonte", "/ideas",
+    "/hechos-solidos", "/hermes", "/hibrido", "/hipotesis", "/horizonte", "/fases", "/ideas",
     "/indice_add", "/indice_personal", "/inferir", "/inicio-dia", "/kg-agregar", "/kg-camino",
     "/kg-exportar", "/kg-inferir", "/kg-predicados", "/kg-relacionar", "/kg-responder",
     "/kg-stats", "/libro", "/logros", "/mapa", "/mesh_estado", "/mesh_iniciar", "/mesh_peer",

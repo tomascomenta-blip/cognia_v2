@@ -32,6 +32,9 @@ GRUPOS = [
     ("Trabajar", [
         ("hacer", '"<tarea>"', "el agente hace la tarea y sale — sirve en tuberías "
                                "y scripts  [--pasos N] [--json] [-s] [--retomar]"),
+        ("fases", '"<encargo>"', "construye un PRODUCTO por fases (plan, prototipo, completar, "
+                                 "QA, visual, red team, regresión, release) con juez y revert  "
+                                 "[--minutos N] [--iteraciones N] [--fases a,b] [--reanudar]"),
         ("memoria", 'buscar "<q>" | stats', "la memoria de largo plazo del agente "
                                             "(lo que salió de la ventana)"),
         ("sesion", "lista | retomar | nueva", "checkpoints de tarea: retomar tras un "

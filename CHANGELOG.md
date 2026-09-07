@@ -2,6 +2,44 @@
 
 ---
 
+## [4.30.0] - 2026-09-07
+
+### La OBRA POR FASES: el modelo construye, el arnés lo prueba, un juez decide y git revierte
+
+Pedido del dueño: "que construya por fases: el modelo construye, otro proceso intenta romperlo, las
+pruebas reales deciden si funciona, el juez compara la versión nueva contra la mejor anterior y nunca se
+acepta un cambio que no demuestre mejora neta".
+
+**`/fases "<encargo>" [| minutos=N] [| iteraciones=N] [| fases=a,b] [| pasos=N]`** y **`cognia fases`**
+(`cognia/fases/`, `cognia/cli_fases.py`). Diez fases con un criterio de salida sobre métricas MEDIDAS, nunca
+sobre la opinión del modelo: planificar (la Definición de Hecho como JSON con requisitos funcionales,
+visuales y de calidad, cada uno con una verificación ejecutable: tests, ejecutar+regex, `probar`, `renderizar`
+con guion y asserts, `app_probar` con pasos, o manual con evidencia), prototipo (el flujo principal de punta
+a punta aunque sea feo), completar (un requisito por vez), robustez (QA intenta romperlo, registra issues
+P0-P4 y arregla de P0 a P4), visual (capturas reales, una sub-área por iteración), pulido, optimización (medir
+antes y después), red team (solo lectura: hacerlo fallar y reportar), regresión (solo lo que falla) y release
+(informe final de calidad).
+
+Dentro de cada fase el mismo lazo: el agente declara una HIPÓTESIS (`fases_hipotesis`), implementa cambios
+pequeños, el **verificador** corre la DoD con las tools reales (cero llamadas al modelo) y mide requisitos
+OK, tests, errores de consola, tracebacks, capturas por versión y la revisión profunda; el **juez** compara
+con la última versión aceptada: regresión → RECHAZAR y `git checkout` a la versión anterior (borrando los
+ficheros nuevos de la iteración, respetando los del dueño); mejora → ACEPTAR y commit `fases: vN`; tocar un
+fichero marcado NO TOCAR fuera de la regresión → rechazar; sin mejora medible → rechazar. El PROJECT STATE
+vive en `<workspace>/.cognia_fases/` (`estado.json` + `ESTADO_PROYECTO.md`): fase actual, DoD, issues,
+versiones con métricas y decisión, estables, hipótesis; es reanudable (`/fases reanudar`, `--reanudar`) y
+con `minutos=` se corta a tiempo. Tools del agente: `fases_estado`, `fases_dod ver|marcar|definir`,
+`fases_issue agregar|cerrar|lista`, `fases_hipotesis`, `fases_estable`. Informe final con requisitos, tests,
+bugs por prioridad, calidad, visual, puntuación multidimensional, versiones aceptadas/revertidas y el estado
+LISTO PARA ENTREGAR / NO LISTO / A MEDIAS.
+
+Tests (`tests/test_fases.py`, sin modelo): estado, DoD del modelo y automática, snapshot y revert real en
+git, el juez en sus seis decisiones, el verificador sobre una página buena y una rota (Playwright), el
+pipeline entero con un ejecutor falso (acepta la buena, rechaza y revierte la rota, borra la basura de la
+iteración y conserva los ficheros del dueño), las tools por `run_tool` y las puertas del CLI.
+
+---
+
 ## [4.29.0] - 2026-09-07
 
 ### La familia de PRUEBAS: ~65 herramientas para que Cognia compruebe lo que hace, y un ESCRITORIO PROPIO

@@ -268,7 +268,10 @@ CATEGORIAS: tuple = (
     {"id": "horizonte", "nombre": "Decisiones y bitacora",
      "color": "#7d7d87", "color_osc": "#a5a5ad", "icono": "book",
      "tools": ("decidir", "afirmar", "pendiente", "resolver", "leccion"),
-     "prefijos": ("libro_",)},
+     # fases_* (2026-09-07, cognia/fases): el estado de la obra por fases,
+     # su Definicion de Hecho, issues e hipotesis. Van con las decisiones y
+     # la bitacora: son la memoria durable de una tarea larga.
+     "prefijos": ("libro_", "fases_")},
 
     {"id": "util", "nombre": "Utilidades",
      "color": "#54b8c9", "color_osc": "#79cbd9", "icono": "tool",
