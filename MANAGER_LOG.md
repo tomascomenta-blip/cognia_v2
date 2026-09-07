@@ -15902,3 +15902,10 @@ DBs temporales de prueba, justificado en el test), versión del instalador (`ins
 `git checkout`.
 
 **Publicación:** ver la entrada siguiente.
+
+**Release 4.29.0 (09:05):** commit `3684585d` + tag `v4.29.0` pusheados a origin; `python -m build` +
+`twine check` PASSED; `twine upload` → https://pypi.org/project/cognia-ai/4.29.0/ (el JSON de PyPI ya
+lista 4.29.0 como última). Instalado `cognia-ai[pruebas]==4.29.0` en `~/.cognia/venv` (el que lanza el
+dueño) y en `venv312`: desde fuera del repo, `pruebas_estado` responde con las 5 sub-familias, Playwright,
+escritorio propio activo, ffmpeg y node. Pendiente conocido: los 20 tests crónicos de HEAD listados
+arriba (ninguno de esta entrega).
