@@ -142,6 +142,13 @@ def _hacer(args, tarea: str, progreso) -> int:
         _cli._aplicar_config_memoria_larga()
     except Exception as exc:
         progreso(f"[cognia] memoria larga: config no propagada ({type(exc).__name__}: {exc})")
+    # PENSAMIENTO del agente (2026-09-08): misma siembra que el REPL; `hacer`
+    # es el camino de los bancos y de los scripts, y sin esto la config
+    # 'thinking' solo valia dentro del REPL.
+    try:
+        _cli._aplicar_config_thinking()
+    except Exception as exc:
+        progreso(f"[cognia] pensamiento: config no propagada ({type(exc).__name__}: {exc})")
     if getattr(args, "retomar", False):
         try:
             from cognia.memoria_larga import recuperacion as _rec

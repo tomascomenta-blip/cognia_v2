@@ -94,6 +94,8 @@ ENV_QUE_PISAN: dict = {
     "revision_segundos":       ("COGNIA_REVISION_SEGUNDOS",),
     # La forja (2026-09-08): tools.py siembra COGNIA_FORJA desde la config `forja`.
     "forja":                   ("COGNIA_FORJA",),
+    # Pensamiento del agente (2026-09-08): _aplicar_config_thinking la siembra.
+    "thinking":                ("COGNIA_THINKING",),
     # Tareas cotidianas en el escritorio propio (2026-09-08).
     "cotidiano_tools":         ("COGNIA_COTIDIANO",),
 }

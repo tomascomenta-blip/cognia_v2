@@ -8987,6 +8987,12 @@ _CONFIG_DEFAULTS: dict = {
     "escritorio_inactividad_s": 90,
     "escritorio_nombre": "Cognia",
     "forja":            "on",           # la FORJA de herramientas propias (agent/forja.py)
+    # Pensamiento del agente: auto | on | off (/ventana pensamiento). OFF por
+    # defecto desde 2026-09-08: medido en el banco de tareas largas (3 tareas,
+    # 600 s de pared, Qwen3.8-27B) 3/3 productos funcionales y nota 0,947 con el
+    # pensamiento apagado frente a 0,777 con el default del modelo; el razonador
+    # quemaba ~90 s del primer paso en razonamiento que el corte tiraba.
+    "thinking":         "off",
     "cotidiano_tools":  True,           # tareas cotidianas en el escritorio propio (agent/cotidiano_tools.py)
     "idioma":           "auto",
     "max_historial":    "50",
@@ -15313,6 +15319,30 @@ def _aplicar_config_lazo() -> None:
             os.environ[_lz.ENV] = "0"
     except Exception as exc:
         _aviso_degradado("lazo_corto", f"no pude aplicar la config: {exc}")
+
+
+def _aplicar_config_thinking() -> None:
+    """Siembra COGNIA_THINKING desde la config 'thinking' (auto|on|off).
+
+    Hasta 2026-09-08 `/ventana pensamiento off` GUARDABA la clave y nadie la
+    leia al arrancar: el proceso siguiente volvia a pensar. Medido esa noche
+    en el banco de tareas largas (3 tareas, 600 s de pared, Qwen3.8-27B):
+    con el pensamiento apagado 3/3 productos funcionales y nota 0,947 frente
+    a 0,777 con el default; el razonador gastaba ~90 s del primer paso en
+    12.000 chars de razonamiento que el corte 'razonamiento_desbocado'
+    tiraba. La variable puesta a mano siempre gana; 'auto' no siembra nada
+    (lo que el modelo trae entrenado)."""
+    try:
+        if (os.environ.get("COGNIA_THINKING") or "").strip():
+            return
+        val = str(_load_config().get("thinking", _CONFIG_DEFAULTS.get("thinking", "auto"))).strip().lower()
+        if val in ("on", "off"):
+            os.environ["COGNIA_THINKING"] = val
+            _marcar_env_sembrada("COGNIA_THINKING")
+        elif val != "auto":
+            _aviso_degradado("thinking", f"config 'thinking'={val!r} no es auto/on/off; uso auto")
+    except Exception as exc:
+        _aviso_degradado("thinking", f"no pude aplicar la config: {exc}")
 
 
 def _aplicar_config_telemetria() -> None:
@@ -23444,6 +23474,10 @@ def _repl_sesion():
     _aplicar_config_horizonte()
     _aplicar_config_telemetria()
     _aplicar_config_lazo()
+    # PENSAMIENTO del agente (/ventana pensamiento): model_profiles lee
+    # COGNIA_THINKING a call-time; sin sembrarlo la config no sobrevivia al
+    # cierre del proceso (medido 2026-09-08: la clave llevaba semanas muda).
+    _aplicar_config_thinking()
     # ENRUTADO (/enrutador on|off): `enrutador.activo()` lee COGNIA_ENRUTADOR
     # del env, asi que sin sembrarlo el interruptor no sobreviviria al cierre
     # del proceso. Sin pisar lo que el usuario ya puso en el entorno.
