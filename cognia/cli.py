@@ -3348,6 +3348,8 @@ _CMD_DESCRIPTIONS = {
     "/probar":          "PRUEBA lo que sea por su tipo (la misma tool `probar` del agente): pagina, imagen, audio, video, pdf/docx/xlsx/3d, json/yaml/csv, .py (lint+ejecucion, GUI en el escritorio propio, consola con entradas), comando con ventana, carpeta. Uso: /probar <ruta|URL|comando|carpeta> [| pasos=...] [| entradas=1|q] | ayuda [tema] | estado",
     "/pruebas":         "Familia de herramientas de prueba del agente (pagina_*, captura_*, audio_*, video_*, app_*, formato_*, pdf_*, ...): estado, on/off (config pruebas_tools, env COGNIA_PRUEBAS) y listado por tema. Uso: /pruebas [estado | on | off | tools [tema]]",
     "/escritorio":      "El ESCRITORIO PROPIO de Cognia (escritorio virtual 'Cognia' donde lanza y prueba apps graficas sin molestar al usuario). Uso: /escritorio [estado | on | off | ir | volver | ventanas | limpiar [borrar] | foco nunca|inactivo|siempre | inactividad <seg> | nombre <texto>]",
+    "/forja":           "La FORJA: Cognia se construye herramientas propias (un .py con DOC, PRUEBAS y run), las examina de punta a punta y las registra; con el uso ascienden, se rompen o se retiran. Uso: /forja [estado | lista | plantilla | forjar <ruta.py> | probar <nombre> | retirar <nombre> | candidatas | on | off]",
+    "/cotidiano":       "Tareas COTIDIANAS en el escritorio propio de Cognia: escribir un documento (Word/Bloc de notas), mandar y leer correo (Outlook), citas en el calendario, abrir ficheros/URLs/apps. Uso: /cotidiano [estado | on | off | tools | correo <para> | asunto=... | cuerpo=... | documento <ruta> | texto=... | abrir <ruta|url|app>]",
     "/pegado":          "Pastes largos del prompt colapsados a '[pegado #N: +X lineas]' (se expanden al enviar). Uso: /pegado [lista | N | on | off | umbral <lineas> [<chars>]]",
     "/enlaces":         "Rutas de fichero clicables (hyperlink OSC 8 file://) en el render de tools y /offload. Uso: /enlaces [estado | on | off]",
     "/spinner":         "Linea de estado viva del turno: verbo + segundos + ~tokens + como cortar. Uso: /spinner [estado | on | off | verbos [<v1, v2, ...> | reset]]",
@@ -3549,6 +3551,32 @@ _CMD_DETAILS = {
         "py_lint/py_importar/py_perfilar/py_cobertura/http_solicitud/puerto_esperar/"
         "esperar_fichero/consola_sesion/tui_probar, app_* (apps graficas). Extra pip: "
         "cognia-ai[pruebas]."),
+    "/forja": (
+        "LA FORJA (cognia/agent/forja.py, 2026-09-08): Cognia se construye sus propias herramientas "
+        "y solo se queda con las que DEMUESTRAN funcionar. El agente escribe un .py con un contrato "
+        "chico (DOC de una linea, PRUEBAS con args/espera/prepara/espera_fichero, run(args, ctx)); "
+        "la tool `forjar <ruta>` (en el catalogo core) lo examina: sintaxis, scan estatico (sin "
+        "shutdown/format/rmdir/reg/ctypes), y CADA prueba corre en un subproceso con timeout dentro "
+        "de un directorio temporal limpio. Si pasa, queda en ~/.cognia/forja/<nombre>.py con "
+        "historial de versiones, se registra EN CALIENTE y en todas las sesiones futuras. Con el uso "
+        "evoluciona: 3 usos buenos -> verificada; dos fallos seguidos -> se re-prueba sola y, si ya "
+        "no pasa, queda ROTA (deja de anunciarse y el modelo recibe la ruta para corregirla); solo se "
+        "anuncian las 8 mejores, el resto se encuentran con buscar_herramientas. Y observa lo que el "
+        "agente repite: al tercer `ejecutar` del mismo comando en una tarea le sugiere forjarlo y lo "
+        "apunta en candidatas. Config: forja (on/off), env COGNIA_FORJA=0. Directorio: "
+        "COGNIA_FORJA_DIR. `/forja forjar <ruta.py>` forja a mano; `/forja probar <nombre>` repite "
+        "sus pruebas; `/forja retirar <nombre>` la quita; `/forja candidatas` lista lo repetido."),
+    "/cotidiano": (
+        "TAREAS COTIDIANAS (cognia/agent/cotidiano_tools.py, 2026-09-08): que Cognia haga en su "
+        "escritorio propio lo que el dueno le pida a diario. Tools del agente: documento_escribir "
+        "(Word por COM o Bloc de notas; escribe el fichero y lo abre en el escritorio de Cognia), "
+        "correo_enviar / correo_leer (Outlook por COM, en un subproceso con timeout: si Outlook no "
+        "responde, se dice), calendario_agregar (cita en Outlook), abrir_en_escritorio (fichero, "
+        "URL o app, mudado al escritorio de Cognia), cotidiano_estado. Se anuncian con la familia "
+        "encendida (config cotidiano_tools, default on; env COGNIA_COTIDIANO=0 la apaga). Las que "
+        "salen del equipo (correo_enviar) son peligrosas: piden confirmacion salvo en modo bypass. "
+        "`/cotidiano correo <para> | asunto=... | cuerpo=...`, `/cotidiano documento <ruta> | "
+        "texto=...` y `/cotidiano abrir <x>` tecleadas a mano usan las mismas tools."),
     "/escritorio": (
         "ESCRITORIO PROPIO de Cognia (cognia/agent/escritorio_propio.py, 2026-09-07): un "
         "escritorio virtual de Windows llamado 'Cognia' (los de Win+Ctrl+D). Las apps que el "
@@ -4947,6 +4975,108 @@ def _slash_pruebas(arg: str = "") -> None:
         _print_line(_pt.ayuda(v.split(None, 1)[1] if " " in v else ""))
         return
     _print_line("[warn_cl]Uso: /pruebas [estado | on | off | tools [tema]][/warn_cl]")
+
+
+def _slash_forja(arg: str = "") -> None:
+    """`/forja`: estado, lista, plantilla, forjar/probar/retirar a mano, candidatas, on/off."""
+    from cognia.agent import forja as _fj
+    v = (arg or "").strip()
+    partes = v.split(None, 1)
+    op = partes[0].lower() if partes else "estado"
+    resto = partes[1].strip() if len(partes) > 1 else ""
+    if op == "estado":
+        e = _fj.estado()
+        _print_line(f"[ok_cl]forja: {'ON' if e['encendida'] else 'OFF'}[/ok_cl] [info_dim]· {e['total']} herramienta(s) "
+                    f"({', '.join(f'{k} {n}' for k, n in e['por_tier'].items() if n) or 'ninguna'}) · anunciadas: "
+                    f"{', '.join(e['anunciadas']) or '-'} · candidatas: {e['candidatas']} · {e['directorio']}[/info_dim]")
+        u = e.get("ultimo") or {}
+        if u.get("accion"):
+            _print_line(f"[info_dim]ultimo: {u['accion']} {u.get('detalle', '')}{' · error: ' + u['error'] if u.get('error') else ''}[/info_dim]")
+        _print_line("[info_dim]/forja lista · plantilla · forjar <ruta.py> · probar <nombre> · retirar <nombre> · candidatas · on|off[/info_dim]")
+        return
+    if op in ("on", "off"):
+        cfg = _load_config(); cfg["forja"] = op; _save_config(cfg)
+        os.environ["COGNIA_FORJA"] = "1" if op == "on" else "0"
+        if op == "on":
+            try:
+                from cognia.agent.tools import tool as _tool, TOOLS as _TOOLS
+                if "forjar" not in _TOOLS:
+                    _fj.register(_tool)
+                n = _fj.cargar()
+                _print_line(f"[ok_cl]forja ON[/ok_cl] [info_dim]· {n} herramienta(s) propia(s) cargada(s)[/info_dim]")
+            except Exception as exc:
+                _aviso_degradado("forja", f"{type(exc).__name__}: {exc}")
+        else:
+            _print_line("[ok_cl]forja OFF[/ok_cl] [info_dim]· `forjar` responde DESHABILITADA; las forjadas ya cargadas se van al reiniciar[/info_dim]")
+        return
+    if op == "candidatas":
+        c = _fj.candidatas()
+        if not c:
+            _print_line("[info_dim]sin candidatas: nada repetido 3 veces en una tarea todavia[/info_dim]")
+            return
+        for e in sorted(c.values(), key=lambda x: -int(x.get("veces", 0))):
+            _print_line(f"[info_dim]  {int(e.get('veces', 0))}x  `{e.get('comando', '')}`[/info_dim]")
+        return
+    from cognia.agent.tools import run_tool as _rt
+    ctx = {"_scratchpad": _scratch_actual(), "workspace": os.getcwd()}
+    if op in ("lista", "plantilla"):
+        _print_line(_rt("forjar", op, ctx))
+        return
+    if op in ("forjar", "probar", "retirar"):
+        if not resto:
+            _print_line(f"[warn_cl]/forja {op} <{'ruta.py' if op == 'forjar' else 'nombre'}>[/warn_cl]")
+            return
+        _print_line(_rt("forjar", resto if op == "forjar" else f"{op} {resto}", ctx))
+        return
+    # una ruta suelta: forjarla
+    if v.lower().endswith(".py"):
+        _print_line(_rt("forjar", v, ctx))
+        return
+    _print_line("[warn_cl]/forja [estado | lista | plantilla | forjar <ruta.py> | probar <nombre> | retirar <nombre> | candidatas | on | off][/warn_cl]")
+
+
+def _slash_cotidiano(arg: str = "") -> None:
+    """`/cotidiano`: estado/on/off de las tareas cotidianas y sus tools tecleadas a mano."""
+    from cognia.agent import cotidiano_tools as _ct
+    v = (arg or "").strip()
+    partes = v.split(None, 1)
+    op = partes[0].lower() if partes else "estado"
+    resto = partes[1].strip() if len(partes) > 1 else ""
+    from cognia.agent.tools import run_tool as _rt, TOOLS as _TOOLS
+    ctx = {"_scratchpad": _scratch_actual(), "workspace": os.getcwd()}
+    if op == "estado":
+        cfg = _load_config()
+        _print_line(f"[ok_cl]cotidiano: {'ON' if cfg.get('cotidiano_tools', True) else 'OFF'} en config[/ok_cl] "
+                    f"[info_dim]· env COGNIA_COTIDIANO={os.environ.get('COGNIA_COTIDIANO', '(sin poner)')} · "
+                    f"tools: {', '.join(sorted(t for t in _TOOLS if _ct.es_de_la_familia(t))) or 'ninguna cargada'}[/info_dim]")
+        _print_line(_rt("cotidiano_estado", "", ctx) if "cotidiano_estado" in _TOOLS else "[warn_cl]la familia no esta cargada[/warn_cl]")
+        _print_line("[info_dim]/cotidiano on|off · tools · correo <para> | asunto=... | cuerpo=... · documento <ruta> | texto=... · abrir <ruta|url|app>[/info_dim]")
+        return
+    if op in ("on", "off"):
+        cfg = _load_config(); cfg["cotidiano_tools"] = (op == "on"); _save_config(cfg)
+        os.environ["COGNIA_COTIDIANO"] = "1" if op == "on" else "0"
+        if op == "on":
+            from cognia.harness import familias as _fam
+            r = _fam.activar("cotidiano")
+            if not r.get("ok"):
+                _aviso_degradado("cotidiano", r.get("detalle", "no cargo"))
+            _print_line(f"[ok_cl]cotidiano ON[/ok_cl] [info_dim]· {r.get('detalle', '')}[/info_dim]")
+        else:
+            _print_line("[ok_cl]cotidiano OFF[/ok_cl] [info_dim]· las tools ya cargadas se van al reiniciar[/info_dim]")
+        return
+    if op == "tools":
+        for t in sorted(t for t in _TOOLS if _ct.es_de_la_familia(t)):
+            _print_line(f"[info_dim]  {_TOOLS[t]['doc']}[/info_dim]")
+        return
+    mapa = {"correo": "correo_enviar", "documento": "documento_escribir", "abrir": "abrir_en_escritorio",
+            "leer": "correo_leer", "cita": "calendario_agregar"}
+    if op in mapa:
+        if not resto:
+            _print_line(f"[warn_cl]/cotidiano {op} <...>[/warn_cl]")
+            return
+        _print_line(_rt(mapa[op], resto, ctx))
+        return
+    _print_line("[warn_cl]/cotidiano [estado | on | off | tools | correo ... | leer ... | documento ... | cita ... | abrir ...][/warn_cl]")
 
 
 def _slash_escritorio(arg: str = "") -> None:
@@ -8856,6 +8986,8 @@ _CONFIG_DEFAULTS: dict = {
     "escritorio_foco":  "inactivo",     # nunca | inactivo | siempre
     "escritorio_inactividad_s": 90,
     "escritorio_nombre": "Cognia",
+    "forja":            "on",           # la FORJA de herramientas propias (agent/forja.py)
+    "cotidiano_tools":  True,           # tareas cotidianas en el escritorio propio (agent/cotidiano_tools.py)
     "idioma":           "auto",
     "max_historial":    "50",
     "tema_kg":          "",
@@ -24135,6 +24267,10 @@ def _repl_sesion():
                 _slash_pruebas(raw[len("/pruebas "):] if raw.startswith("/pruebas ") else "")
             elif raw == "/escritorio" or raw.startswith("/escritorio "):
                 _slash_escritorio(raw[len("/escritorio "):] if raw.startswith("/escritorio ") else "")
+            elif raw == "/forja" or raw.startswith("/forja "):
+                _slash_forja(raw[len("/forja "):] if raw.startswith("/forja ") else "")
+            elif raw == "/cotidiano" or raw.startswith("/cotidiano "):
+                _slash_cotidiano(raw[len("/cotidiano "):] if raw.startswith("/cotidiano ") else "")
             elif raw == "/pegado" or raw.startswith("/pegado "):
                 _slash_pegado(raw[len("/pegado "):] if raw.startswith("/pegado ") else "")
             elif raw == "/enlaces" or raw.startswith("/enlaces "):

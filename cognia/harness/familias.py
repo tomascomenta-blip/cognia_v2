@@ -90,6 +90,20 @@ FAMILIAS = {
         # Viene ENCENDIDA por defecto (2026-09-07): probar lo que uno hizo es
         # parte de hacerlo. Se apaga con /pruebas off o COGNIA_PRUEBAS=0.
     },
+    "forja": {
+        "que": "que Cognia se forje herramientas propias, verificadas de punta a punta, y las use",
+        "flag": "COGNIA_FORJA", "nombres": ("forjar",),
+        "cargar": _carga_modulo("cognia.agent.forja"), "peligrosa": True,
+        # Encendida por defecto (config `forja`, 2026-09-08).
+    },
+    "cotidiano": {
+        "que": "tareas cotidianas en el escritorio propio: documentos, correo, calendario, abrir cosas",
+        "flag": "COGNIA_COTIDIANO",
+        "prefijos": ("correo_", "documento_", "calendario_"),
+        "nombres": ("abrir_en_escritorio", "recordatorio", "cotidiano_estado"),
+        "cargar": _carga_modulo("cognia.agent.cotidiano_tools"), "peligrosa": True,
+        # Encendida por defecto (config `cotidiano_tools`, 2026-09-08).
+    },
     "pantalla": {
         "que": "ver la pantalla, mover el ratón, teclear y pulsar teclas",
         "flag": "COGNIA_SCREEN", "prefijo": "pantalla_",

@@ -92,6 +92,10 @@ ENV_QUE_PISAN: dict = {
     "revision_ejecutar":       ("COGNIA_REVISION_EJECUTAR",),
     "revision_rondas":         ("COGNIA_REVISION_RONDAS",),
     "revision_segundos":       ("COGNIA_REVISION_SEGUNDOS",),
+    # La forja (2026-09-08): tools.py siembra COGNIA_FORJA desde la config `forja`.
+    "forja":                   ("COGNIA_FORJA",),
+    # Tareas cotidianas en el escritorio propio (2026-09-08).
+    "cotidiano_tools":         ("COGNIA_COTIDIANO",),
 }
 
 # Nombres que huelen a credencial: se enmascaran SIEMPRE en cualquier render.

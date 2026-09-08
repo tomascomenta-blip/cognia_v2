@@ -105,4 +105,13 @@ def visible_tools(all_names, override: Optional[str] = None):
                 out.add(n)
         elif n in CORE_TOOLS:
             out.add(n)
+    # Las herramientas que Cognia se FORJO (agent/forja.py, 2026-09-08): se
+    # anuncian las MAX_ANUNCIADAS mejores (verificadas primero, luego por
+    # usos). El resto quedan registradas y buscables. Best-effort: la forja
+    # nunca puede tumbar el catalogo.
+    try:
+        from cognia.agent import forja as _forja
+        out |= (_forja.anunciadas() & names)
+    except Exception:
+        pass
     return out

@@ -120,6 +120,12 @@ CORE_TOOLS = frozenset({
     # que se descubren por `probar ayuda <tema>` y por el texto del resultado,
     # sin pagar sus schemas en cada turno (el A/B del catalogo sigue mandando).
     "probar",
+    # forjar (2026-09-08, pedido del dueno: "que construya sus propias
+    # herramientas, las verifique de punta a punta y las use"): la puerta de la
+    # FORJA (cognia/agent/forja.py). Una linea del catalogo; las herramientas
+    # que salen de ahi se anuncian solas (las MAX_ANUNCIADAS mejores) y el
+    # resto se descubren con buscar_herramientas.
+    "forjar",
 })
 
 
@@ -400,6 +406,12 @@ _OPTIN_PREFIJOS = (
     # (cazado en la primera obra real: el modelo llamaba `fases_dod --help`
     # como comando de shell porque no las veia como tools).
     ("fases_", "COGNIA_FASES"),
+    # Tareas cotidianas en el escritorio propio (2026-09-08,
+    # cognia/agent/cotidiano_tools.py): default ENCENDIDA (config
+    # `cotidiano_tools`), se apaga con COGNIA_COTIDIANO=0.
+    ("correo_", "COGNIA_COTIDIANO"),
+    ("documento_", "COGNIA_COTIDIANO"),
+    ("calendario_", "COGNIA_COTIDIANO"),
 )
 # Las tools de la familia de pruebas SIN prefijo propio (py_ es de py_validar,
 # que es del core y no lleva flag): nombre exacto.
@@ -446,6 +458,10 @@ _OPTIN_NOMBRES = {
     "leccion": "COGNIA_TX",
 }
 _OPTIN_NOMBRES.update({n: "COGNIA_PRUEBAS" for n in PRUEBAS_NOMBRES})
+# La forja (2026-09-08): `forjar` viene encendida por config `forja` (el env se
+# siembra al importar, abajo); COGNIA_FORJA=0 la apaga y responde DESHABILITADA.
+_OPTIN_NOMBRES["forjar"] = "COGNIA_FORJA"
+_OPTIN_NOMBRES.update({n: "COGNIA_COTIDIANO" for n in ("abrir_en_escritorio", "recordatorio", "cotidiano_estado")})
 
 
 def flag_de_optin(name: str) -> str:
@@ -665,6 +681,14 @@ def run_tool(name: str, args: str, ctx: dict) -> str:
         ctx["_ultimo_ok"] = bool(ok)
     try:
         _record_usage(name, ok)
+    except Exception:
+        pass
+    # La FORJA observa lo que el agente REPITE (2026-09-08): al tercer
+    # `ejecutar` del mismo comando le anexa la sugerencia de forjarlo como
+    # herramienta. Nunca lanza (anexar_sugerencia avisa y devuelve `out`).
+    try:
+        from cognia.agent.forja import anexar_sugerencia as _forja_sugerir
+        out = _forja_sugerir(name, args, out, ctx)
     except Exception:
         pass
     # Bus interno (cognia/events.py): cada tool ejecutada deja un evento
@@ -4249,6 +4273,63 @@ if _pruebas_encendido():
         print(f"[cognia] familia de pruebas no cargo: {_exc}", file=sys.stderr)
 else:
     os.environ["COGNIA_PRUEBAS"] = "0"
+
+
+# ── La FORJA (2026-09-08): default ENCENDIDA ─────────────────────────────
+# Pedido del dueno: "que el harness pueda construir sus propias herramientas,
+# verifique su funcionamiento end to end y las use: que evolucione conforme el
+# uso". `forjar` entra en CORE_TOOLS; las herramientas forjadas (verificadas
+# con sus PRUEBAS en subproceso) se registran aqui en cada arranque y se
+# anuncian las mejores (forja.anunciadas, cableado en simple_mode.visible_tools).
+try:
+    from cognia.agent import forja as _forja
+    if _forja.encendida():
+        os.environ["COGNIA_FORJA"] = "1"
+        _forja.register(tool)
+        ROLE_TOOLS["implementador"].add("forjar")
+        _n_forjadas = _forja.cargar()
+        if _n_forjadas:
+            print(f"[cognia] forja: {_n_forjadas} herramienta(s) propia(s) cargada(s)", file=sys.stderr)
+    else:
+        os.environ["COGNIA_FORJA"] = "0"
+except Exception as _exc_forja:
+    print(f"[cognia] la forja no cargo: {_exc_forja}", file=sys.stderr)
+
+
+# ── Tareas COTIDIANAS en el escritorio propio (2026-09-08): default ENCENDIDA ──
+# Pedido del dueno: "que en el segundo monitor pueda hacer tareas cotidianas
+# que yo le pida: escribir algo, mandar un correo, cosas asi". Config
+# `cotidiano_tools`; COGNIA_COTIDIANO=0 la apaga.
+def _cotidiano_encendido() -> bool:
+    crudo = os.environ.get("COGNIA_COTIDIANO", "").strip().lower()
+    if crudo:
+        return crudo in ("1", "on", "true", "yes", "si")
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        ruta = _Path.home() / ".cognia_config.json"
+        if ruta.exists():
+            with ruta.open(encoding="utf-8") as fh:
+                return bool(_json.load(fh).get("cotidiano_tools", True))
+    except Exception:
+        pass
+    return True
+
+
+if _cotidiano_encendido():
+    os.environ["COGNIA_COTIDIANO"] = "1"
+    try:
+        from cognia.agent import cotidiano_tools as _cotidiano_tools
+        _cotidiano_tools.register(tool)
+        for _t in list(TOOLS):
+            if flag_de_optin(_t) == "COGNIA_COTIDIANO":
+                ROLE_TOOLS["implementador"].add(_t)
+                if _t in ("correo_leer", "cotidiano_estado"):
+                    ROLE_TOOLS["investigador"].add(_t)
+    except Exception as _exc_cot:
+        print(f"[cognia] tareas cotidianas no cargaron: {_exc_cot}", file=sys.stderr)
+else:
+    os.environ["COGNIA_COTIDIANO"] = "0"
 
 
 # ── Ingenieria inversa de repos (opt-in COGNIA_REPO_REVERSE=1) ──────────

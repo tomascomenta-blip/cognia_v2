@@ -150,6 +150,14 @@ def build_adaptive_system_prompt(ai) -> str:
         cap_note = synthesized_capabilities_note()
     except Exception:
         cap_note = ""
+    # La FORJA (2026-09-08): lo que se forjo y lo que repite sin forjar.
+    try:
+        from cognia.agent.forja import nota_capacidades as _nota_forja
+        _nf = _nota_forja()
+        if _nf:
+            cap_note = (cap_note + " " + _nf).strip()
+    except Exception:
+        pass
 
     if not parts and not cap_note:
         return _base()
