@@ -28614,6 +28614,15 @@ def _run_agent_task_cuerpo(ai, task: str, _print_fn, max_steps: int = None,
                     task_id=_hz_task_id, estado=_hz_estado,
                     max_ciclos=_hz_max_ciclos)
             else:
+                # LA FORJA (2026-09-08): cuando el agente forja una tool a
+                # mitad de tarea, el bucle recompone los schemas con este
+                # closure (visibilidad fresca: forja.anunciadas() lee el
+                # manifiesto). Cazado en el primer e2e con modelo: la tool
+                # quedaba registrada pero el modelo no la veia y la corria
+                # como script con `ejecutar`.
+                ctx["_rehacer_schemas"] = (
+                    lambda: schemas_para(_filtro_tools_agente(allowed_tools)
+                                         if _tool_filter is not None else None))
                 _nat = bucle_nativo(
                     task, system_agente_nativo(_perfil_modelo), completar,
                     schemas_para(_tool_filter), args_legacy,

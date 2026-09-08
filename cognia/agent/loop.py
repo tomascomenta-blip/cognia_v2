@@ -3355,6 +3355,26 @@ def bucle_nativo(task: str, system: str, completar, schemas: list,
             _t_tool = __import__("time").time()
             resultado = (_servido if _servido is not None
                          else run_tool(tc.nombre, args_str, ctx))
+            # LA FORJA (2026-09-08): una herramienta recien forjada entra en
+            # los schemas de ESTE bucle, no del siguiente. `schemas` se muta
+            # en sitio (es la lista que viaja en cada `completar`); las que ya
+            # estaban se conservan aunque el filtro fresco no las traiga
+            # (p.ej. las de horizonte, que se agregan aparte).
+            if (tc.nombre == "forjar" and isinstance(ctx, dict)
+                    and callable(ctx.get("_rehacer_schemas"))
+                    and str(resultado).startswith("RESULTADO forjar: '")):
+                try:
+                    _nuevos = list(ctx["_rehacer_schemas"]() or [])
+                    _nombres_nuevos = {s.get("function", {}).get("name") for s in _nuevos}
+                    _viejos = [s for s in schemas
+                               if s.get("function", {}).get("name") not in _nombres_nuevos]
+                    schemas[:] = _nuevos + _viejos
+                    _PESO_FIJO["schemas"] = _peso_schemas(schemas)
+                    print_fn(f"[detail]forja: schemas recargados "
+                             f"({len(schemas)} tools)[/detail]")
+                except Exception as _exc_forja:
+                    print_fn(f"[warn_cl]forja: no pude recargar los schemas: "
+                             f"{_exc_forja}[/warn_cl]")
             # LAZO CORTO (2026-09-01): lo que se acaba de escribir se CORRE
             # aqui, no en el cierre. Ver harness/lazo_corto.py. El texto va
             # pegado al resultado de la tool, asi que el modelo lo lee en el

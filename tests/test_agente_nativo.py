@@ -551,3 +551,37 @@ def test_estimate_step_budget_sin_llm_por_defecto(monkeypatch):
 def test_wants_more_steps_apagado_por_defecto(monkeypatch):
     monkeypatch.delenv("COGNIA_WANTS_MORE", raising=False)
     assert loop_mod.wants_more_steps("t", "r", _OrchQueNoDebeInferir()) == 0
+
+
+def test_bucle_nativo_recarga_schemas_tras_forjar():
+    """LA FORJA (2026-09-08): tras un `forjar` con exito los schemas de ESTE
+    bucle se recomponen con ctx['_rehacer_schemas'] (cazado en el e2e: la tool
+    quedaba registrada pero el modelo no la veia y la corria como script)."""
+    vistos = []
+    it = iter([
+        RespuestaChat(texto="", finish_reason="tool_calls",
+                      usage={"completion_tokens": 5, "prompt_tokens": 10},
+                      tool_calls=[ToolCall(id="t1", nombre="forjar",
+                                           argumentos={"objetivo": "x.py"},
+                                           argumentos_crudos="{}")]),
+        RespuestaChat(texto="listo", finish_reason="stop",
+                      usage={"completion_tokens": 1, "prompt_tokens": 10}),
+    ])
+
+    def _completar(mensajes, tools=None, **kw):
+        vistos.append({s["function"]["name"] for s in (tools or [])})
+        return next(it)
+
+    def _run_tool(name, args, ctx):
+        return "RESULTADO forjar: 'resumen_csv' v1 forjada y registrada (2/2 pruebas OK)"
+
+    nuevo = {"type": "function", "function": {"name": "resumen_csv", "description": "x",
+                                               "parameters": {"type": "object", "properties": {}}}}
+    schemas = [s for s in schemas_para() if s["function"]["name"] in ("forjar", "leer_archivo")]
+    ctx = {"_rehacer_schemas": lambda: [nuevo] + [s for s in schemas if s["function"]["name"] == "forjar"]}
+    history, trace = ["TAREA: forja"], []
+    loop_mod.bucle_nativo("forja", "sos el agente", _completar, schemas, args_legacy,
+                          mensaje_assistant, mensaje_tool, _run_tool, ctx,
+                          _perfil_test(), history, trace, lambda *a, **k: None, 4)
+    assert "resumen_csv" not in vistos[0]
+    assert {"resumen_csv", "forjar", "leer_archivo"} <= vistos[1]      # nueva + las que ya estaban

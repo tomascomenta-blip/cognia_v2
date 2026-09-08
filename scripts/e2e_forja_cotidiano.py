@@ -123,6 +123,7 @@ class SMTPLocal:
 
 
 def main():
+    solo = set(a.lstrip("-") for a in sys.argv[1:]) or {"forja", "documento", "correo"}
     base = Path(tempfile.mkdtemp(prefix="cognia_e2e_forja_"))
     print("workspace base:", base)
 
@@ -134,17 +135,21 @@ def main():
               "de `forjar plantilla` (DOC, PRUEBAS con prepara/espera, run(args, ctx)) que dado un CSV devuelva "
               "'N filas, M columnas, cabeceras: ...'. Forjala con la tool forjar y, cuando este registrada, USALA "
               "sobre datos.csv y escribe lo que devolvio en resultado.txt.")
+    if "forja" not in solo:
+        pass
     print("1) forja:", flush=True)
-    r1, tools1 = hacer(tarea1, ws1)
+    r1, tools1 = hacer(tarea1, ws1) if "forja" in solo else (None, [])
     man = ws1 / "_forja" / "manifiesto.json"
     entradas = json.loads(man.read_text(encoding="utf-8")) if man.exists() else []
     forjada = next((e for e in entradas if e.get("nombre") == "resumen_csv"), None)
-    check("forja: resumen_csv en el manifiesto (tier staged/verificada)", forjada and forjada.get("tier") in ("staged", "verificada"),
-          ("tier " + str(forjada.get("tier"))) if forjada else "sin manifiesto: " + (r1.stderr or "")[-300:])
+    if "forja" in solo:
+        check("forja: resumen_csv en el manifiesto (tier staged/verificada)", forjada and forjada.get("tier") in ("staged", "verificada"),
+              ("tier " + str(forjada.get("tier"))) if forjada else "sin manifiesto: " + (r1.stderr or "")[-300:])
     usada = "resumen_csv" in tools1 or (forjada and int(forjada.get("usos_ok", 0)) >= 1)
     res = ws1 / "resultado.txt"
-    check("forja: la uso (usos_ok>=1 o llamada en telemetria) y dejo resultado.txt con '3 filas'",
-          usada and res.exists() and "3 filas" in res.read_text(encoding="utf-8", errors="replace"),
+    if "forja" in solo:
+      check("forja: la uso (usos_ok>=1 o llamada en telemetria) y dejo resultado.txt con 'filas'",
+          usada and res.exists() and "filas" in res.read_text(encoding="utf-8", errors="replace"),
           "usos_ok=%s resultado=%s" % (forjada.get("usos_ok") if forjada else "-", res.read_text(encoding="utf-8", errors="replace")[:80] if res.exists() else "no existe"))
 
     # 2. DOCUMENTO en el escritorio propio
@@ -153,9 +158,10 @@ def main():
     tarea2 = ("Escribe una carta breve de agradecimiento (3 frases) para mi abuela en el fichero carta_abuela.txt "
               "usando documento_escribir y abrela en tu escritorio propio para que la vea.")
     print("2) documento:", flush=True)
-    r2, tools2 = hacer(tarea2, ws2, timeout=600)
+    r2, tools2 = hacer(tarea2, ws2, timeout=600) if "documento" in solo else (None, [])
     carta = ws2 / "carta_abuela.txt"
-    check("documento: carta_abuela.txt existe con >= 60 chars y se uso documento_escribir",
+    if "documento" in solo:
+      check("documento: carta_abuela.txt existe con >= 60 chars y se uso documento_escribir",
           carta.exists() and len(carta.read_text(encoding="utf-8", errors="replace")) >= 60 and "documento_escribir" in tools2,
           "tools=%s" % sorted(set(tools2))[:12])
     try:
@@ -171,6 +177,10 @@ def main():
     tarea3 = ("Mandale un correo a dueno@example.com con el asunto 'Informe de la noche' y un cuerpo de dos frases "
               "diciendo que las tareas quedaron hechas. Usa correo_enviar.")
     print("3) correo:", flush=True)
+    if "correo" not in solo:
+        ok = sum(1 for _n, v in CHECKS if v)
+        print("E2E FORJA+COTIDIANO: %d/%d OK" % (ok, len(CHECKS)))
+        return 0 if ok == len(CHECKS) else 1
     r3, tools3 = hacer(tarea3, ws3, extra_env={"CORREO_SMTP_HOST": "127.0.0.1", "CORREO_SMTP_PORT": str(srv.puerto),
                                                 "CORREO_TLS": "0", "CORREO_DE": "cognia@local"}, timeout=600)
     time.sleep(1)

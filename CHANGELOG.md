@@ -56,9 +56,42 @@ adjunto). Humo real: la plantilla forjada y usada; Bloc de notas, Word y Chrome 
 'Cognia'; correo con adjunto recibido; cita `.ics`; recordatorio programado y borrado; `/forja`, `/cotidiano`,
 `/ayuda` y `/capacidades` tecleados.
 
-### La configuración por defecto de mayor calidad, medida
+### La configuración por defecto de mayor calidad, medida en el banco
 
-(ver más abajo, sección "Brazos de configuración")
+Pedido del dueño: "deja la configuración más potente de Cognia, la que dé los outputs de mejor calidad;
+prueba con diferentes combinaciones y la final déjala como default". Se midió con el banco de tareas largas
+(`banco_largo/`, 3 tareas de dificultad 3: web-dashboard, py-cli-tareas, node-cli-generador; 600 s de pared
+por tarea; Qwen3.8-27B en :8080; paquete CONGELADO en una copia para que el repo se pudiera seguir editando;
+32-34 tok/s en todos los brazos, así que sin contaminación). Ocho brazos, un cambio por brazo y una
+combinación (`banco_largo/noche_config*.sh`, tabla completa en `banco_largo/INFORME_CONFIG_20260908.md`):
+
+| brazo | productos funcionales | tasa de tests | nota global |
+|---|---|---|---|
+| base (default 4.30.0) | 0/3 | 0,800 | 0,777 |
+| esfuerzo alto | 2/3 | 0,886 | 0,893 |
+| **sin pensamiento** (`COGNIA_THINKING=off`) | **3/3** | **0,971** | **0,947** |
+| temperatura 0,6 | 2/3 | 0,914 | 0,872 |
+| esfuerzo máximo | 1/3 | 0,629 | 0,707 |
+| sin revisión profunda | 2/3 | 0,914 | 0,874 |
+| catálogo chico (solo `probar` anunciada) | 3/3 | 0,886 | 0,861 |
+| combinación: chico + sin pensamiento + esfuerzo alto | 2/3 | 0,800 | 0,798 |
+
+Lo que cambia por defecto:
+- **Pensamiento del agente OFF** (`thinking: off`, `/ventana pensamiento auto|on|off`): el razonador quemaba
+  ~90 s del primer paso en 12.000 chars de razonamiento que el corte `razonamiento_desbocado` tiraba; con
+  presupuesto de pared eso son acciones que no se hacen. Además la clave `thinking` **se guardaba y nadie la
+  leía al arrancar** (`_aplicar_config_thinking` la siembra ahora, también en `cognia hacer`).
+- **Catálogo con puertas** (arriba): 28 tools y ~3.400 tokens de schemas en vez de 93 y ~9.800.
+- Esfuerzo: **se queda en `medio`**. `alto` solo superó a la base (0,893) pero la combinación chico + sin
+  pensamiento + alto cayó a 0,798 (web-dashboard muerto tras 66 pasos: más pasos no fueron más producto);
+  sin mejora neta demostrada no se toca.
+- Se quedan como estaban: revisión profunda ON (apagarla no mejora), temperatura del modelo (0,6 no supera
+  al default), esfuerzo máximo descartado (peor: más deliberación con el mismo reloj).
+
+Límites declarados: n=1 corrida por brazo y 3 tareas; la varianza entre corridas de este banco es alta
+(±34 pts medidos en otras noches), y la base salió especialmente floja (todos los brazos la superan). El
+veredicto firme es el del pensamiento (3/3 y la mecánica medida en la telemetría); el resto son diferencias
+dentro del ruido y se dejan como estaban.
 
 ---
 
