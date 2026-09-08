@@ -690,12 +690,14 @@ def observar(name: str, args: str, ctx) -> str:
     huella, base = _huella_comando(name, args)
     if not huella:
         return ""
-    # La clave de sesion: el ctx de la tarea es el MISMO dict durante toda la
-    # corrida del agente (cli._ctx_agente), asi que su id sirve de sesion.
-    if isinstance(ctx, dict):
-        clave = str(ctx.get("_sesion_tools") or ctx.get("_task_id") or id(ctx))
-    else:
-        clave = "global"
+    # Solo dentro de una corrida del AGENTE: el ctx de la tarea trae
+    # `_run_agent` (cli._ctx_agente) y es el MISMO dict toda la corrida, asi
+    # que su id sirve de sesion. Un run_tool suelto (tests, /probar a mano)
+    # no cuenta: anexar texto ahi rompia los contratos de tamano de otras
+    # tools (cazado en test_aci_trim y test_harness_offloading).
+    if not isinstance(ctx, dict) or "_run_agent" not in ctx:
+        return ""
+    clave = str(ctx.get("_sesion_tools") or ctx.get("_task_id") or id(ctx))
     ses = _REPETIDOS.setdefault(clave, {})
     veces, _ = ses.get(huella, (0, base))
     veces += 1

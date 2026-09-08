@@ -1,0 +1,8 @@
+Title         : Luna the Lobster's Number Theory Expedition
+Category      : number theory explorer that prints interesting patterns
+Created at    : 2026-09-02T13:27:27.925660
+Score         : auto-asignado 8.3/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  A data-driven exploration of primes, perfect numbers, abundant numbers, palindromic primes, and Fibonacci curiosities.

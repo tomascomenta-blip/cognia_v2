@@ -201,8 +201,21 @@ CATEGORIAS: tuple = (
      "tools": ("generar_codigo", "repo_map", "code_grafo", "contratos",
                "tests", "docs_repo", "preguntar_repo", "docs_libreria",
                "buscar_en_repo", "repo_a_prompt", "crear_herramienta",
-               "revertir_herramienta"),
+               "revertir_herramienta",
+               # La forja (2026-09-08, agent/forja.py): la puerta va con las
+               # de crear codigo; las tools FORJADAS no tienen cajon fijo
+               # (nacen con el nombre que el agente elija) y caen en Otros
+               # a proposito: son del agente, no del catalogo.
+               "forjar"),
      "prefijos": ("git_",)},
+
+    {"id": "cotidiano", "nombre": "Tareas cotidianas",
+     "color": "#c47f17", "color_osc": "#f0a93a", "icono": "monitor",
+     # Tareas del dia a dia en el escritorio propio (2026-09-08,
+     # agent/cotidiano_tools.py): documentos, correo, calendario, recordatorios
+     # y abrir cosas en el escritorio de Cognia.
+     "tools": ("abrir_en_escritorio", "recordatorio", "cotidiano_estado"),
+     "prefijos": ("correo_", "documento_", "calendario_")},
 
     {"id": "ejecucion", "nombre": "Ejecutar y procesos",
      "color": "#e44d26", "color_osc": "#ff7755", "icono": "terminal",

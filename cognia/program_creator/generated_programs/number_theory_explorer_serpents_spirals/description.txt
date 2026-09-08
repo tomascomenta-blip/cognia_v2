@@ -1,0 +1,8 @@
+Title         : Number Theory Explorer — Serpents & Spirals
+Category      : number theory explorer that prints interesting patterns
+Created at    : 2026-09-08T03:32:16.305632
+Score         : auto-asignado 8.9/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  A fully automatic tour through nine classic number-theory patterns (prime sieve, density chart, modular grid, Pythagorean triples, perfect numbers, Fermat, Collatz, Kaprekar, and the cyclic 142857), each printed as a pattern and verified with PASS/FAIL checks.

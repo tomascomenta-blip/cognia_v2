@@ -207,7 +207,8 @@ def test_retirar_saca_del_registro(tmp_path):
 # ── observar el uso: sugerencia y candidatas ────────────────────────────────
 
 def test_sugiere_forjar_al_tercer_comando_repetido():
-    ctx = {"_sesion_tools": "s1"}
+    ctx = {"_sesion_tools": "s1", "_run_agent": lambda *a, **k: None}
+    assert F.observar("ejecutar", "python informe.py 2024", {"_sesion_tools": "s1"}) == ""   # fuera del agente no cuenta
     assert F.observar("ejecutar", "python informe.py 2024", ctx) == ""
     assert F.observar("ejecutar", "python informe.py 2025", ctx) == ""
     s = F.observar("ejecutar", "python informe.py 2026", ctx)

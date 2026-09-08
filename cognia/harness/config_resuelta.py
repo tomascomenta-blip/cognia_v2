@@ -92,12 +92,12 @@ ENV_QUE_PISAN: dict = {
     "revision_ejecutar":       ("COGNIA_REVISION_EJECUTAR",),
     "revision_rondas":         ("COGNIA_REVISION_RONDAS",),
     "revision_segundos":       ("COGNIA_REVISION_SEGUNDOS",),
-    # La forja (2026-09-08): tools.py siembra COGNIA_FORJA desde la config `forja`.
-    "forja":                   ("COGNIA_FORJA",),
     # Pensamiento del agente (2026-09-08): _aplicar_config_thinking la siembra.
     "thinking":                ("COGNIA_THINKING",),
-    # Tareas cotidianas en el escritorio propio (2026-09-08).
-    "cotidiano_tools":         ("COGNIA_COTIDIANO",),
+    # `forja` y `cotidiano_tools` (2026-09-08) NO se registran aqui, igual que
+    # `pruebas_tools`: sus envs (COGNIA_FORJA / COGNIA_COTIDIANO) las siembra
+    # tools.py al importar, antes de que el CLI pueda marcar la siembra, y
+    # saldrian como 'env' inventada. Se leen a call-time por sus modulos.
 }
 
 # Nombres que huelen a credencial: se enmascaran SIEMPRE en cualquier render.

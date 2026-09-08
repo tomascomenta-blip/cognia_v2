@@ -1,0 +1,8 @@
+Title         : El Zoo Numérico — Number Theory Explorer
+Category      : number theory explorer that prints interesting patterns
+Created at    : 2026-09-07T08:00:23.968849
+Score         : auto-asignado 8.6/10 (SIN VERIFICAR)
+Self-proposed : No — from predefined category
+
+Description:
+  A fully automatic number-theory explorer that prints animal-named pattern exhibits (prime spiral, digital-root fractal, Goldbach/Fermat/Collatz checks) with real PASS/FAIL verification of every claim.

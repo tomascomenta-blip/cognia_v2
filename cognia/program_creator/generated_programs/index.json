@@ -208,22 +208,6 @@
     "verificado_por_ejecucion": false
   },
   {
-    "id": "permutation_patterns",
-    "title": "Permutation Patterns",
-    "category": "number theory explorer that prints interesting patterns",
-    "description": "This program explores the patterns that can be created by permuting a set of characters.",
-    "total_score": 7.5,
-    "created_at": "2026-04-07T20:38:21.934009",
-    "directory": "permutation_patterns",
-    "self_proposed": false,
-    "verificado": true,
-    "puntaje_real": 8.5,
-    "verificado_en": "2026-07-24T00:09:01",
-    "verificador": "cognia.autoprueba (compila/importa/arranca/sin_stubs)",
-    "veredicto_ejecutable": "NO APLICA (no es web)",
-    "verificado_por_ejecucion": false
-  },
-  {
     "id": "untitled_procedural_story_generator_with_built_in",
     "title": "Untitled Procedural Story Generator With Built-In Templates",
     "category": "procedural story generator with built-in templates",
@@ -1247,19 +1231,6 @@
     "verificado_en": ""
   },
   {
-    "id": "number_theory_explorer_01",
-    "title": "Number Theory Explorer",
-    "category": "number theory explorer that prints interesting patterns",
-    "description": "Prints smallest prime factors, divisor counts, and amicable numbers from 1 to 60.",
-    "total_score": 7.5,
-    "created_at": "2026-08-12T23:38:07.829189",
-    "directory": "number_theory_explorer_01",
-    "self_proposed": false,
-    "verificado": null,
-    "puntaje_real": null,
-    "verificado_en": ""
-  },
-  {
     "id": "levenshtein_char_bags",
     "title": "Levenshtein & Char Bags",
     "category": "text similarity analyzer with sample texts",
@@ -1414,5 +1385,44 @@
     "verificado": true,
     "puntaje_real": 10.0,
     "verificado_en": "2026-08-31T16:21:10"
+  },
+  {
+    "id": "luna_the_lobsters_number_theory_expedition",
+    "title": "Luna the Lobster's Number Theory Expedition",
+    "category": "number theory explorer that prints interesting patterns",
+    "description": "A data-driven exploration of primes, perfect numbers, abundant numbers, palindromic primes, and Fibonacci curiosities.",
+    "total_score": 8.3,
+    "created_at": "2026-09-02T13:27:27.925660",
+    "directory": "luna_the_lobsters_number_theory_expedition",
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 10.0,
+    "verificado_en": "2026-09-02T13:27:28"
+  },
+  {
+    "id": "el_zoo_numrico_number_theory_explorer",
+    "title": "El Zoo Numérico — Number Theory Explorer",
+    "category": "number theory explorer that prints interesting patterns",
+    "description": "A fully automatic number-theory explorer that prints animal-named pattern exhibits (prime spiral, digital-root fractal, Goldbach/Fermat/Collatz checks) with real PASS/FAIL verification of every claim.",
+    "total_score": 8.6,
+    "created_at": "2026-09-07T08:00:23.968849",
+    "directory": "el_zoo_numrico_number_theory_explorer",
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 10.0,
+    "verificado_en": "2026-09-07T08:00:24"
+  },
+  {
+    "id": "number_theory_explorer_serpents_spirals",
+    "title": "Number Theory Explorer — Serpents & Spirals",
+    "category": "number theory explorer that prints interesting patterns",
+    "description": "A fully automatic tour through nine classic number-theory patterns (prime sieve, density chart, modular grid, Pythagorean triples, perfect numbers, Fermat, Collatz, Kaprekar, and the cyclic 142857), each printed as a pattern and verified with PASS/FAIL checks.",
+    "total_score": 8.9,
+    "created_at": "2026-09-08T03:32:16.305632",
+    "directory": "number_theory_explorer_serpents_spirals",
+    "self_proposed": false,
+    "verificado": true,
+    "puntaje_real": 9.5,
+    "verificado_en": "2026-09-08T03:32:16"
   }
 ]

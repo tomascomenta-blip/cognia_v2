@@ -15948,3 +15948,70 @@ El planificador escribió por su cuenta guiones con asserts sobre `window.juego`
 Además el reloj: 50 min pedidos, 61 corridos; ahora cada iteración recibe `COGNIA_PARED_S` con lo que queda.
 
 **Suite dirigida:** test_fases + renderizador_guion + catálogo/visibilidad/ayuda/firmas: en verde.
+
+## 2026-09-08 — 4.31.0: la FORJA, las tareas COTIDIANAS y la configuración por defecto MEDIDA
+
+Encargo nocturno del dueño (23:13, "no me preguntes nada, iré a descansar"): (1) que el harness
+construya sus propias herramientas, las verifique end to end y las use, evolucionando con el uso;
+(2) que el segundo monitor (el escritorio propio) haga tareas cotidianas: escribir algo, mandar un
+correo; (3) probar combinaciones de configuración y dejar la de mayor calidad como default; (4) subir a
+PyPI; (5) apagar el PC (apagado programado a las 7:00 con `shutdown /s`, despertadores a las 04:14 y 06:08).
+
+**Qué se construyó** (detalle en CHANGELOG 4.31.0):
+- `cognia/agent/forja.py` + tool `forjar` (CORE) + `/forja`: contrato DOC/PRUEBAS/run, examen en
+  subproceso por prueba, registro en caliente, tiers staged→verificada→rota, MAX_ANUNCIADAS=8,
+  sugerencia al 3.º comando repetido, candidatas. `tests/test_forja.py` (16).
+- `cognia/agent/cotidiano_tools.py` + `/cotidiano`: documento_escribir, correo_enviar/leer/configurar,
+  calendario_agregar, recordatorio, abrir_en_escritorio, cotidiano_estado. `tests/test_cotidiano_tools.py`
+  (10, SMTP local real con adjunto).
+- `simple_mode.ANUNCIO_POR_FAMILIA`: la familia de pruebas anunciaba 64 tools (93 en total, ~9.800
+  tokens de schemas por turno, medido con `/contexto prompt`); ahora 28 tools y ~3.400 tokens.
+- `thinking: off` por defecto y `_aplicar_config_thinking` (la clave se guardaba y nadie la sembraba).
+- `bucle_nativo` recarga los schemas tras un `forjar` con éxito (cazado en el e2e con modelo).
+
+**Trampas cazadas:** Outlook 2016 sin cuenta: un Dispatch COM abre el asistente y bloquea para siempre
+(se mira el registro, valor `Email`, antes de tocar COM); Word abre un splash "Abriendo - Word" que
+muere (se espera la ventana con el nombre del fichero); `PowerShell Start-Job` heredó el bloqueo.
+
+**Banco de configuración** (3 tareas d3, 600 s de pared, paquete congelado, 32-34 tok/s en todos):
+base 0,777 · esfuerzo alto 0,893 · **sin pensamiento 0,947 (3/3 funcionales)** · temp 0,6 0,872 ·
+esfuerzo máximo 0,707 · sin revisión 0,874 · catálogo chico 0,861 (3/3) · combinación 0,798.
+Decisión: pensamiento OFF + catálogo con puertas; esfuerzo se queda en medio; revisión ON.
+Límite declarado: n=1 por brazo, ±34 pts de varianza histórica.
+
+### Salida real (e2e con modelo, `scripts/e2e_forja_cotidiano.py`, Qwen3.8-27B en :8080)
+```
+1) forja:
+    (89s, exit 0)
+  [OK] forja: resumen_csv en el manifiesto (tier staged/verificada) - tier staged
+  [OK] forja: la uso (usos_ok>=1 o llamada en telemetria) y dejo resultado.txt con 'filas' - usos_ok=1 resultado=RESULTADO resumen_csv: 3 filas, 3 columnas, cabeceras: nombre, edad, ciudad
+2) documento:
+    (52s, exit 0)
+  [OK] documento: carta_abuela.txt existe con >= 60 chars y se uso documento_escribir - tools=['documento_escribir', 'ejecutar', 'leer_archivo']
+3) correo:
+  [OK] correo: el SMTP local recibio un mensaje con el asunto pedido - mensajes=1 tools=['buscar', 'correo_enviar', 'correo_leer', 'ejecutar', 'leer_archivo', 'listar']
+```
+(la primera corrida del e2e de forja dio 3/4: el modelo forjó la tool y la corrió como script porque
+los schemas no se recargaban; con la recarga, 2/2 en 89 s y `usos_ok=1`).
+
+### Tecleado en el REPL
+```
+cognia> /forja estado   -> forja: ON · 0 herramienta(s) · anunciadas: - · candidatas: 0 · ~/.cognia/forja
+cognia> /forja plantilla -> RESULTADO forjar plantilla: (el contrato con DOC/PRUEBAS/run)
+cognia> /cotidiano estado -> cotidiano: ON · tools: abrir_en_escritorio, calendario_agregar, correo_configurar,
+        correo_enviar, correo_leer, cotidiano_estado, documento_escribir, recordatorio
+        correo (enviar): SMTP sin configurar · Outlook sin cuenta (no se usa COM) · documentos: python-docx
+cognia> /capacidades -> * forja 1 tools · * cotidiano 8 tools (4 de 18 familias encendidas)
+cognia> /contexto prompt -> schemas (28 tools) 13745 chars, ~3437 tokens   (antes: 93 tools, ~9784 tokens)
+cognia> /config-resuelta -> forja = on · thinking = off · cotidiano_tools = True · esfuerzo = medio
+```
+Humo directo con las tools: Bloc de notas, Word y Chrome abiertos en el escritorio 'Cognia' (capturas
+en `.cognia_capturas/`), correo con adjunto recibido por un SMTP local, cita `.ics`, recordatorio
+programado (schtasks) y borrado.
+
+### Gate del camino feliz (obligatorio antes de publicar)
+```
+[OK ] escribir (55s) · [OK ] calcular+guardar (48s) · [OK ] json (33s) · [OK ] apendar (63s) · [OK ] python (35s)
+E2E CAMINO FELIZ: 5/5 OK en 3.9 min
+```
+(con el pensamiento apagado el gate baja de ~8 min a 3,9 min con el mismo 27B).

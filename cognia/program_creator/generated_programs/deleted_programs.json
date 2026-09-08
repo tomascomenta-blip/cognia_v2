@@ -365,5 +365,20 @@
     "verificado_en": "",
     "deleted_at": "2026-08-31T16:21:09.900798",
     "reason": "replaced by 'Zoo of Number Theory' (score 9.5 > 7.3)"
+  },
+  {
+    "id": "number_theory_explorer_01",
+    "title": "Number Theory Explorer",
+    "category": "number theory explorer that prints interesting patterns",
+    "description": "Prints smallest prime factors, divisor counts, and amicable numbers from 1 to 60.",
+    "total_score": 7.5,
+    "created_at": "2026-08-12T23:38:07.829189",
+    "directory": "number_theory_explorer_01",
+    "self_proposed": false,
+    "verificado": null,
+    "puntaje_real": null,
+    "verificado_en": "",
+    "deleted_at": "2026-09-08T03:32:16.304633",
+    "reason": "replaced by 'Number Theory Explorer — Serpents & Spirals' (score 8.9 > 7.5)"
   }
 ]

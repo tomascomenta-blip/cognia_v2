@@ -4,16 +4,18 @@ AVISO: esta evaluacion es AUTO-ASIGNADA (regex + AST sobre el propio
 codigo). NO se ejecuto el producto. Para un veredicto por ejecucion:
   python -m cognia.program_creator.juez_ejecutable <dir del producto>
 
-Total Score       : 7.5 / 10  (SIN VERIFICAR)
+Total Score       : 8.9 / 10  (SIN VERIFICAR)
 Functionality     : 4.0 / 4.0
-Creativity        : 1.5 / 4.0
+Creativity        : 2.9 / 4.0
 Error Penalty     : 2.0 / 2.0  (higher = fewer errors)
 Store Decision    : YES — kept in library
 
 --- Notes ---
   • Program ran successfully.
-  • Rich output (3754 chars).
+  • Rich output (3999 chars).
   • Code has substantial length (>500 chars).
-  • Well-structured: 5 functions.
+  • Uses interesting constructs: permutation, sort, math..
+  • Well-structured: 16 functions.
+  • Non-trivial length: 187 effective lines.
   • Original program title.
   • No errors detected.

@@ -387,7 +387,9 @@ def test_los_mandos_del_arnes_tienen_categoria_propia(catalogo):
                  "/remoto", "/deshacer-borrado", "/revision",
                  "/pasos", "/scratchpad", "/renderizar",
                  # 2026-09-07: familia de pruebas y escritorio propio
-                 "/probar", "/pruebas", "/escritorio")
+                 "/probar", "/pruebas", "/escritorio",
+                 # 2026-09-08: la forja y las tareas cotidianas
+                 "/forja", "/cotidiano")
     for cmd in esperados:
         assert cmd in catalogo, cmd
         assert ayuda.clasificar(cmd, catalogo[cmd]) == "Consola y arnes", cmd

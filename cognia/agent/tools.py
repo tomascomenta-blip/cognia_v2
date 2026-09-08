@@ -4285,6 +4285,11 @@ try:
     from cognia.agent import forja as _forja
     if _forja.encendida():
         os.environ["COGNIA_FORJA"] = "1"
+        try:
+            from cognia.harness.config_resuelta import marcar_sembrada as _ms_forja
+            _ms_forja("COGNIA_FORJA")     # la env la puso ESTE modulo, no el usuario
+        except Exception:
+            pass
         _forja.register(tool)
         ROLE_TOOLS["implementador"].add("forjar")
         _n_forjadas = _forja.cargar()
@@ -4318,6 +4323,11 @@ def _cotidiano_encendido() -> bool:
 
 if _cotidiano_encendido():
     os.environ["COGNIA_COTIDIANO"] = "1"
+    try:
+        from cognia.harness.config_resuelta import marcar_sembrada as _ms_cot
+        _ms_cot("COGNIA_COTIDIANO")
+    except Exception:
+        pass
     try:
         from cognia.agent import cotidiano_tools as _cotidiano_tools
         _cotidiano_tools.register(tool)

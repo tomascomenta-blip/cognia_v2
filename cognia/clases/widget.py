@@ -1310,8 +1310,24 @@ class Cerebrito:
         return aviso
 
     def _abrir_cuaderno(self):
-        """Levanta el servidor vivo si hace falta y abre la URL con token."""
+        """Levanta el servidor vivo si hace falta y abre la URL con token.
+
+        LA PAGINA SE INYECTA AQUI (2026-09-02): `servidor_vivo` es solo el
+        transporte y sin `fijar_pagina(vista_viva.render)` sirve su
+        placeholder. El REPL (`/grabar-clase vivo`) hacia este cableado, el
+        widget no, asi que 'Ver cuaderno' abria una pagina vacia. Si la vista
+        no importa, se sigue con el placeholder y se avisa: no se pierde el
+        servidor por perder la pagina.
+        """
         from cognia.clases import servidor_vivo as sv
+        try:
+            from cognia.clases import vista_viva as vv
+            sv.fijar_pagina(vv.render)
+        except Exception as exc:
+            _avisar("clases.widget.cuaderno",
+                    "no pude inyectar la pagina del cuaderno (%s: %s): se "
+                    "sirve el placeholder" % (type(exc).__name__, exc),
+                    accion="abrirlo desde el REPL con /grabar-clase vivo")
         info = sv.arrancar()
         ok, mensaje = abrir_en_app(info.get("url") or "")
         return mensaje if ok else ("no pude abrir el cuaderno: " + mensaje)

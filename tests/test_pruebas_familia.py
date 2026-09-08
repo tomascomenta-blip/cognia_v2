@@ -84,6 +84,15 @@ def test_apagada_responde_deshabilitada(monkeypatch):
     vis = visible_tools(T.TOOLS.keys(), override="sencillo")
     assert "probar" not in vis and "captura_diff" not in vis
     monkeypatch.setenv("COGNIA_PRUEBAS", "1")
+    monkeypatch.delenv("COGNIA_ANUNCIO_COMPLETO", raising=False)
+    vis = visible_tools(T.TOOLS.keys(), override="sencillo")
+    # 2026-09-08: con la familia encendida se anuncia SOLO la puerta `probar`
+    # (simple_mode.ANUNCIO_POR_FAMILIA); el resto se descubre por
+    # `probar ayuda <tema>` y sigue invocable. Antes se anunciaban las 64
+    # (93 tools, ~9.800 tokens de schemas por turno, medido).
+    assert "probar" in vis and "captura_diff" not in vis
+    assert "captura_diff" in T.TOOLS
+    monkeypatch.setenv("COGNIA_ANUNCIO_COMPLETO", "1")
     vis = visible_tools(T.TOOLS.keys(), override="sencillo")
     assert "probar" in vis and "captura_diff" in vis
 
