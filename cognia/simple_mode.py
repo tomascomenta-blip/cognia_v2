@@ -28,6 +28,28 @@ from typing import Optional
 
 K_UI_MODE = "COGNIA_UI_MODE"   # "sencillo" (default) | "avanzado"
 
+# Familias con PUERTA (2026-09-08). Una familia encendida queda ENTERA
+# registrada e invocable, pero en modo sencillo solo se ANUNCIAN sus puertas:
+# el resto se descubre por el texto de la puerta (`probar ayuda <tema>`, el
+# error de correo_enviar que nombra correo_configurar...). MEDIDO la noche del
+# 2026-09-07: con la familia de pruebas encendida por defecto (4.29.0) el
+# prompt del agente llevaba 93 tools y ~9.800 tokens de schemas por turno,
+# cuando el diseno de 4.29.0 decia "solo `probar` entra al catalogo" y el A/B
+# del repo (2026-07-25) midio que 46 tools bajan el camino feliz de 4,25/5 a
+# 2,5/5. La regla del flag ("opt-in activo = se anuncia todo") era correcta
+# para familias de 5-10 tools y no para una de 64. COGNIA_ANUNCIO_COMPLETO=1
+# vuelve a anunciarlas todas (para medir, o para quien lo prefiera).
+ANUNCIO_POR_FAMILIA = {
+    "COGNIA_PRUEBAS": frozenset({"probar"}),
+    "COGNIA_COTIDIANO": frozenset({"documento_escribir", "correo_enviar", "correo_leer",
+                                   "abrir_en_escritorio", "recordatorio", "calendario_agregar"}),
+}
+
+
+def anuncio_completo() -> bool:
+    import os
+    return os.environ.get("COGNIA_ANUNCIO_COMPLETO", "").strip().lower() in ("1", "on", "true", "yes", "si")
+
 
 def get_ui_mode(override: Optional[str] = None) -> str:
     """Modo de UI actual. override para tests; si no, la preferencia persistida;
@@ -98,11 +120,14 @@ def visible_tools(all_names, override: Optional[str] = None):
         flag_de_optin = lambda n: ""          # noqa: E731
         _flag_activo = lambda f: False        # noqa: E731
     out = set()
+    completo = anuncio_completo()
     for n in names:
         flag = flag_de_optin(n)
         if flag:
             if _flag_activo(flag):
-                out.add(n)
+                puertas = ANUNCIO_POR_FAMILIA.get(flag)
+                if puertas is None or completo or n in puertas:
+                    out.add(n)
         elif n in CORE_TOOLS:
             out.add(n)
     # Las herramientas que Cognia se FORJO (agent/forja.py, 2026-09-08): se

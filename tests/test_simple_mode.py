@@ -68,7 +68,11 @@ def test_core_es_chico():
     # pruebas (~65 tools que se descubren por `probar ayuda <tema>`, sin pagar
     # sus schemas). Medido: gate del camino feliz 5/5 y 3 tareas reales en las
     # que el agente eligio las tools nuevas para verificarse (MANAGER_LOG 4.29.0).
-    assert len(CORE_TOOLS) <= 17
+    # 18 desde 2026-09-08: entra `forjar`, la puerta de la FORJA (el agente se
+    # construye herramientas verificadas de punta a punta; las forjadas se
+    # anuncian solas hasta MAX_ANUNCIADAS). Medido con el gate del camino
+    # feliz y el e2e scripts/e2e_forja_cotidiano.py (MANAGER_LOG 4.31.0).
+    assert len(CORE_TOOLS) <= 18
 
 
 def test_optin_activo_entra_al_catalogo_sencillo(monkeypatch):
@@ -83,3 +87,23 @@ def test_optin_activo_entra_al_catalogo_sencillo(monkeypatch):
     monkeypatch.delenv("COGNIA_LCD")
     vis = visible_tools({"escena_crear", "leer_archivo"}, override="sencillo")
     assert "escena_crear" not in vis
+
+
+def test_familias_con_puerta_anuncian_solo_la_puerta(monkeypatch):
+    """2026-09-08: con COGNIA_PRUEBAS=1 se anunciaban las 64 tools de pruebas (93 en
+    total, ~9.800 tokens de schemas por turno); el diseno era 'solo probar'."""
+    monkeypatch.setenv("COGNIA_PRUEBAS", "1")
+    monkeypatch.setenv("COGNIA_COTIDIANO", "1")
+    monkeypatch.delenv("COGNIA_ANUNCIO_COMPLETO", raising=False)
+    nombres = ["probar", "pagina_abrir", "captura_diff", "app_lanzar", "pruebas_estado",
+               "documento_escribir", "correo_enviar", "correo_configurar", "cotidiano_estado",
+               "leer_archivo", "forjar"]
+    vis = visible_tools(nombres, override="sencillo")
+    assert "probar" in vis and "leer_archivo" in vis
+    assert not ({"pagina_abrir", "captura_diff", "app_lanzar", "pruebas_estado"} & vis)
+    assert {"documento_escribir", "correo_enviar"} <= vis
+    assert not ({"correo_configurar", "cotidiano_estado"} & vis)
+    monkeypatch.setenv("COGNIA_ANUNCIO_COMPLETO", "1")
+    assert "pagina_abrir" in visible_tools(nombres, override="sencillo")
+    # el modo avanzado sigue anunciando todo
+    assert set(nombres) == visible_tools(nombres, override="avanzado")

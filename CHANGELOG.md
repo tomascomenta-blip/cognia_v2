@@ -2,6 +2,66 @@
 
 ---
 
+## [4.31.0] - 2026-09-08
+
+### La FORJA: Cognia se construye herramientas, las prueba de punta a punta y las usa
+
+Pedido del dueño (noche del 7 al 8): "que el harness pueda construir sus propias herramientas, que
+verifique su funcionamiento end to end y que las use: que evolucione conforme el uso".
+
+**`forjar <ruta.py>`** (`cognia/agent/forja.py`, en el catálogo core; puerta **`/forja`**). El agente
+escribe un `.py` normal con un contrato chico (`forjar plantilla` lo da): `DOC` de una línea, opcionalmente
+`DESC`/`PARAMS`/`PELIGRO`, una lista `PRUEBAS` con al menos una prueba de punta a punta (`args`, `espera` /
+`espera_re` / `no_espera`, `prepara` con ficheros previos, `espera_fichero`, `timeout`) y `run(args, ctx)`.
+`forjar` lo examina: sintaxis, contrato, scan estático (blocklist de lo catastrófico: shutdown, format,
+rmdir /s, reg, diskpart, ctypes, eval/exec...) y **cada prueba corre en un subproceso con timeout dentro de
+un directorio temporal limpio**. O pasan todas, o no se forja nada (y se dice cuál falló y por qué). Si pasa,
+queda en `~/.cognia/forja/<nombre>.py` con historial de versiones, entra al manifiesto como `staged` y se
+registra **en caliente** (se puede llamar en el paso siguiente) y en cada arranque.
+
+**Evoluciona con el uso**: 3 usos buenos → `verificada`; dos fallos seguidos disparan una re-prueba con sus
+propias PRUEBAS (si siguen pasando, "revisa los args"; si no, queda `rota`, deja de anunciarse y el modelo
+recibe la ruta para corregirla y volver a forjarla; `forjar probar <nombre>` la rehabilita). Solo se anuncian
+las 8 mejores (verificadas primero, luego por usos); el resto siguen registradas y se encuentran con
+`buscar_herramientas`. La forja además **observa lo que el agente repite**: al tercer `ejecutar` del mismo
+comando en una tarea le anexa al resultado la sugerencia de forjarlo y lo apunta en `candidatas.json`; el
+prompt lleva una nota con lo forjado y lo repetido sin forjar. Config `forja` (on/off), env `COGNIA_FORJA`,
+`COGNIA_FORJA_DIR`; familia `forja` en `/capacidades`. Lo anterior (`crear_herramienta`, funciones puras con
+allowlist de 18 módulos) sigue existiendo: la forja es el escalón de las herramientas REALES.
+
+### Tareas COTIDIANAS en el escritorio propio
+
+Pedido del dueño: "que en el segundo monitor sea más funcional: que pueda hacer tareas cotidianas que yo le
+pida, como escribir algo o mandar un correo". El "segundo monitor" es el escritorio virtual 'Cognia' (4.29.0).
+
+`cognia/agent/cotidiano_tools.py` (familia `cotidiano`, config `cotidiano_tools`, env `COGNIA_COTIDIANO`,
+ENCENDIDA por defecto; puerta **`/cotidiano`**):
+- **`documento_escribir <ruta.docx|.txt|.md> | texto=... [| titulo=...] [| abrir=0]`**: Word real con
+  python-docx (título, párrafos, viñetas `- `, subtítulos `# `) o texto plano/markdown, y lo abre en el
+  escritorio de Cognia (Bloc de notas o Word; se espera a la ventana con el nombre del fichero, no al splash
+  "Abriendo - Word") devolviendo la ventana, el id de app y una captura.
+- **`correo_enviar <para> | asunto=... | cuerpo=... [| cc=...] [| adjunto=...] [| html=1]`**: SMTP
+  configurado con **`correo_configurar usuario=... | clave=...`** (Gmail con clave de aplicación; la clave va a
+  `~/.cognia/config.env`, nunca al JSON ni al historial) u Outlook por COM **solo si el registro tiene una
+  cuenta con Email** (medido: un `Dispatch` sin cuenta abre el asistente de bienvenida y bloquea COM para
+  siempre). Sin backend dice exactamente qué falta: nunca finge que lo mandó. **`correo_leer`** por IMAP u
+  Outlook.
+- **`calendario_agregar`** (Outlook o un `.ics` importable), **`recordatorio <texto> | en=20m | a=HH:MM`**
+  (tarea programada de Windows + `msg.exe`), **`abrir_en_escritorio <ruta|URL|app>`** (URL en una ventana
+  NUEVA de Chrome/Edge con perfil propio, ficheros por asociación, apps; todo mudado al escritorio de Cognia y
+  registrado para `app_ver`/`app_teclas`/`app_cerrar`), **`cotidiano_estado`**.
+
+Tests: `tests/test_forja.py` (16) y `tests/test_cotidiano_tools.py` (10, con un servidor SMTP local real y
+adjunto). Humo real: la plantilla forjada y usada; Bloc de notas, Word y Chrome abiertos en el escritorio
+'Cognia'; correo con adjunto recibido; cita `.ics`; recordatorio programado y borrado; `/forja`, `/cotidiano`,
+`/ayuda` y `/capacidades` tecleados.
+
+### La configuración por defecto de mayor calidad, medida
+
+(ver más abajo, sección "Brazos de configuración")
+
+---
+
 ## [4.30.0] - 2026-09-07
 
 ### La OBRA POR FASES: el modelo construye, el arnés lo prueba, un juez decide y git revierte
