@@ -16015,3 +16015,15 @@ programado (schtasks) y borrado.
 E2E CAMINO FELIZ: 5/5 OK en 3.9 min
 ```
 (con el pensamiento apagado el gate baja de ~8 min a 3,9 min con el mismo 27B).
+
+### Suite completa y publicación
+```
+pytest tests/ --ignore=tests/test_e2e_inference.py -n 5  ->  65 failed, 15158 passed, 8 skipped (9 min)
+  46 de los 65 ya fallaban en f0a08798 (medido en un worktree: TUI/paleta/nemotron/db_pool...);
+  los 19 de esta obra (catálogo, firmas, cubos, versión, forja.observar) quedaron en verde.
+gate camino feliz: 5/5 en 3,9 min · e2e forja+cotidiano con modelo: 3/3
+twine upload -> https://pypi.org/project/cognia-ai/4.31.0/   (wheel importado en venv limpio antes de subir)
+git push origin main (f0a08798..89add9ff)
+```
+Límite declarado: el correo real a Gmail necesita una clave de aplicación del dueño (`correo_configurar`);
+sin ella el e2e usa un SMTP local. Outlook queda fuera hasta que tenga una cuenta.
