@@ -2,6 +2,34 @@
 
 ---
 
+## [4.32.1] - 2026-09-09
+
+### La pantallita de la MESA: aparece siempre y sobrevive a Ctrl-C
+
+Dos quejas del dueño sobre el segundo puesto (4.32.0): "cuando le digo al agente que haga algo en su
+monitor usualmente no me aparece la ventanita chiquitica" y "cuando presiono control-c se daña lo visual y
+comienza a parpadear".
+
+- **La pantallita solo se encendía desde `mesa_lanzar`.** `mesa_raton`, `mesa_invocar`, `mesa_teclear` y
+  `mesa_ver` (y sus equivalentes `/mesa clic|invocar|teclear|ver`) operaban la mesa sin garantizar que la
+  ventanita estuviera abierta — si el dueño pedía una acción sobre una ventana que ya vivía en la mesa
+  (de antes, o sin pasar por `mesa_lanzar`), nunca la veía. Las cuatro tools y los cuatro subcomandos ahora
+  llaman a `pantalla_abrir()` (barato cuando ya está viva: un chequeo de pid) antes de actuar.
+- **`mesa_pantalla.py` no ignoraba Ctrl-C.** El proceso vive en el escritorio del dueño, separado del
+  agente; `CREATE_NEW_PROCESS_GROUP` lo aísla la mayoría de las veces, pero algunos hosts de consola
+  (Windows Terminal/ConPTY) igual reenvían la señal. Si un `KeyboardInterrupt` interrumpía `tick()` antes
+  de su última línea (`root.after(...)`, el reagendado), el refresco se paraba en seco — la ventanita
+  quedaba pegada o a medio pintar, lo que se veía como parpadeo. Ahora `main()` ignora `SIGINT`/`SIGBREAK`
+  explícitamente, `tick()` reagenda el siguiente cuadro pase lo que pase (`except BaseException`), y si el
+  proceso muere igual por una vía anormal, limpia su propio `pantalla_pid` del estado al salir (si no, la
+  próxima `pantalla_abrir()` lo creía vivo y no relanzaba ninguna, o dos pantallitas terminaban peleando el
+  topmost — otra fuente de parpadeo).
+
+Verificado: suite dirigida `tests/test_mesa.py` (22 passed, 1 skip sin `COGNIA_E2E_MESA`) y una apertura y
+cierre real de la pantallita (`pantalla_abrir` → pid vivo → `pantalla_cerrar` → `pantalla_pid` en 0).
+
+---
+
 ## [4.32.0] - 2026-09-08
 
 ### La MESA: el segundo puesto de Cognia, con ratón propio y pantallita en vivo

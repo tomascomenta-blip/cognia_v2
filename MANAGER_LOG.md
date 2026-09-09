@@ -16091,3 +16091,39 @@ ratón físico siguen necesitando el modo foco de `/escritorio`.
 
 **Publicación:** wheel subido a PyPI (cognia-ai 4.32.0) e instalado en `~/.cognia/venv`; commit + push a
 `origin/main`. El apagado programado se canceló a petición del dueño.
+
+---
+
+## 2026-09-09 — 4.32.1: fix pantallita de la MESA (aparecer + Ctrl-C)
+
+Pedido del dueño (2 quejas sobre 4.32.0): "cuando le digo al agente que haga algo en su monitor usualmente
+no me aparece la ventanita chiquitica" y "cuando presiono control-c se daña lo visual y comienza a
+parpadear". Dijo explícitamente que es un cambio meramente estético/de comportamiento y dio permiso para
+saltar la suite completa/camino feliz si no hacía falta; corrí igual la suite dirigida.
+
+**Causa raíz (leído el código, no adivinado):**
+- `mesa_pantalla_abrir()` solo se llamaba desde `mesa_lanzar` (y `/mesa lanzar`, `/mesa pantalla`).
+  `mesa_raton`, `mesa_invocar`, `mesa_teclear`, `mesa_ver` y sus subcomandos `/mesa` NO la garantizaban:
+  operar una ventana que ya vivía en la mesa nunca abría la ventanita.
+- `cognia/agent/mesa_pantalla.py` no ignoraba SIGINT/SIGBREAK. Si la señal llegaba al proceso (algunos
+  hosts de consola reenvían Ctrl-C aunque el hijo se lance con CREATE_NEW_PROCESS_GROUP), un
+  KeyboardInterrupt a mitad de `tick()` cortaba el `root.after(...)` de reagendado antes de ejecutarse: el
+  refresco se paraba en seco, y si el proceso terminaba por esa vía sin pasar por `cerrar()` (bindeado solo
+  a la X), el `pantalla_pid` quedaba "vivo" en el JSON — la próxima `pantalla_abrir()` no relanzaba nada, o
+  dos pantallitas terminaban compitiendo el topmost (más parpadeo).
+
+**Arreglado:**
+- `mesa_tools.py`: `_asegurar_pantalla()` (llama a `pantalla_abrir()`, silenciosa si falla) al principio de
+  `mesa_raton`, `mesa_invocar`, `mesa_teclear`, `mesa_ver`. `cli.py`: mismo llamado en `/mesa
+  clic|invocar|teclear|ver`.
+- `mesa_pantalla.py`: `signal.signal(SIGINT/SIGBREAK, SIG_IGN)` al arrancar; `tick()` reagenda pase lo que
+  pase (`except BaseException` además del `except Exception` normal); `finally` tras `mainloop()` limpia
+  `pantalla_pid` en el JSON si este proceso era el dueño de ese pid, para que un reinicio futuro no se
+  confunda.
+
+**Verificación:** `tests/test_mesa.py` 22 passed / 1 skip (el e2e real pide `COGNIA_E2E_MESA=1`, no exige
+lanzar la pantallita). Apertura y cierre real de la pantallita desde el REPL de Python: `pantalla_abrir()`
+→ pid vivo confirmado con `_pid_vivo` → `pantalla_cerrar()` → `pantalla_pid` vuelve a 0 en el JSON.
+
+**Publicación:** version 4.32.1 en pyproject.toml; wheel a PyPI (cognia-ai) con autorización explícita del
+dueño en este mismo pedido.

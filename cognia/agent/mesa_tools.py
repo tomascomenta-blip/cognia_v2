@@ -45,6 +45,19 @@ def _err(tool: str, msg) -> str:
     return "ERROR %s: %s" % (tool, msg)
 
 
+def _asegurar_pantalla() -> None:
+    """La pantallita solo se encendia desde mesa_lanzar: si el agente seguia
+    operando la mesa con mesa_raton/mesa_invocar/mesa_teclear/mesa_ver sin
+    volver a lanzar (ventana ya abierta de antes, o una sesion nueva sobre una
+    mesa que ya tenia algo), el dueno le pedia 'haz esto en tu monitor' y la
+    ventanita casi nunca aparecia. pantalla_abrir() ya es barata cuando ya
+    esta viva (un solo chequeo de pid); jamas debe tumbar la accion real."""
+    try:
+        M.pantalla_abrir()
+    except Exception:
+        pass
+
+
 def _resumen_captura(r: dict) -> str:
     res = r.get("resumen") or {}
     try:
@@ -156,6 +169,7 @@ def register(tool) -> None:
           timeout_s=60)
     def _mesa_ver(args, ctx):
         _t, o = PC.partir_args(args, _CL_VER)
+        _asegurar_pantalla()
         try:
             escala = float(o.get("escala") or 1.0)
         except Exception:
@@ -184,6 +198,7 @@ def register(tool) -> None:
         if not toks:
             return _err("mesa_raton", "falta la accion (mover|clic|doble|derecho|arrastrar|rueda)")
         acc = toks[0].lower()
+        _asegurar_pantalla()
         nums = []
         for t in toks[1:]:
             try:
@@ -233,6 +248,7 @@ def register(tool) -> None:
         texto = (args or "").strip().strip("\"'")
         if not texto:
             return _err("mesa_invocar", "falta la etiqueta")
+        _asegurar_pantalla()
         try:
             r = M.invocar(texto)
             if not r.get("ok"):
@@ -255,6 +271,7 @@ def register(tool) -> None:
           timeout_s=40)
     def _mesa_teclear(args, ctx):
         texto, o = PC.partir_args(args, _CL_TECLEAR)
+        _asegurar_pantalla()
         try:
             if o.get("atajo"):
                 r = M.atajo(o["atajo"])

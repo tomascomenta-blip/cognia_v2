@@ -5211,6 +5211,10 @@ def _slash_mesa(arg: str = "") -> None:
             return
         if op == "ver":
             import tempfile as _tf, os as _os
+            try:
+                _m.pantalla_abrir()
+            except Exception:
+                pass
             png = _os.path.join(_tf.gettempdir(), "cognia_mesa_cli.png")
             r = _m.componer(png, escala=1.0)
             _print_line(f"[ok_cl]mesa compuesta[/ok_cl] [info_dim]· {r.get('ventanas',0)} ventana(s) · {r['png']}[/info_dim]")
@@ -5235,6 +5239,11 @@ def _slash_mesa(arg: str = "") -> None:
             _m.pantalla_abrir()
             _print_line(f"[ok_cl]mesa: lanzado {a['titulo']!r} (hwnd {a['hwnd']}); pantallita abierta[/ok_cl]")
             return
+        if op in ("clic", "invocar", "teclear"):
+            try:
+                _m.pantalla_abrir()
+            except Exception:
+                pass
         if op == "clic":
             try:
                 x, y = int(partes[1]), int(partes[2])

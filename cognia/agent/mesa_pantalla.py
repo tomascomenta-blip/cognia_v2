@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import signal
 import sys
 import tempfile
 import time
@@ -34,6 +35,23 @@ except Exception:
 
 
 def main() -> int:
+    # Este proceso vive en el escritorio del dueno, aparte del agente; un
+    # Ctrl-C que el dueno pulsa para cortar lo que esta haciendo Cognia NO es
+    # para la pantallita. CREATE_NEW_PROCESS_GROUP (mesa.pantalla_abrir) ya lo
+    # aisla la mayoria de las veces, pero algunos hosts de consola (Windows
+    # Terminal/ConPTY) igual reenvian el evento; si le llega un SIGINT a medio
+    # tick() el reagendado final (root.after) no se ejecuta y el refresco se
+    # queda colgado/a medias -> se ve como parpadeo o imagen danada. Ignorarlo
+    # aqui deja la pantallita viva pase lo que pase en la consola del dueno.
+    try:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+    except Exception:
+        pass
+    try:
+        signal.signal(signal.SIGBREAK, signal.SIG_IGN)  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--fps", type=float, default=6.0)
     ap.add_argument("--escala", type=float, default=0.42)
@@ -141,13 +159,37 @@ def main() -> int:
                                  (nv, px[0], px[1], (time.time() - t0) * 1000))
         except Exception as exc:
             estado_lbl.configure(text="…%s" % str(exc)[:40])
+        except BaseException:
+            # un KeyboardInterrupt que se cuele (Ctrl-C de la consola del dueno,
+            # aun con SIGINT ignorado y CREATE_NEW_PROCESS_GROUP) no debe cortar
+            # el reagendado de abajo: si se sale de aca sin llamar a root.after,
+            # el refresco se para en seco y la ventanita se queda pegada/rota.
+            pass
         root.after(intervalo, tick)
+
+    def _limpiar_estado_al_morir():
+        # simetrico a cerrar(): si el proceso termina sin pasar por la X
+        # (crash, kill externo) el pid queda "vivo" en el JSON y la proxima
+        # pantalla_abrir() cree que ya hay una -> no relanza ninguna, o dos
+        # pantallitas compiten por el topmost (el parpadeo que reporto el dueno).
+        try:
+            import json as _json
+            est = M.cargar_estado()
+            if est.get("pantalla_pid") == os.getpid():
+                est["pantalla_pid"] = 0
+                tmp = M._ESTADO.with_suffix(".json.tmp3")
+                tmp.write_text(_json.dumps(est, ensure_ascii=False), encoding="utf-8")
+                os.replace(tmp, M._ESTADO)
+        except Exception:
+            pass
 
     root.after(200, tick)
     try:
         root.mainloop()
-    except Exception:
+    except BaseException:
         pass
+    finally:
+        _limpiar_estado_al_morir()
     return 0
 
 
