@@ -410,6 +410,63 @@
     margin-top: 10px; }
   dialog#dlg-sesion .acciones .chip { padding: 8px 14px; }
   dialog#dlg-sesion .acciones .boton-panel { padding: 8px 16px; }
+  /* ══════════════════════════════════════════════════════════════════════
+     PIEL "estilo Claude" (2026-09-08): paleta cálida neutra con acento coral,
+     columna de lectura centrada, tipografía cómoda, respuesta sin globo (texto
+     limpio) y bloques de código con barra + botón copiar. Va al FINAL del
+     <style> para ganar por orden a las reglas de arriba.
+     ══════════════════════════════════════════════════════════════════════ */
+  :root, :root[data-tema="oscuro"] {
+    --fondo: #262624; --panel: #30302e; --panel-2: #3a3a37;
+    --borde: #45423c; --texto: #ece9e3; --texto-2: #a8a29a;
+    --acento: #d97757; --acento-2: #c15f3c;
+    --burbuja-yo: #3a3a37; --burbuja-cognia: transparent;
+    --peligro: #d98b6a; --sombra: 0 1px 3px rgba(0,0,0,.28);
+  }
+  :root[data-tema="claro"] {
+    --fondo: #f5f4ee; --panel: #ffffff; --panel-2: #edeae2;
+    --borde: #e2ddd2; --texto: #2b2a27; --texto-2: #6b6862;
+    --acento: #c15f3c; --acento-2: #d97757;
+    --burbuja-yo: #edeae2; --burbuja-cognia: transparent;
+    --peligro: #b4552f; --sombra: 0 1px 3px rgba(40,30,20,.10);
+  }
+  body { font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  header { box-shadow: none; }
+  /* columna de lectura centrada (~46rem) como Claude */
+  #chat { padding: 22px max(14px, calc((100% - 740px) / 2)) 40px; gap: 14px; }
+  .msg { font-size: 15px; line-height: 1.62; }
+  .msg.yo { background: var(--burbuja-yo); border: none; border-radius: 16px;
+    padding: 10px 15px; max-width: 78%; box-shadow: var(--sombra); }
+  /* la respuesta de Cognia: texto limpio, sin barra ni globo */
+  .msg.cognia.bloque { border-left: none; padding: 2px 0; }
+  .md { font-size: 15px; line-height: 1.62; }
+  .md p { margin: 10px 0; }
+  .md h1 { font-size: 20px; } .md h2 { font-size: 17px; } .md h3 { font-size: 15.5px; }
+  .md ul, .md ol { padding-left: 24px; }
+  .md li { margin: 4px 0; }
+  .md a { color: var(--acento); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .md > *:first-child { margin-top: 0; }
+  /* bloques de código con barra superior y botón copiar */
+  .bloque-cod { margin: 12px 0; border: 1px solid var(--borde); border-radius: 10px;
+    overflow: hidden; background: var(--panel); }
+  .bc-barra { display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 10px 5px 12px; background: var(--panel-2);
+    border-bottom: 1px solid var(--borde); }
+  .bc-lang { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px;
+    letter-spacing: .04em; color: var(--texto-2); text-transform: uppercase; }
+  .bc-copiar { font-size: 11.5px; color: var(--texto-2); padding: 3px 10px;
+    border-radius: 7px; border: 1px solid var(--borde); background: var(--fondo); }
+  .bc-copiar:active { background: var(--acento-2); color: #fff; }
+  .bloque-cod pre { margin: 0; border: none; border-radius: 0; background: none; }
+  .md pre { border-radius: 10px; }
+  .md code { background: var(--panel-2); border-color: var(--borde); }
+  /* burbuja viva del stream: cursor coral fino */
+  .viva::after { background: var(--acento) !important; }
+  #barra-inf, footer { background: var(--panel); }
+  #entrada { font-size: 15px; }
+  .msg.pensando { border-left-color: var(--acento-2); color: var(--texto-2); }
+  .msg.accion { color: var(--acento); border-color: var(--acento-2); }
 </style>
 </head>
 <body>
@@ -761,6 +818,24 @@ function mdInline(s) {
                 '<a href="$2" target="_blank" rel="noopener">$1</a>');
   return s;
 }
+function copiarCodigo(btn) {
+  try {
+    const pre = btn.closest(".bloque-cod").querySelector("pre code") || btn.closest(".bloque-cod").querySelector("pre");
+    const txt = pre ? pre.textContent : "";
+    const ok = () => { btn.textContent = "copiado ✓"; setTimeout(() => { btn.textContent = "copiar"; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(ok, () => fallbackCopiar(txt, ok));
+    } else { fallbackCopiar(txt, ok); }
+  } catch (e) {}
+}
+function fallbackCopiar(txt, ok) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+    document.body.removeChild(ta); ok && ok();
+  } catch (e) {}
+}
 function mdHTML(texto) {
   const lineas = texto.split("\n");
   let html = "", i = 0, tipoLista = null;
@@ -775,7 +850,12 @@ function mdHTML(texto) {
       i++;
       while (i < lineas.length && !/^\s*```\s*$/.test(lineas[i])) { buf.push(lineas[i]); i++; }
       i++; // saltar el cierre
-      html += "<pre><code>" + escHTML(buf.join("\n")) + "</code></pre>";
+      const codigo = buf.join("\n");
+      const lang = (fence[1] || "").toLowerCase();
+      html += '<div class="bloque-cod"><div class="bc-barra">'
+            + '<span class="bc-lang">' + escHTML(lang || "texto") + '</span>'
+            + '<button class="bc-copiar" onclick="copiarCodigo(this)" type="button">copiar</button></div>'
+            + "<pre><code>" + escHTML(codigo) + "</code></pre></div>";
       continue;
     }
     const esc = escHTML(l);

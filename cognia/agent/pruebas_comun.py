@@ -45,7 +45,11 @@ def partir_args(args: str, claves) -> tuple:
     opts: dict = {}
     if not claves:
         return s, opts
-    patron = re.compile(r"(?:\|\s*|\s+)(%s)\s*=\s*" % "|".join(re.escape(c) for c in claves), re.I)
+    # Anclado tambien al INICIO (^): la llamada nativa sin posicional llega
+    # como ' tecla=intro' y tras el strip la clave queda en la columna 0; sin
+    # el ancla se devolvia como objetivo y mesa_teclear ESCRIBIA "tecla=intro"
+    # literal en la app (revision adversarial 2026-09-08).
+    patron = re.compile(r"(?:^|\|\s*|\s+)(%s)\s*=\s*" % "|".join(re.escape(c) for c in claves), re.I)
     while True:
         ms = list(patron.finditer(s))
         if not ms:

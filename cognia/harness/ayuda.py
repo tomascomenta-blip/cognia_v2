@@ -358,7 +358,7 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         # /pruebas (su on/off y estado) y /escritorio (el escritorio propio
         # donde Cognia prueba apps graficas) son mandos del ARNES por el
         # mismo criterio: gobiernan COMO verifica el agente, no QUE hace.
-        "/probar", "/pruebas", "/escritorio",
+        "/probar", "/pruebas", "/escritorio", "/mesa",
         # 2026-09-08: /forja (herramientas propias verificadas) y /cotidiano
         # (tareas del dia a dia en el escritorio propio): mandos del arnes.
         "/forja", "/cotidiano",

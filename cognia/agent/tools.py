@@ -395,6 +395,9 @@ _OPTIN_PREFIJOS = (
     ("audio_", "COGNIA_PRUEBAS"),
     ("video_", "COGNIA_PRUEBAS"),
     ("app_", "COGNIA_PRUEBAS"),
+    # Segundo puesto / MESA (2026-09-08, cognia/agent/mesa_tools.py): puntero
+    # virtual + teclado sobre el escritorio propio, en paralelo, con pantallita.
+    ("mesa_", "COGNIA_PRUEBAS"),
     ("formato_", "COGNIA_PRUEBAS"),
     ("pdf_", "COGNIA_PRUEBAS"),
     ("docx_", "COGNIA_PRUEBAS"),

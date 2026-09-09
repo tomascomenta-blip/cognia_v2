@@ -2,6 +2,80 @@
 
 ---
 
+## [4.32.0] - 2026-09-08
+
+### La MESA: el segundo puesto de Cognia, con ratón propio y pantallita en vivo
+
+Pedido del dueño: "dale un ratón individual al monitor de Cognia, que tenga acceso total a un monitor
+propio que maneje al 100 % sin que sea una VM, en paralelo a lo que yo hago; que yo vea lo que va haciendo
+en una pantallita a tiempo real; y que el harness resuelva solo lo que necesite ratón y teclado".
+
+**Lo medido antes de construir (Windows 11 26200, sondas reales):** un cursor de HARDWARE propio en paralelo,
+sin VM ni conmutar de escritorio, es imposible en una sesión de Windows — `SendInput` solo lo recibe el
+*input desktop* activo (probado con tkinter en un objeto Desktop de fondo: el Entry quedó vacío). Lo que SÍ
+cruza a un escritorio de fondo son los mensajes de ventana (PostMessage escribió de verdad) y UI Automation
+(Invoke). Por eso la mesa es un **operador sobre el escritorio propio 'Cognia'** (4.29.0), no un
+escritorio nuevo, y su ratón es un **puntero VIRTUAL** que se ve moverse y clicar.
+
+`cognia/agent/mesa.py` + `mesa_tools.py` + `mesa_pantalla.py` (familia `mesa_*` dentro de la familia de
+pruebas, `COGNIA_PRUEBAS`; puerta **`/mesa`**):
+- **`mesa_lanzar <cmd>`**: abre la app en la mesa, la deja activa y enciende la pantallita. Si la ventana
+  NO se mudó al escritorio propio, lo dice y no la opera (estaría tecleando en el escritorio del usuario).
+- **`mesa_raton mover|clic|doble|derecho|arrastrar|rueda X Y`**: el puntero virtual en coordenadas de
+  pantalla; el clic resuelve el control bajo el punto por UIA (Invoke/Toggle/Select/Expand, con poda y tope
+  de nodos) y, si no hay patrón, cae al clic por mensajes (que no vale en Tk/pygame/juegos: se avisa).
+- **`mesa_invocar <etiqueta>`**: clica un botón/menú/enlace por su NOMBRE (la vía fiable) en la ventana
+  activa, sin irse a la ventana de encima.
+- **`mesa_teclear <texto> | tecla=intro | atajo=ctrl+s`**: por mensajes, sin robar el teclado del dueño; los
+  atajos mandan solo KEYDOWN/KEYUP (nunca WM_CHAR) y avisan de que la app puede no ver el modificador.
+- **`mesa_ver`**, **`mesa_ventanas [activar <hwnd>]`** (solo ventanas de la mesa, nunca las del usuario),
+  **`mesa_pantalla abrir|cerrar`**, **`mesa_estado`**.
+- **La pantallita** (`mesa_pantalla.py`): proceso Tk aparte, siempre encima, en el escritorio del dueño;
+  compone las ventanas de la mesa recortadas al contenido, dibuja el puntero (leído del estado en disco,
+  que es de otro proceso) y el pulso de clic, ~6 fps, nunca más ancha que el monitor. Su pid se valida por
+  línea de comando antes de matarlo (un pid reciclado tras un reboot no se toca).
+
+Revisión adversarial sobre lo recién escrito (20 hallazgos, todos aplicados; los dos graves: la pantallita
+pintaba el puntero siempre en el centro porque leía la memoria de su propio proceso, y
+`mesa_teclear tecla=intro` por llamada nativa tecleaba el texto literal — `pruebas_comun.partir_args` ahora
+ancla la clave también al inicio, lo que arregla lo mismo en `app_*`/`pagina_*`).
+
+**Lo que cazaron las tareas TECLEADAS en el REPL (madrugada del 2026-09-09), ninguna la vio la suite:**
+- **Apps de la Store en Windows 11** (`calc.exe`, `notepad.exe`): el lanzador sale con exit 0 al instante y la
+  ventana la abre otro proceso; `app_tools.lanzar` ahora sigue esperando con exit 0 y adopta la ventana nueva
+  cuyo exe se parece al comando; y si la app es de UNA instancia (el Bloc de notas abre pestañas en la
+  ventana que ya existe) adopta esa ventana (`adoptada`).
+- **UWP suspendida en la mesa** (`cognia/agent/plm.py`, nuevo): Windows suspende una app empaquetada cuando su
+  ventana no está en el escritorio visible; suspendida, su árbol de UI Automation tiene 1 nodo y
+  `mesa_invocar` "no encontraba" el botón siguiente (la Calculadora acertaba los primeros y fallaba después).
+  Medido: `CalculatorApp.exe` en estado `stopped` en la mesa; 50 nodos en el escritorio visible, 1 de vuelta.
+  `mesa_lanzar` exime al paquete con `IPackageDebugSettings::EnableDebugging` (lo que hace PLMDebug, sin
+  admin) y `mejor_ventana` se queda con la CoreWindow (la que expone controles) en vez del marco de
+  ApplicationFrameHost; `/escritorio limpiar` y el cierre del proceso devuelven el paquete a su estado.
+- **El agente no veía `mesa_*` en `/hacer`**: con llamada nativa el modelo solo puede llamar funciones
+  declaradas y el catálogo con puertas anunciaba solo `probar`; abrió 12 calculadoras en bucle. Ahora
+  `mesa_lanzar` es puerta (`simple_mode.ANUNCIO_POR_FAMILIA`) y, mientras la mesa tiene una ventana activa
+  (`mesa.en_uso()`), el closure `_rehacer_schemas` anuncia la familia entera al bucle en curso. Medido con
+  el 27B: `/hacer` abre la Calculadora, pulsa Siete · Multiplicar por · Seis · Es igual a y responde
+  "La pantalla muestra 42".
+- Reintentos cortos en `mesa_invocar`/`mesa_ver` para el re-pintado de las apps WinUI tras un Invoke.
+
+### Remote control con piel "estilo Claude"
+
+`cognia/remoto/static/index.html` (solo CSS/JS; el protocolo y el backend no cambian): paleta cálida neutra
+con acento coral (claro/oscuro), columna de lectura centrada (~740 px), el mensaje del usuario en una burbuja
+sutil a la derecha, la respuesta de Cognia como texto limpio sin globo ni barra, y bloques de código con barra
+de lenguaje y botón **copiar** (`copiarCodigo`, con fallback sin `navigator.clipboard`). Streaming, chip de
+confianza, pie de turno e interrumpir siguen igual.
+
+### Catálogo
+`/mesa` en `_CMD_DESCRIPTIONS` y en la ayuda larga; `mesa_` en los cinco sitios del catálogo (prefijos de
+`tools.py`, `harness/familias.py`, `catalogo_nodos.py`, `_SIN_ARGS` de `tool_schemas.py`, mandos del arnés en
+`harness/ayuda.py` y `cli_visibilidad.py`); `probar ayuda mesa|puesto|raton|escritorio`. Instalador
+(`installer/cognia_setup.iss`) a 4.32.0.
+
+---
+
 ## [4.31.0] - 2026-09-08
 
 ### La FORJA: Cognia se construye herramientas, las prueba de punta a punta y las usa

@@ -138,7 +138,7 @@ AVANZADO: frozenset = frozenset({
     # /renderizar y /ejecutar-guion (mandos del arnes). /probar no entra al
     # NUCLEO porque el tope de 85 ya esta lleno; el agente la usa igual (es
     # una tool del core) y /avanzado la revela.
-    "/probar", "/pruebas", "/escritorio",
+    "/probar", "/pruebas", "/escritorio", "/mesa",
     # 2026-09-08: la forja (herramientas propias) y las tareas cotidianas del
     # escritorio propio, por el mismo criterio que /pruebas y /escritorio.
     "/forja", "/cotidiano",

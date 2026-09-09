@@ -51,6 +51,7 @@ SUBFAMILIAS = (
       "puerto_esperar", "esperar_fichero", "consola_sesion", "tui_probar")),
     ("cognia.agent.pagina_tools", "paginas web", ("pagina_",)),
     ("cognia.agent.app_tools", "apps graficas", ("app_",)),
+    ("cognia.agent.mesa_tools", "segundo puesto (mesa)", ("mesa_",)),
 )
 
 # Estado de carga por modulo (puerta pruebas_estado / /pruebas estado)
@@ -265,6 +266,7 @@ _TEMAS = {
     "imagen": ("captura_",), "imagenes": ("captura_",), "captura": ("captura_",),
     "audio": ("audio_", "medios_estado"), "video": ("video_", "medios_estado"), "medios": ("audio_", "video_", "medios_estado"),
     "app": ("app_",), "apps": ("app_",), "gui": ("app_",), "juego": ("app_", "renderizar", "ejecutar_guion"),
+    "mesa": ("mesa_",), "puesto": ("mesa_",), "raton": ("mesa_",), "escritorio": ("mesa_", "app_"),
     "formato": ("formato_", "diff_texto", "sql_probar"), "formatos": ("formato_", "diff_texto", "sql_probar"),
     "documentos": ("pdf_", "docx_", "xlsx_"), "pdf": ("pdf_",), "3d": ("modelo3d_",),
     "python": ("py_", "tests"), "consola": ("ejecutar_guion", "consola_sesion", "tui_probar"),

@@ -3348,6 +3348,7 @@ _CMD_DESCRIPTIONS = {
     "/probar":          "PRUEBA lo que sea por su tipo (la misma tool `probar` del agente): pagina, imagen, audio, video, pdf/docx/xlsx/3d, json/yaml/csv, .py (lint+ejecucion, GUI en el escritorio propio, consola con entradas), comando con ventana, carpeta. Uso: /probar <ruta|URL|comando|carpeta> [| pasos=...] [| entradas=1|q] | ayuda [tema] | estado",
     "/pruebas":         "Familia de herramientas de prueba del agente (pagina_*, captura_*, audio_*, video_*, app_*, formato_*, pdf_*, ...): estado, on/off (config pruebas_tools, env COGNIA_PRUEBAS) y listado por tema. Uso: /pruebas [estado | on | off | tools [tema]]",
     "/escritorio":      "El ESCRITORIO PROPIO de Cognia (escritorio virtual 'Cognia' donde lanza y prueba apps graficas sin molestar al usuario). Uso: /escritorio [estado | on | off | ir | volver | ventanas | limpiar [borrar] | foco nunca|inactivo|siempre | inactividad <seg> | nombre <texto>]",
+    "/mesa":            "La MESA (segundo puesto): puntero virtual + teclado que operan el escritorio propio de Cognia EN PARALELO, sin tocar tu raton/teclado, con una pantallita en vivo. Uso: /mesa [estado | ver | pantalla [abrir|cerrar] | ventanas | lanzar <cmd> | clic X Y | invocar <etiqueta> | teclear <texto>]",
     "/forja":           "La FORJA: Cognia se construye herramientas propias (un .py con DOC, PRUEBAS y run), las examina de punta a punta y las registra; con el uso ascienden, se rompen o se retiran. Uso: /forja [estado | lista | plantilla | forjar <ruta.py> | probar <nombre> | retirar <nombre> | candidatas | on | off]",
     "/cotidiano":       "Tareas COTIDIANAS en el escritorio propio de Cognia: escribir un documento (Word/Bloc de notas), mandar y leer correo (Outlook), citas en el calendario, abrir ficheros/URLs/apps. Uso: /cotidiano [estado | on | off | tools | correo <para> | asunto=... | cuerpo=... | documento <ruta> | texto=... | abrir <ruta|url|app>]",
     "/pegado":          "Pastes largos del prompt colapsados a '[pegado #N: +X lineas]' (se expanden al enviar). Uso: /pegado [lista | N | on | off | umbral <lineas> [<chars>]]",
@@ -3592,6 +3593,20 @@ _CMD_DETAILS = {
         "escritorio_inactividad_s, escritorio_nombre; env COGNIA_ESCRITORIO=0 lo apaga. "
         "Requiere pyvda (pip install pyvda); sin el, las apps se lanzan en el escritorio actual "
         "y /escritorio estado lo dice."),
+    "/mesa": (
+        "La MESA o SEGUNDO PUESTO de Cognia (cognia/agent/mesa.py + mesa_tools.py, 2026-09-08): un "
+        "puntero VIRTUAL y un teclado que operan el escritorio propio 'Cognia' EN PARALELO a lo que "
+        "hace el usuario, sin tocar nunca su raton ni su teclado, y una PANTALLITA en vivo (ventana "
+        "pequena siempre encima) donde el usuario ve lo que Cognia hace. Tools: mesa_lanzar <cmd> "
+        "(abre la app en la mesa y enciende la pantallita), mesa_ver (compone la pantalla de la mesa), "
+        "mesa_raton mover|clic|doble|derecho|arrastrar|rueda X Y, mesa_invocar <etiqueta> (clica un "
+        "boton/menu por su nombre via UI Automation: la via mas fiable), mesa_teclear <texto> | "
+        "tecla=intro | atajo=ctrl+s, mesa_ventanas [activar <hwnd>], mesa_pantalla abrir|cerrar, "
+        "mesa_estado. MEDIDO en Windows: la entrada de HARDWARE (SendInput) solo llega al escritorio "
+        "activo, asi que el clic real va por UIA Invoke y, si no hay, por mensajes (no vale en "
+        "Tk/pygame/juegos: para eso, el modo foco de /escritorio; para web, pagina_*). Se anuncia con "
+        "la familia de pruebas (COGNIA_PRUEBAS). Subcomandos: estado, ver, pantalla [abrir|cerrar], "
+        "ventanas, lanzar <cmd>, clic X Y, invocar <etiqueta>, teclear <texto>."),
     "/deshacer-borrado": (
         "PAPELERA DEL AGENTE (cognia/harness/papelera.py, 2026-08-25). La tool "
         "borrar_archivo ya no destruye: mueve a ~/.cognia/papelera/<dia>/<lote>/ "
@@ -5155,6 +5170,96 @@ def _slash_escritorio(arg: str = "") -> None:
     except Exception as exc:
         _aviso_degradado("escritorio", f"{type(exc).__name__}: {exc}")
         _print_line(f"[err_cl]escritorio: {_escape(str(exc))}[/err_cl]")
+
+
+def _slash_mesa(arg: str = "") -> None:
+    """`/mesa`: el segundo puesto (puntero virtual + pantallita en vivo)."""
+    try:
+        from cognia.agent import mesa as _m
+        from cognia.agent import app_tools as _at
+    except Exception as exc:
+        _print_line(f"[err_cl]mesa no disponible: {_escape(str(exc))}[/err_cl]")
+        return
+    v = (arg or "").strip()
+    partes = v.split()
+    op = (partes[0].lower() if partes else "estado")
+    try:
+        if op == "estado":
+            e = _m.estado()
+            if not e["disponible"]:
+                _print_line(f"[warn_cl]mesa: no disponible — {_escape(e.get('motivo',''))}[/warn_cl]")
+                return
+            _print_line(f"[ok_cl]mesa: {'ACTIVA' if e['activo'] else 'escritorio apagado'}[/ok_cl] "
+                        f"[info_dim]· escritorio '{e['escritorio']}' · puntero {e['puntero']['x']},{e['puntero']['y']} · "
+                        f"pantallita {'ABIERTA (pid ' + str(e['pantalla_pid']) + ')' if e['pantalla_abierta'] else 'cerrada'} · "
+                        f"{len(e['ventanas'])} ventana(s)[/info_dim]")
+            for w in e["ventanas"]:
+                marca = " *ACTIVA*" if w["hwnd"] == e["activa"] else ""
+                _print_line(f"[info_dim]  hwnd {w['hwnd']}{marca} · {w['titulo']!r}[/info_dim]")
+            _print_line("[info_dim]/mesa ver · pantalla abrir|cerrar · ventanas · lanzar <cmd> · clic X Y · "
+                        "invocar <etiqueta> · teclear <texto>[/info_dim]")
+            return
+        if op == "pantalla":
+            sub = partes[1].lower() if len(partes) > 1 else "abrir"
+            if sub == "cerrar":
+                r = _m.pantalla_cerrar()
+                _print_line("[ok_cl]pantallita cerrada[/ok_cl]" if r.get("cerrada") else "[warn_cl]no había ninguna abierta[/warn_cl]")
+            else:
+                r = _m.pantalla_abrir()
+                _print_line(f"[ok_cl]pantallita {'ya abierta' if r.get('ya') else 'abierta'} (pid {r.get('pid')})[/ok_cl]"
+                            if r.get("ok") else f"[err_cl]{_escape(str(r.get('error')))}[/err_cl]")
+            return
+        if op == "ver":
+            import tempfile as _tf, os as _os
+            png = _os.path.join(_tf.gettempdir(), "cognia_mesa_cli.png")
+            r = _m.componer(png, escala=1.0)
+            _print_line(f"[ok_cl]mesa compuesta[/ok_cl] [info_dim]· {r.get('ventanas',0)} ventana(s) · {r['png']}[/info_dim]")
+            return
+        if op == "ventanas":
+            vs = _m._ventanas_dict()
+            act = _m.activa()
+            if not vs:
+                _print_line("[info_dim]la mesa está vacía[/info_dim]")
+                return
+            for w in vs:
+                marca = " *ACTIVA*" if w["hwnd"] == act else ""
+                _print_line(f"[info_dim]hwnd {w['hwnd']}{marca} · {w['titulo']!r} · {w['rect'][2]}x{w['rect'][3]}[/info_dim]")
+            return
+        if op == "lanzar":
+            cmd = v.split(None, 1)[1].strip() if len(partes) > 1 else ""
+            if not cmd:
+                _print_line("[warn_cl]/mesa lanzar <comando>[/warn_cl]")
+                return
+            app_id, a = _at.lanzar(cmd)
+            _m.fijar_activa(a["hwnd"])
+            _m.pantalla_abrir()
+            _print_line(f"[ok_cl]mesa: lanzado {a['titulo']!r} (hwnd {a['hwnd']}); pantallita abierta[/ok_cl]")
+            return
+        if op == "clic":
+            try:
+                x, y = int(partes[1]), int(partes[2])
+            except Exception:
+                _print_line("[warn_cl]/mesa clic X Y[/warn_cl]")
+                return
+            r = _m.clic(x, y)
+            _print_line(f"[ok_cl]clic {r.get('metodo','?')}[/ok_cl] [info_dim]{r.get('control','')}[/info_dim]"
+                        if not r.get("error") else f"[err_cl]{_escape(r['error'])}[/err_cl]")
+            return
+        if op == "invocar":
+            etq = v.split(None, 1)[1].strip() if len(partes) > 1 else ""
+            r = _m.invocar(etq)
+            _print_line(f"[ok_cl]invocado {r.get('encontrado')!r}[/ok_cl]" if r.get("ok") else f"[err_cl]{_escape(str(r.get('error')))}[/err_cl]")
+            return
+        if op == "teclear":
+            txt = v.split(None, 1)[1] if len(partes) > 1 else ""
+            r = _m.escribir(txt)
+            _print_line(f"[ok_cl]{r.get('chars',0)} caracteres[/ok_cl]" if r.get("ok") else f"[err_cl]{_escape(str(r.get('error')))}[/err_cl]")
+            return
+        _print_line("[warn_cl]Uso: /mesa [estado | ver | pantalla [abrir|cerrar] | ventanas | lanzar <cmd> | "
+                    "clic X Y | invocar <etiqueta> | teclear <texto>][/warn_cl]")
+    except Exception as exc:
+        _aviso_degradado("mesa", f"{type(exc).__name__}: {exc}")
+        _print_line(f"[err_cl]mesa: {_escape(str(exc))}[/err_cl]")
 
 
 class _VerboseFilter(logging.Filter):
@@ -24301,6 +24406,8 @@ def _repl_sesion():
                 _slash_pruebas(raw[len("/pruebas "):] if raw.startswith("/pruebas ") else "")
             elif raw == "/escritorio" or raw.startswith("/escritorio "):
                 _slash_escritorio(raw[len("/escritorio "):] if raw.startswith("/escritorio ") else "")
+            elif raw == "/mesa" or raw.startswith("/mesa "):
+                _slash_mesa(raw[len("/mesa "):] if raw.startswith("/mesa ") else "")
             elif raw == "/forja" or raw.startswith("/forja "):
                 _slash_forja(raw[len("/forja "):] if raw.startswith("/forja ") else "")
             elif raw == "/cotidiano" or raw.startswith("/cotidiano "):

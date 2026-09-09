@@ -371,6 +371,13 @@ def limpiar(cerrar_ventanas: bool = True, borrar: bool = False) -> dict:
             for hwnd, _pid, _t in ventanas_en_escritorio():
                 cerrar_ventana(hwnd)
                 res["cerradas"] += 1
+            # apps de la Store eximidas de la suspension por la mesa: dejar
+            # Windows como estaba (cognia/agent/plm.py)
+            try:
+                from cognia.agent import plm as _plm
+                _plm.liberar()
+            except Exception:
+                pass
         if borrar:
             if es_el_actual(d):
                 res["error"] = "no se borra el escritorio actual"

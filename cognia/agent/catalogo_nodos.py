@@ -242,7 +242,7 @@ CATEGORIAS: tuple = (
                "py_importar", "py_perfilar", "py_cobertura", "http_solicitud",
                "puerto_esperar", "esperar_fichero", "consola_sesion", "tui_probar",
                "medios_estado"),
-     "prefijos": ("pagina_", "captura_", "audio_", "video_", "app_", "formato_",
+     "prefijos": ("pagina_", "captura_", "audio_", "video_", "app_", "mesa_", "formato_",
                   "pdf_", "docx_", "xlsx_", "modelo3d_")},
 
     {"id": "memoria", "nombre": "Memoria y notas",

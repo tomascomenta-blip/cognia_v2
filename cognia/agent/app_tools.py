@@ -114,6 +114,15 @@ def _descendientes(pid: int) -> set:
         return {pid}
 
 
+def _exe_de(pid: int) -> str:
+    """Nombre del ejecutable de un pid en minusculas ('' si no se puede leer)."""
+    try:
+        import psutil  # type: ignore
+        return (psutil.Process(int(pid)).name() or "").lower()
+    except Exception:
+        return ""
+
+
 def _ventana_de_pid(pid: int):
     pids = _descendientes(pid)
     for hwnd, wpid, _t in EP.ventanas_visibles():
@@ -183,6 +192,7 @@ def lanzar(comando: str, cwd: str = None, espera_ms: int = ESPERA_VENTANA_DEF_MS
             raise ValueError("no se pudo lanzar %r: %s" % (comando, exc))
     t0 = time.time()
     hwnd = None
+    adoptada = False
     limite = max(500, min(ESPERA_VENTANA_MAX_MS, espera_ms)) / 1000.0
     while time.time() - t0 < limite:
         time.sleep(0.25)
@@ -195,8 +205,37 @@ def lanzar(comando: str, cwd: str = None, espera_ms: int = ESPERA_VENTANA_DEF_MS
         if propias:
             hwnd = propias[0][0]
             break
-        if proc.poll() is not None and not candidatas:
-            break
+        if proc.poll() is not None:
+            # Apps de la Store (calc.exe, notepad.exe en Windows 11): el
+            # lanzador sale con exit 0 al instante y la ventana la abre OTRO
+            # proceso que no es descendiente. Cazado tecleando `/mesa lanzar
+            # calc.exe` (2026-09-09): "termino (exit 0) sin abrir ventana".
+            # Con exit 0 se sigue esperando y se acepta una ventana NUEVA cuyo
+            # exe se parece al comando (calc -> CalculatorApp.exe, notepad ->
+            # Notepad.exe); si hay una sola nueva con titulo, esa.
+            if proc.returncode == 0:
+                base = (Path(partes[0]).stem.lower() if partes else "")[:4]
+                con_titulo = [c for c in candidatas if (c[2] or "").strip()]
+                afines = [c for c in con_titulo if base and base in _exe_de(c[1])]
+                elegido = afines or (con_titulo if len(con_titulo) == 1 else [])
+                if elegido:
+                    hwnd = elegido[0][0]
+                    break
+                continue
+            if not candidatas:
+                break
+    if hwnd is None:
+        # App de UNA instancia (el Bloc de notas de Windows 11 abre pestanas
+        # en la ventana que YA existe; Chrome igual): la orden no produce
+        # ninguna ventana nueva. Si hay una visible cuyo exe se parece al
+        # comando, se adopta y se muda a la mesa como cualquier otra. Cazado
+        # tecleando `/mesa lanzar notepad.exe` con un Bloc ya abierto.
+        base = (Path(partes[0]).stem.lower() if partes else "")[:4]
+        if base:
+            for h, p, t in EP.ventanas_visibles():
+                if (t or "").strip() and EP.rect_ventana(h)[2] > 0 and base in _exe_de(p):
+                    hwnd, adoptada = h, True
+                    break
     if hwnd is None:
         rc = proc.poll()
         cola = ""
@@ -217,7 +256,7 @@ def lanzar(comando: str, cwd: str = None, espera_ms: int = ESPERA_VENTANA_DEF_MS
     mudada = EP.mover_ventana(hwnd) if EP.activo() else False
     app_id = _nuevo_id()
     a = {"pid": proc.pid, "hwnd": hwnd, "cmd": comando, "titulo": EP.titulo_ventana(hwnd), "ts": time.time(),
-         "log": log.name, "proc": proc, "capturas": [], "mudada": mudada,
+         "log": log.name, "proc": proc, "capturas": [], "mudada": mudada, "adoptada": adoptada,
          "escritorio": EP.config()["nombre"] if mudada else "actual (escritorio propio %s)"
          % ("apagado" if not EP.config()["activo"] else "no disponible: " + EP.disponible()[1])}
     _APPS[app_id] = a

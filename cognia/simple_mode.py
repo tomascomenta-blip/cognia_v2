@@ -40,7 +40,13 @@ K_UI_MODE = "COGNIA_UI_MODE"   # "sencillo" (default) | "avanzado"
 # para familias de 5-10 tools y no para una de 64. COGNIA_ANUNCIO_COMPLETO=1
 # vuelve a anunciarlas todas (para medir, o para quien lo prefiera).
 ANUNCIO_POR_FAMILIA = {
-    "COGNIA_PRUEBAS": frozenset({"probar"}),
+    # `mesa_lanzar` es la segunda puerta de la familia (2026-09-09): la MESA
+    # (raton virtual + teclado en el escritorio propio) tiene que ser
+    # ALCANZABLE por el agente cuando una tarea pide manejar una app con
+    # raton/teclado; su resultado nombra las demas (mesa_invocar, mesa_raton,
+    # mesa_teclear, mesa_ver). Cazado tecleando `/hacer ... usa mesa_lanzar`:
+    # el modelo no la veia y se puso a leer el repo buscando "mesa_lanzar".
+    "COGNIA_PRUEBAS": frozenset({"probar", "mesa_lanzar"}),
     "COGNIA_COTIDIANO": frozenset({"documento_escribir", "correo_enviar", "correo_leer",
                                    "abrir_en_escritorio", "recordatorio", "calendario_agregar"}),
 }
@@ -137,6 +143,20 @@ def visible_tools(all_names, override: Optional[str] = None):
     try:
         from cognia.agent import forja as _forja
         out |= (_forja.anunciadas() & names)
+    except Exception:
+        pass
+    # La MESA (agent/mesa.py, 2026-09-09): mientras haya una ventana ACTIVA en
+    # la mesa se anuncia la familia entera (mesa_invocar, mesa_raton,
+    # mesa_teclear, mesa_ver, mesa_ventanas, mesa_pantalla, mesa_estado):
+    # con llamada nativa el modelo SOLO puede llamar funciones declaradas, y
+    # tecleando `/hacer ... calc.exe` se vio al 27B abrir 12 calculadoras en
+    # bucle porque `mesa_invocar` no estaba en su lista. Fuera de uso, solo
+    # la puerta `mesa_lanzar` (ANUNCIO_POR_FAMILIA): el catalogo no engorda.
+    try:
+        if _flag_activo("COGNIA_PRUEBAS") and any(n.startswith("mesa_") for n in names):
+            from cognia.agent import mesa as _mesa
+            if _mesa.en_uso():
+                out |= {n for n in names if n.startswith("mesa_")}
     except Exception:
         pass
     return out

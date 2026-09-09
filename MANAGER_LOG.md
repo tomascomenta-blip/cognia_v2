@@ -16027,3 +16027,67 @@ git push origin main (f0a08798..89add9ff)
 ```
 Límite declarado: el correo real a Gmail necesita una clave de aplicación del dueño (`correo_configurar`);
 sin ella el e2e usa un SMTP local. Outlook queda fuera hasta que tenga una cuenta.
+
+## 2026-09-09 · 4.32.0 — la MESA (segundo puesto) + remoto estilo Claude, publicada e instalada
+
+**Pedido del dueño (noche del 8):** "dale un ratón individual al monitor de Cognia, acceso total a un
+monitor propio sin VM, en paralelo a lo que yo hago; que yo lo vea en una pantallita a tiempo real; que el
+harness resuelva solo lo que necesite ratón y teclado; mejora el remote control para que sea como el de
+Claude". Luego: "verificación profunda, Cognia CLI lo más pulida posible, y sube a PyPI el trabajo final".
+
+**Verificación (sin sombra):**
+- Suite completa (`venv312`, `-n 5`, sin `test_e2e_inference`): **15.127 passed / 105 failed** en 7:35.
+  Contrafactual con `git stash` de mis ficheros sobre los 105: 40 fallan igual SIN mis cambios (crónicos);
+  el resto pasa aislado con y sin mis cambios (dependen del orden/paralelismo). El único mío real era la
+  versión del instalador (`cognia_setup.iss`) → corregido; `test_version_unica` 3/3.
+- Gate del camino feliz: la primera corrida dio 3/5 SIEMPRE en `escribir`+`python` (6/6) — pero el :8080 lo
+  servía un `llama-server` HUÉRFANO con qwen2.5-coder-14B arrancado a las 23:22 por mi smoke del remoto,
+  no el 27B configurado (`cognia status` lo avisaba). Contrafactual sin mis cambios: idéntico 3/5. Parado
+  el huérfano, con el **27B**: 4/5 (python, disperso) y luego **5/5 y 5/5** (2,0 y 2,3 min).
+- Wheel `cognia_ai-4.32.0-py3-none-any.whl` importado en un **venv limpio** (`import OK 4.32.0`).
+- Remoto arrancado en 127.0.0.1:8790: `/` 200 con la piel nueva, `/api/version` 4.32.0, sin token 401.
+- Revisión adversarial del código nuevo (20 hallazgos, todos aplicados): la pantallita pintaba el puntero
+  siempre en el centro (leía la memoria de su propio proceso), `mesa_teclear tecla=intro` por llamada nativa
+  tecleaba el texto literal (`partir_args` ahora ancla la clave al inicio), pid reciclado en
+  `pantalla_cerrar`, `mesa_ventanas activar` aceptaba ventanas del dueño, `atajo` escribía la letra, etc.
+
+**Tecleado en el REPL (`venv312\Scripts\python.exe -m cognia` por tubería), salida real:**
+```
+cognia> /mesa lanzar calc.exe
+mesa: lanzado 'Calculadora' (hwnd 460640); pantallita abierta
+cognia> /mesa invocar Tres        -> invocado 'Tres'
+cognia> /mesa invocar Más         -> invocado 'Más'
+cognia> /mesa invocar Cinco       -> invocado 'Cinco'
+cognia> /mesa invocar Es igual a  -> invocado 'Es igual a'
+cognia> /mesa lanzar notepad.exe
+mesa: lanzado 'Sin título: Bloc de notas' (hwnd 2885320); pantallita abierta
+cognia> /mesa teclear reunion a las 5 con el equipo
+29 caracteres
+cognia> /mesa ventanas
+hwnd 2885320 *ACTIVA* · '*reunión a las 5 con el equipo: Bloc de notas'
+cognia> /hacer abre la calculadora en la mesa con mesa_lanzar calc.exe y, con mesa_invocar, pulsa Siete,
+        luego Multiplicar por, luego Seis y luego Es igual a; dime que numero muestra la pantalla
+● mesa_lanzar("calc.exe titulo=Calculadora")  ⎿ ventana 'Calculadora' (hwnd 460640) … (2 ventana(s))
+● Siete · Multiplicar por · Seis · Es igual a  (UIA.Invoke, ok: True)
+  Tarea completada y verificada. La pantalla de la calculadora muestra **42**.
+  La lectura final (mesa_ver) confirma: la expresión es `7 × 6=` … (historial "7 × 6 = 42")
+cognia> /mesa pantalla cerrar   -> pantallita cerrada
+cognia> /escritorio limpiar     -> limpiado: 2 ventana(s) cerradas
+```
+Tres bugs los cazó SOLO el tecleo (la suite estaba en verde): apps de la Store sin "ventana nueva"
+(lanzador exit 0 / instancia única), la UWP **suspendida** en la mesa (1 nodo UIA; `CalculatorApp.exe`
+`stopped`) → `cognia/agent/plm.py` (EnableDebugging, sin admin) + `mejor_ventana` (CoreWindow, no el marco),
+y el agente sin ver `mesa_*` en `/hacer` (12 calculadoras en bucle) → puerta `mesa_lanzar` + anuncio
+dinámico de la familia mientras `mesa.en_uso()`. Detalle en CHANGELOG.md.
+
+**Efectos colaterales limpiados:** el agente se forjó `mesa_calc` y `forjar_uia` durante las pruebas
+(quedaban en `~/.cognia/forja` y hacían caer 4 tests de la paleta: una tool forjada cae en "Otros") →
+retiradas con `forja.retirar`. Observación para otra sesión: la paleta de `catalogo_nodos` no tiene cajón
+para las tools forjadas.
+
+**Límite honesto:** un cursor de HARDWARE propio en paralelo, sin VM ni conmutar de escritorio, es imposible
+en una sesión de Windows (`SendInput` solo llega al input desktop activo; medido). Juegos y apps que leen el
+ratón físico siguen necesitando el modo foco de `/escritorio`.
+
+**Publicación:** wheel subido a PyPI (cognia-ai 4.32.0) e instalado en `~/.cognia/venv`; commit + push a
+`origin/main`. El apagado programado se canceló a petición del dueño.

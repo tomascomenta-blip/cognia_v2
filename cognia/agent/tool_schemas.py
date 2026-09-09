@@ -251,7 +251,9 @@ _SIN_ARGS = ("fecha", "notas", "git_estado", "git_log", "tarea_estado",
              "pagina_accesibilidad", "pagina_cerrar", "pagina_estado", "app_lista",
              "fases_estado",
              # Tareas cotidianas (2026-09-08): el diagnostico no lleva args.
-             "cotidiano_estado")
+             "cotidiano_estado",
+             # Mesa / segundo puesto (2026-09-08): el estado no lleva args.
+             "mesa_estado")
 
 
 def _descripcion_de(doc: str) -> str:

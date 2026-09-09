@@ -78,9 +78,10 @@ def _n_registradas() -> int:
 FAMILIAS = {
     "pruebas": {
         "que": "probar lo propio: páginas, imágenes, audio, vídeo, formatos, "
-               "documentos y apps gráficas en el escritorio propio de Cognia",
+               "documentos y apps gráficas en el escritorio propio de Cognia; "
+               "la MESA (mesa_*): puntero virtual + teclado en paralelo con pantallita en vivo",
         "flag": "COGNIA_PRUEBAS",
-        "prefijos": ("pagina_", "captura_", "audio_", "video_", "app_", "formato_",
+        "prefijos": ("pagina_", "captura_", "audio_", "video_", "app_", "mesa_", "formato_",
                      "pdf_", "docx_", "xlsx_", "modelo3d_"),
         "nombres": ("probar", "pruebas_estado", "diff_texto", "sql_probar", "py_lint",
                     "py_importar", "py_perfilar", "py_cobertura", "http_solicitud",
