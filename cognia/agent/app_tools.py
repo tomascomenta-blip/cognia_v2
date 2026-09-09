@@ -160,6 +160,48 @@ def _partir_comando(comando: str) -> list:
     return limpias
 
 
+# Chromium/Electron ocluyen su propio compositor cuando Windows les dice que
+# no son visibles (Occlusion API) para ahorrar CPU/GPU — y una ventana en el
+# escritorio virtual propio de Cognia (no el activo) SIEMPRE se reporta
+# ocluida. El navegador sigue vivo y respondiendo (clics, teclas, JS) pero
+# deja de pintar cuadros nuevos: la mesa lo capturaba congelado ("se queda
+# cargando") hasta que el dueno cambiaba al escritorio y volvia a ser visible.
+# Cazado 2026-09-09: el dueno reporto la pagina pegada en la mesa aunque las
+# acciones sobre ella funcionaban bien. Estas flags (las mismas que usa
+# Playwright/Puppeteer para automatizacion sin cabeza visible) apagan ese
+# throttling por oclusion para que siga renderizando de verdad.
+_NAVEGADORES_CHROMIUM = {"msedge", "chrome", "chromium", "brave", "vivaldi", "opera"}
+_FLAGS_SIN_OCLUSION = ("--disable-backgrounding-occluded-windows",
+                        "--disable-renderer-backgrounding",
+                        "--disable-background-timer-throttling")
+
+
+def _agregar_flags_sin_oclusion(partes: list) -> list:
+    if not partes:
+        return partes
+    try:
+        exe = Path(partes[0]).stem.lower()
+    except Exception:
+        return partes
+    if exe not in _NAVEGADORES_CHROMIUM:
+        return partes
+    ya = set(partes[1:])
+    for f in _FLAGS_SIN_OCLUSION:
+        if f not in ya:
+            partes.append(f)
+    # Perfil aislado: si el dueno ya tiene el mismo navegador abierto en su
+    # propio escritorio, un segundo "msedge.exe <url>" con el perfil de
+    # siempre NO abre un proceso nuevo — le pasa la URL al que ya corre (el
+    # "process singleton" de Chromium) y se cierra; las flags de arriba
+    # entonces no sirven porque el proceso que de verdad renderiza es el
+    # viejo, lanzado sin ellas. Un --user-data-dir propio garantiza un
+    # proceso nuevo de verdad (y de paso no mezcla historial/cookies).
+    if not any(p.lower().startswith("--user-data-dir") for p in partes[1:]):
+        perfil = tempfile.mkdtemp(prefix="cognia_mesa_%s_" % exe)
+        partes.append("--user-data-dir=%s" % perfil)
+    return partes
+
+
 def lanzar(comando: str, cwd: str = None, espera_ms: int = ESPERA_VENTANA_DEF_MS, titulo: str = "") -> dict:
     """Lanza el comando, espera su ventana, la muda al escritorio de Cognia.
     Devuelve el dict de la app (o lanza ValueError con lo que paso)."""
@@ -174,6 +216,7 @@ def lanzar(comando: str, cwd: str = None, espera_ms: int = ESPERA_VENTANA_DEF_MS
         # del proyecto (pygame, tkinter) instalados junto a ella
         import sys as _sys
         partes[0] = _sys.executable
+    partes = _agregar_flags_sin_oclusion(partes)
     env = dict(os.environ)
     env["PYTHONUNBUFFERED"] = "1"
     env.setdefault("PYTHONUTF8", "1")

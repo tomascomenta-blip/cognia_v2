@@ -16127,3 +16127,37 @@ lanzar la pantallita). Apertura y cierre real de la pantallita desde el REPL de 
 
 **Publicación:** version 4.32.1 en pyproject.toml; wheel a PyPI (cognia-ai) con autorización explícita del
 dueño en este mismo pedido.
+
+---
+
+## 2026-09-09 — 4.32.2: fix la mesa con paginas web (Chromium se congelaba ocluido)
+
+Queja del dueño (misma sesion que 4.32.1): "la mesa de Cognia no actualiza las visuales... aparece la
+pagina y eso pero se queda cargando EN LA MESA, por que apenas voy al escritorio se ve correctamente e
+igual realiza procesos correctamente osea es solo como un bug visual". Confirma el mismo dato clave:
+las acciones funcionan, solo el visual se congela — descarta un bug de automatizacion, apunta a la captura.
+
+**Causa raiz:** Chromium/Electron usan la Occlusion API de Windows para dejar de pintar cuando el SO les
+dice que no son visibles. Una ventana en el escritorio virtual propio (no el activo) SIEMPRE se reporta
+ocluida -> el compositor se congela en el ultimo cuadro (a menudo "cargando"), aunque JS/clics/teclado
+sigan funcionando. Al cambiar de escritorio deja de estar ocluida y vuelve a pintar — coincide exacto con
+lo que reporto el dueño.
+
+**Arreglado en `cognia/agent/app_tools.py`** (`lanzar()`, compartido por `app_*` y `mesa_lanzar`):
+`_agregar_flags_sin_oclusion()` detecta navegadores Chromium conocidos (msedge, chrome, chromium, brave,
+vivaldi, opera) por el nombre del ejecutable y agrega `--disable-backgrounding-occluded-windows`,
+`--disable-renderer-backgrounding`, `--disable-background-timer-throttling` (las de Playwright/Puppeteer
+para automatizacion sin cabeza visible) + un `--user-data-dir` propio si el comando no trae uno — necesario
+porque el "process singleton" de Chromium ignora las flags de un segundo lanzamiento si el dueño ya tiene
+el mismo navegador abierto con el perfil de siempre (le pasa solo la URL al proceso viejo, sin flags).
+
+**Verificado:**
+- Unitario: `_agregar_flags_sin_oclusion(['msedge.exe', url])` -> flags + perfil; `notepad.exe` intacto.
+- Real: `AT.lanzar(msedge.exe ... )` con el fix -> ventana nueva mudada a la mesa, "Perfil 1" (perfil
+  aislado real, no la sesion existente del dueño); sin procesos huerfanos tras cerrar (comprobado por
+  psutil y por las ventanas vivas del escritorio propio).
+- `tests/test_mesa.py` + `tests/test_app_tools.py`: 1 fallo (cronico, confirmado identico con `git stash`
+  sobre el cambio: `test_lanzar_proceso_sin_ventana_devuelve_su_salida`, sin relacion con navegadores).
+
+**Publicacion:** version 4.32.2 en pyproject.toml; wheel a PyPI con autorizacion explicita del dueño (la
+misma de este pedido de arreglar la mesa).

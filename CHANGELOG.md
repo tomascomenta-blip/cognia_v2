@@ -2,6 +2,38 @@
 
 ---
 
+## [4.32.2] - 2026-09-09
+
+### La mesa con una pagina web: dejaba de renderizar ("se queda cargando")
+
+Queja del dueño: "la mesa de Cognia no actualiza las visuales... aparece la pagina y eso pero se queda
+cargando EN LA MESA, por que apenas voy al escritorio se ve correctamente e igual realiza procesos
+correctamente osea es solo como un bug visual".
+
+**Causa raiz:** Chromium/Electron (Edge, Chrome...) usan la Occlusion API de Windows para dejar de pintar
+cuadros nuevos cuando el sistema les dice que no son visibles — y una ventana en el escritorio virtual
+propio de Cognia (que no es el activo) SIEMPRE se reporta ocluida. El navegador sigue vivo y respondiendo
+(clics, teclas, JS de la pagina) pero el compositor se congela en el ultimo cuadro pintado (a menudo un
+"cargando"); por eso las acciones sobre la pagina funcionaban bien pero la captura de la mesa se veia
+pegada, y al cambiar al escritorio (donde deja de estar ocluida) volvia a pintar en vivo.
+
+**Arreglado** en `cognia/agent/app_tools.py` (lo comparten `app_*` y `mesa_lanzar`, que llama a
+`AT.lanzar`): al lanzar un navegador Chromium conocido (msedge, chrome, chromium, brave, vivaldi, opera) se
+agregan automaticamente `--disable-backgrounding-occluded-windows`,
+`--disable-renderer-backgrounding`, `--disable-background-timer-throttling` (las mismas que usa
+Playwright/Puppeteer para automatizacion sin cabeza visible) — y un `--user-data-dir` propio si el
+comando no trae uno, porque si el dueño ya tiene el mismo navegador abierto en su escritorio, un segundo
+lanzamiento con el perfil de siempre no abre proceso nuevo (le pasa la URL al que ya corre, via el
+"process singleton" de Chromium) y esas flags no tendrían ningún efecto.
+
+Verificado: unitario sobre `_agregar_flags_sin_oclusion` (msedge/chrome ganan las flags + perfil, notepad.exe
+queda intacto); lanzamiento real de Edge vía `app_tools.lanzar` con el fix — ventana nueva mudada a la mesa
+con perfil aislado ("Perfil 1"), sin procesos huérfanos al cerrar. Suite dirigida `test_mesa.py` +
+`test_app_tools.py`: solo el fallo crónico preexistente (confirmado igual sin este cambio, sin relación con
+navegadores).
+
+---
+
 ## [4.32.1] - 2026-09-09
 
 ### La pantallita de la MESA: aparece siempre y sobrevive a Ctrl-C
