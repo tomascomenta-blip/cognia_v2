@@ -9097,7 +9097,7 @@ _CONFIG_DEFAULTS: dict = {
     "fases_iteraciones": 0,
     # Escritorio propio de Cognia (/escritorio): on, politica de foco y umbral.
     "escritorio_propio": True,
-    "escritorio_foco":  "inactivo",     # nunca | inactivo | siempre
+    "escritorio_foco":  "nunca",        # nunca | inactivo | siempre
     "escritorio_inactividad_s": 90,
     "escritorio_nombre": "Cognia",
     "forja":            "on",           # la FORJA de herramientas propias (agent/forja.py)

@@ -16200,3 +16200,54 @@ False. Wheel 4.32.3 importado en un venv limpio FUERA del repo (evitar el shadow
 **Publicacion:** version 4.32.3 en pyproject.toml; wheel a PyPI con autorizacion explicita del dueño
 ("arreglalo y subilo a pypi"); `~/.cognia/venv` (el que usa el dueño a diario) actualizado a 4.32.3
 en la misma sesion.
+
+---
+
+## 2026-09-09 — 4.32.4: cierra el bypass de escritorio_foco + default a 'nunca'
+
+Pedido del dueño (misma sesion, tras confirmar en vivo que `/mesa pantalla abrir` SI funciona):
+"quiero que mejorar mucho eso, porque muchas veces se confunde y lo hace en mi monitor, y la idea
+es que lo haga siempre en el de su monitor... mi monitor no haga nada con él". Osea: garantia dura,
+no "casi nunca".
+
+**Causa raiz (leido el codigo):** la politica `escritorio_foco` (nunca/inactivo/siempre) gobierna
+`con_foco`/`entrada_real` (el unico camino que usa entrada REAL — pyautogui — y de paso cambia el
+escritorio virtual activo, lo que en la practica "toma" el monitor del dueño un instante). Pero en
+`app_tools.ejecutar_paso`, el bloque de `clic/clicder/dobleclic` calculaba
+`permiso = (True, "forzado") if foco else EP.puede_tomar_foco()` y llamaba a
+`EP.entrada_real(..., forzar=foco)`: si el agente pasaba `foco=1` (que hace cuando un clic por
+mensajes no le sirve — pygame/Tk leen el cursor real, comentario ya en el codigo desde 2026-09-07),
+el clic se forzaba SIN mirar la politica del dueño en absoluto, ni siquiera con
+`escritorio_foco=nunca`. "Nunca" no era nunca. `tecla`/`escribir`/`atajo` en cambio SI llamaban a
+`entrada_real` con `forzar` por defecto (False), asi que ya respetaban la politica — el agujero
+estaba solo en clic.
+
+**Arreglado en `cognia/agent/app_tools.py`:** el bloque de clic ahora SIEMPRE calcula
+`permiso, motivo = EP.puede_tomar_foco()` (sin el atajo `if foco`) y llama a `entrada_real` sin
+`forzar`. `foco=1` ya no fuerza nada para ningun paso: solo importa si la politica lo permite.
+
+**Ademas, DEFAULT de `escritorio_foco` cambiado de 'inactivo' a 'nunca'** (`FOCO_DEF` en
+`escritorio_propio.py` y `_CONFIG_DEFAULTS` en `cli.py`), y aplicado ya a la config real del dueño
+(`~/.cognia_config.json`). Con el bypass cerrado, 'nunca' es ahora una garantia real: Cognia jamas
+usa entrada real ni cambia de escritorio salvo que el dueño elija `/escritorio foco inactivo|siempre`
+a proposito. Trade-off declarado: juegos/apps de input crudo y atajos con modificador (ctrl+s) no se
+pueden automatizar del todo bajo 'nunca' (ya documentado como limite conocido de la mesa, ver
+[[mesa-segundo-puesto-limites-input]]); es el trade-off que el dueño pidio.
+
+La mudanza de ventanas al escritorio virtual 'Cognia' (lo que SI mantiene todo separado del dueño en
+el dia a dia) no depende de `escritorio_foco` — sigue funcionando igual, sin tocar la politica.
+
+**Verificado real:**
+- Test de regresion nuevo `test_app_clic_con_foco_no_bypassea_politica_nunca`: con `EP.puede_tomar_foco`
+  devolviendo `(False, ...)` y `foco=True`, `entrada_real` NUNCA se llama (monkeypatch que lanza
+  AssertionError si se llama) y el clic cae a mensajes. Confirmado que CAZA el bug: con `git stash`
+  sobre `app_tools.py` el mismo test falla (`entrada_real` se llama igual).
+- `EP.config()` real del dueño tras el cambio: `{'foco': 'nunca', ...}`;
+  `EP.puede_tomar_foco()` -> `(False, 'politica escritorio_foco=nunca...')`.
+- Wheel 4.32.4 importado en venv limpio fuera del repo: `EP.FOCO_DEF == 'nunca'` y el bloque de clic
+  sin `forzar=foco` (grep del wheel instalado).
+- Suite dirigida `test_app_tools.py test_mesa.py test_control_escritorio.py`: 50 passed, 2 skipped,
+  1 fallo cronico preexistente (mismo de 4.32.2/4.32.3, sin relacion).
+
+**Publicacion:** version 4.32.4 en pyproject.toml; wheel a PyPI con autorizacion explicita del dueño
+("al final lo subes a pypi"); `~/.cognia/venv` actualizado a 4.32.4 en la misma sesion.

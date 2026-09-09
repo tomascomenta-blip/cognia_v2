@@ -55,7 +55,7 @@ def test_config_por_defecto_y_env(monkeypatch):
     monkeypatch.delenv("COGNIA_ESCRITORIO", raising=False)
     monkeypatch.delenv("COGNIA_ESCRITORIO_FOCO", raising=False)
     c = EP.config()
-    assert c == {"activo": True, "nombre": "Cognia", "foco": "inactivo", "inactividad_s": 90}
+    assert c == {"activo": True, "nombre": "Cognia", "foco": "nunca", "inactividad_s": 90}
     monkeypatch.setenv("COGNIA_ESCRITORIO", "0")
     assert EP.config()["activo"] is False
     monkeypatch.setattr(EP, "_cfg", lambda: {"escritorio_foco": "siempre", "escritorio_inactividad_s": 2,
@@ -94,6 +94,26 @@ def test_con_foco_no_cambia_si_la_politica_lo_prohibe(monkeypatch):
     with EP.con_foco() as (ok, motivo):
         assert ok is True
     assert cambios == ["ir", "volver"]
+
+
+def test_app_clic_con_foco_no_bypassea_politica_nunca(monkeypatch):
+    """Regresion: antes, app_clic con foco=1 forzaba entrada_real (forzar=foco)
+    aunque escritorio_foco=nunca, saltandose la politica del dueno y tomando
+    su monitor de todos modos (queja 2026-09-09, 'a veces usa mi monitor').
+    Ahora el clic siempre respeta EP.puede_tomar_foco(), sin importar foco=."""
+    AT._APPS.clear()
+    AT._APPS["a1"] = {"hwnd": 111, "pid": 1, "titulo": "x", "proc": None, "log": "", "capturas": []}
+    monkeypatch.setattr(EP, "ventana_viva", lambda h: True)
+    monkeypatch.setattr(EP, "puede_tomar_foco", lambda: (False, "politica escritorio_foco=nunca"))
+
+    def _entrada_real_no_debe_llamarse(*a, **kw):
+        raise AssertionError("entrada_real no debe llamarse bajo escritorio_foco=nunca")
+    monkeypatch.setattr(EP, "entrada_real", _entrada_real_no_debe_llamarse)
+    monkeypatch.setattr(EP, "clic", lambda hwnd, x, y, boton="izquierdo", doble=False: {"control": "Boton"})
+
+    out = AT.ejecutar_paso("a1", ("clic", 10, 20), None, foco=True)
+    assert not out["error"]
+    assert "por mensajes" in out["texto"]
 
 
 def test_vk_de_conoce_alias_en_castellano():

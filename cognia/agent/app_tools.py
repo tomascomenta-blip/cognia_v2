@@ -460,10 +460,14 @@ def ejecutar_paso(app_id: str, paso: tuple, ctx, foco: bool = False) -> dict:
             # Tk no reacciono (medido 2026-09-07). Por eso el clic prefiere la
             # entrada real cuando la politica lo permite y cae a mensajes
             # diciendolo; las TECLAS si llegan bien por mensajes.
-            permiso, motivo = (True, "forzado") if foco else EP.puede_tomar_foco()
+            # foco=1 (parametro del agente) YA NO fuerza: con escritorio_foco=
+            # nunca el agente podia forzar un cambio de escritorio real igual
+            # (bypass via forzar=foco), tomando el monitor del dueno aunque la
+            # politica dijera que nunca lo hiciera (queja del dueno 2026-09-09,
+            # "a veces usa mi monitor"). La politica del dueno manda siempre.
+            permiso, motivo = EP.puede_tomar_foco()
             if permiso:
-                r = EP.entrada_real(a["hwnd"], [("clic", x, y, "derecho" if op == "clicder" else "izquierdo")],
-                                    forzar=foco)
+                r = EP.entrada_real(a["hwnd"], [("clic", x, y, "derecho" if op == "clicder" else "izquierdo")])
                 out["texto"] = "%s %s (entrada real: %s)" % (op, desc, r["motivo"])
                 if not r["ok"]:
                     out["error"] = r["motivo"]
@@ -471,7 +475,9 @@ def ejecutar_paso(app_id: str, paso: tuple, ctx, foco: bool = False) -> dict:
                 r = EP.clic(a["hwnd"], x, y, boton="derecho" if op == "clicder" else "izquierdo",
                             doble=(op == "dobleclic"))
                 out["texto"] = ("%s %s -> %s por mensajes (%s; si la app no reacciona o lee 0,0, "
-                                "repite con foco=1)" % (op, desc, r.get("control") or "ventana", motivo))
+                                "esta app necesita entrada real, que la politica escritorio_foco no "
+                                "permite ahora mismo: cambiala con /escritorio foco inactivo|siempre "
+                                "si queres permitirla)" % (op, desc, r.get("control") or "ventana", motivo))
         elif op == "atajo":
             r = EP.entrada_real(a["hwnd"], [("atajo", paso[1])])
             out["texto"] = "atajo %s (entrada real: %s)" % (paso[1], r["motivo"])

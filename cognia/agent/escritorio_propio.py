@@ -28,10 +28,18 @@ que leen el teclado por Raw Input / DirectInput, y el raton relativo. Para
 eso esta el MODO FOCO: cambiar al escritorio de Cognia, usar entrada REAL
 (pyautogui) y volver al escritorio del dueno. Como eso si interrumpe al
 dueno un instante, va gobernado por la politica `escritorio_foco`:
-  nunca     -> jamas se cambia de escritorio (solo mensajes)
+  nunca     -> jamas se cambia de escritorio (solo mensajes)     [DEFAULT]
   inactivo  -> solo si el dueno lleva >= escritorio_inactividad_s sin tocar
-               teclado ni raton (GetLastInputInfo)     [DEFAULT]
+               teclado ni raton (GetLastInputInfo)
   siempre   -> cuando haga falta
+
+DEFAULT es 'nunca' desde 2026-09-09 (pedido del dueño: "que mi monitor no lo
+use nunca, que lo haga siempre en el de él"). Antes era 'inactivo'; ademas
+`app_clic` con foco=1 bypasseaba la politica igual (forzar=foco directo a
+con_foco), asi que 'nunca' no era realmente nunca. Con el bypass cerrado y
+el default en 'nunca', las apps que solo funcionan con entrada real (juegos,
+atajos con modificador) quedan sin poder clicarse/atajarse del todo salvo que
+el dueño elija /escritorio foco inactivo|siempre a proposito.
 
 Config (cli._load_config): escritorio_propio (on/off, default on),
 escritorio_nombre ("Cognia"), escritorio_foco, escritorio_inactividad_s (90).
@@ -53,7 +61,7 @@ import time
 from pathlib import Path
 
 NOMBRE_DEF = "Cognia"
-FOCO_DEF = "inactivo"
+FOCO_DEF = "nunca"
 INACTIVIDAD_DEF_S = 90
 _REGISTRO = Path.home() / ".cognia" / "escritorio_propio.json"
 
