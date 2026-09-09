@@ -178,7 +178,57 @@ def _partir_comando(comando: str) -> list:
 _NAVEGADORES_CHROMIUM = {"msedge", "chrome", "chromium", "brave", "vivaldi", "opera"}
 _FLAGS_SIN_OCLUSION = ("--disable-backgrounding-occluded-windows",
                         "--disable-renderer-backgrounding",
-                        "--disable-background-timer-throttling")
+                        "--disable-background-timer-throttling",
+                        # Las tres de arriba (4.32.2) apagan el throttling de
+                        # JS/timers pero NO la funcion de Chromium que usa la
+                        # Occlusion API de Windows para dejar de COMPONER la
+                        # ventana entera (no solo JS) cuando el SO la reporta
+                        # oculta -- que es SIEMPRE, para una ventana en un
+                        # escritorio virtual que no es el activo. Sin esto la
+                        # pagina queda congelada en el ultimo frame pintado
+                        # aunque JS/scroll/clics sigan funcionando por debajo
+                        # (medido 2026-09-09: un "fin" que sí scrollea no
+                        # cambia un solo pixel de la captura hasta cambiar de
+                        # escritorio). Ver crbug con CalculateNativeWinOcclusion.
+                        "--disable-features=CalculateNativeWinOcclusion",
+                        # El --user-data-dir aislado (mas abajo) arranca un
+                        # perfil VACIO: sin estas dos, Edge/Chrome muestran la
+                        # pantalla de bienvenida/inicio de sesion en vez de
+                        # navegar a la URL pedida -- se veia igual que
+                        # "congelado" (medido 2026-09-09: la captura no era
+                        # la pagina, era el wizard de primera vez, quieto
+                        # porque no hay nada que animar ahi).
+                        "--no-first-run", "--no-default-browser-check")
+
+
+def _resolver_via_app_paths(exe: str) -> str:
+    """Resuelve un .exe SUELTO (sin ruta) via la clave 'App Paths' del
+    registro (HKCU y HKLM): msedge.exe/chrome.exe y muchas apps GUI
+    instaladas se registran ahi, no en el PATH. CreateProcess directo (el
+    primer intento de lanzar(), el unico que conserva las flags anti-oclusion
+    y el perfil aislado) NO consulta esa clave y fallaba con
+    FileNotFoundError SIEMPRE para 'msedge.exe url' -- el caso mas comun de
+    abrir un navegador. El fallback por shell perdia las flags (medido
+    2026-09-09: pagina congelada/en blanco en la mesa hasta cambiar de
+    escritorio). Resolver aca hace que el primer intento (el bueno) ya
+    funcione, sin pasar nunca por el fallback."""
+    if not exe or "\\" in exe or "/" in exe:
+        return exe
+    nombre = exe if exe.lower().endswith(".exe") else exe + ".exe"
+    try:
+        import winreg
+    except ImportError:
+        return exe
+    for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+        try:
+            with winreg.OpenKey(hive, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\%s" % nombre) as k:
+                val, _tipo = winreg.QueryValueEx(k, None)
+                ruta = str(val).strip().strip('"')
+                if ruta and Path(ruta).is_file():
+                    return ruta
+        except OSError:
+            continue
+    return exe
 
 
 def _agregar_flags_sin_oclusion(partes: list) -> list:
@@ -190,6 +240,7 @@ def _agregar_flags_sin_oclusion(partes: list) -> list:
         return partes
     if exe not in _NAVEGADORES_CHROMIUM:
         return partes
+    partes[0] = _resolver_via_app_paths(partes[0])
     ya = set(partes[1:])
     for f in _FLAGS_SIN_OCLUSION:
         if f not in ya:
@@ -231,10 +282,29 @@ def lanzar(comando: str, cwd: str = None, espera_ms: int = ESPERA_VENTANA_DEF_MS
                                     stdin=subprocess.DEVNULL, env=env,
                                     creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
     except FileNotFoundError:
-        # p.ej. "juego.exe" sin ruta, o un comando de shell
+        # p.ej. "juego.exe" sin ruta, o un comando de shell. msedge.exe/chrome.exe
+        # sueltos (sin ruta completa) SIEMPRE caen aca: solo resuelven via la
+        # clave "App Paths" del registro, que unicamente el shell (cmd.exe)
+        # conoce, nunca CreateProcess directo. Reusar 'partes' (no el 'comando'
+        # crudo) para no perder las flags anti-oclusion / perfil aislado que
+        # _agregar_flags_sin_oclusion() ya le agrego: perderlas aca era la
+        # regla, no la excepcion, y dejaba la pagina congelada/en blanco en la
+        # mesa hasta que el dueno cambiaba de escritorio (queja 2026-09-09,
+        # "se queda en blanco... tengo que abrir el segundo monitor" — el
+        # fix de 4.32.2 nunca se aplicaba en la practica).
         try:
+            # shell=True con una SECUENCIA no une la lista en una linea: en
+            # Windows, Popen manda el primer elemento como el "comando" a
+            # cmd.exe /c y el resto como argumentos SUELTOS del propio
+            # cmd.exe, no del programa (mismo gotcha que en POSIX). Hay que
+            # unir 'partes' (con las flags ya puestas) en UNA sola linea con
+            # el mismo quoting que usa CreateProcess (list2cmdline) y pasar
+            # esa linea como string; si no, las flags/URL se pierden aunque
+            # esten en 'partes' (medido 2026-09-09: con la lista suelta,
+            # cmd.exe solo veia "msedge.exe" y fallaba "no reconocido").
+            linea = subprocess.list2cmdline(partes)
             with open(log.name, "ab") as fh:
-                proc = subprocess.Popen(comando, cwd=cwd or None, stdout=fh, stderr=subprocess.STDOUT,
+                proc = subprocess.Popen(linea, cwd=cwd or None, stdout=fh, stderr=subprocess.STDOUT,
                                         stdin=subprocess.DEVNULL, env=env, shell=True)
         except Exception as exc:
             raise ValueError("no se pudo lanzar %r: %s" % (comando, exc))

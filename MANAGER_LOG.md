@@ -16251,3 +16251,56 @@ el dia a dia) no depende de `escritorio_foco` — sigue funcionando igual, sin t
 
 **Publicacion:** version 4.32.4 en pyproject.toml; wheel a PyPI con autorizacion explicita del dueño
 ("al final lo subes a pypi"); `~/.cognia/venv` actualizado a 4.32.4 en la misma sesion.
+
+---
+
+## 2026-09-09 — 4.32.5: la pagina web en la mesa realmente ya no se congela
+
+Pedido del dueño (misma sesion): "tengo que abrir el segundo monitor para que se actualice la mini
+ventana... cuando abre una pagina web se queda en blanco". El fix de 4.32.2 (flags anti-oclusion en
+`_agregar_flags_sin_oclusion`) estaba bien pensado pero NUNCA llegaba a aplicarse; reproducido en vivo,
+no adivinado, con tres capas de bug encadenadas:
+
+1. **Las flags nunca se aplicaban de verdad.** `msedge.exe`/`chrome.exe` sueltos (sin ruta completa,
+   la forma en que el agente los escribe siempre) no estan en el PATH — solo resuelven via la clave
+   `App Paths` del registro, que `CreateProcess` directo (el PRIMER intento de `lanzar()`, el unico
+   que conserva `partes` con las flags) no consulta. Eso da `FileNotFoundError` SIEMPRE para un
+   navegador, y el `except` relanzaba con el `comando` CRUDO (sin flags) via shell — confirmado con
+   `psutil.Process(pid).cmdline()` real: el proceso vivo no tenia ninguna de las tres flags de 4.32.2.
+2. **Ni siquiera el fallback por shell alcanzaba.** Al arreglar (1) pasando `partes` con `shell=True`,
+   seguia fallando "no reconocido": en Windows, `Popen(lista, shell=True)` NO une la lista en una linea
+   -- ejecuta el primer elemento como el comando de `cmd.exe` y trata el resto como argumentos SUELTOS
+   del propio `cmd.exe` (mismo gotcha que en POSIX). Hubo que unir `partes` con `subprocess.list2cmdline`
+   y pasar esa LINEA como string.
+3. **Con eso ya lanzaba bien, pero la mesa seguia mostrando algo "congelado".** Confirmado con captura +
+   `EP.enviar_tecla(hwnd, "fin", 1)` (scroll real por mensajes) + diff de pixeles: 0.0 de diferencia
+   antes/despues del scroll. Dos causas mas, cada una verificada por separado:
+   - Las 3 flags de 4.32.2 apagan el throttling de JS/timers pero NO la funcion de Chromium que usa la
+     Occlusion API de Windows para dejar de COMPONER la ventana entera (siempre oculta, al estar en un
+     escritorio virtual no activo). Flag que faltaba: `--disable-features=CalculateNativeWinOcclusion`.
+   - El `--user-data-dir` aislado (perfil vacio, tambien de 4.32.2) hace que Edge muestre el wizard de
+     bienvenida/inicio de sesion en vez de navegar a la URL — verificado leyendo la captura misma (el
+     PNG mostraba literalmente "Bienvenido a Microsoft Edge", no la pagina pedida). Flags que faltaban:
+     `--no-first-run --no-default-browser-check`.
+
+**Arreglado en `cognia/agent/app_tools.py`:** `_resolver_via_app_paths()` (nuevo) resuelve el exe via
+`App Paths` del registro (HKCU y HKLM) ANTES del primer intento, asi el intento bueno (el que conserva
+las flags) ya no falla nunca para navegadores conocidos. `_FLAGS_SIN_OCLUSION` gano las dos flags
+nuevas. El fallback por shell ahora usa `partes` unida con `list2cmdline` (nunca el `comando` crudo).
+
+**Verificado real, visual, sin cambiar de escritorio ni una vez:** lance Edge con una pagina de
+Wikipedia en la mesa, capture, mande "fin" por mensajes (scroll real), capture de nuevo — la PRIMERA
+captura mostraba el principio del articulo, la SEGUNDA el final (Bibliografia/pie de pagina): la mesa
+refleja cambios reales en vivo sin que el dueño tenga que cambiar de escritorio. Limpie despues las
+ventanas de prueba que quedaron en el escritorio 'Cognia' (`app_tools.cerrar_todas` + `EP.limpiar`).
+
+**Tests nuevos** (`tests/test_app_tools.py`, no existia cobertura real de esta funcion pese a lo que
+decia el log de 4.32.2): `test_resolver_via_app_paths_usa_el_registro`,
+`test_resolver_via_app_paths_sin_registro_devuelve_igual`,
+`test_agregar_flags_sin_oclusion_navegador_conocido`, `test_agregar_flags_sin_oclusion_no_navegador_queda_intacto`,
+`test_lanzar_fallback_por_shell_conserva_las_flags`. Confirmado que cazan las 3 capas: fallan todos con
+`git stash` sobre `app_tools.py`. Suite dirigida completa: 55 passed, 2 skipped, 1 fallo cronico
+preexistente sin relacion (mismo de siempre, reconfirmado con `git stash`).
+
+**Publicacion:** version 4.32.5 en pyproject.toml; wheel a PyPI con autorizacion explicita del dueño
+("publicalo a pypi"); `~/.cognia/venv` actualizado a 4.32.5 en la misma sesion.

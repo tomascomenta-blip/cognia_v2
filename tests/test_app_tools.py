@@ -48,6 +48,109 @@ def test_partir_comando_quita_comillas_envolventes():
     assert partes == ["python", "C:\\ruta con espacios\\gui.py", "--x"]
 
 
+# ── navegadores en la mesa: flags anti-oclusion + resolucion por App Paths ──
+
+def test_resolver_via_app_paths_usa_el_registro(monkeypatch, tmp_path):
+    import winreg
+    falso = tmp_path / "msedge.exe"
+    falso.write_bytes(b"")
+
+    class FakeKey:
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            return False
+
+    def fake_open_key(hive, subkey):
+        assert subkey.endswith(r"App Paths\msedge.exe")
+        return FakeKey()
+
+    def fake_query(_key, _name):
+        return (str(falso), 1)
+
+    monkeypatch.setattr(winreg, "OpenKey", fake_open_key)
+    monkeypatch.setattr(winreg, "QueryValueEx", fake_query)
+    assert AT._resolver_via_app_paths("msedge.exe") == str(falso)
+
+
+def test_resolver_via_app_paths_sin_registro_devuelve_igual(monkeypatch):
+    import winreg
+
+    def fake_open_key(hive, subkey):
+        raise OSError("no encontrado")
+
+    monkeypatch.setattr(winreg, "OpenKey", fake_open_key)
+    assert AT._resolver_via_app_paths("appinventada.exe") == "appinventada.exe"
+    # ya viene con ruta: no toca el registro
+    assert AT._resolver_via_app_paths("C:\\ya\\con\\ruta.exe") == "C:\\ya\\con\\ruta.exe"
+
+
+def test_agregar_flags_sin_oclusion_navegador_conocido(monkeypatch):
+    """Regresion 2026-09-09: msedge.exe/chrome.exe sueltos (sin ruta) SIEMPRE
+    fallaban en el primer intento de lanzar() (CreateProcess directo no mira
+    'App Paths'), y el fallback por shell perdia estas flags -> la pagina
+    quedaba congelada en la mesa. Ademas, sin --disable-features=
+    CalculateNativeWinOcclusion la ventana no repinta estando en un
+    escritorio virtual no activo, y sin --no-first-run un --user-data-dir
+    aislado (recien agregado en 4.32.2) mostraba el wizard de bienvenida en
+    vez de navegar a la URL. Las tres cosas medidas en vivo, no adivinadas."""
+    monkeypatch.setattr(AT, "_resolver_via_app_paths", lambda exe: exe)
+    partes = AT._agregar_flags_sin_oclusion(["msedge.exe", "https://x.test"])
+    assert partes[0] == "msedge.exe" and partes[1] == "https://x.test"
+    for f in AT._FLAGS_SIN_OCLUSION:
+        assert f in partes
+    assert "--disable-features=CalculateNativeWinOcclusion" in partes
+    assert "--no-first-run" in partes and "--no-default-browser-check" in partes
+    assert any(p.startswith("--user-data-dir=") for p in partes)
+
+
+def test_agregar_flags_sin_oclusion_no_navegador_queda_intacto():
+    partes = AT._agregar_flags_sin_oclusion(["notepad.exe", "archivo.txt"])
+    assert partes == ["notepad.exe", "archivo.txt"]
+
+
+def test_lanzar_fallback_por_shell_conserva_las_flags(monkeypatch):
+    """Regresion 2026-09-09: cuando el primer intento (lista, sin shell)
+    fallaba con FileNotFoundError -- SIEMPRE, para 'msedge.exe url' sin ruta
+    completa -- el fallback relanzaba con el 'comando' CRUDO, perdiendo las
+    flags anti-oclusion. Y pasar 'partes' (una lista) con shell=True en
+    Windows tampoco alcanza: Popen solo ejecuta el primer elemento como
+    comando y trata el resto como argumentos SUELTOS de cmd.exe (mismo
+    gotcha que en POSIX) -- hay que unirla con list2cmdline en una sola
+    linea. Sin esto, la pagina quedaba congelada/en blanco en la mesa."""
+    llamadas = []
+
+    class FakeProc:
+        pid = 999999
+        returncode = None
+        def poll(self):
+            return None
+
+    def fake_popen(args, **kwargs):
+        llamadas.append((args, bool(kwargs.get("shell"))))
+        if not kwargs.get("shell"):
+            raise FileNotFoundError("no encontrado")
+        return FakeProc()
+
+    monkeypatch.setattr(AT.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(AT, "_resolver_via_app_paths", lambda exe: exe)
+    monkeypatch.setattr(AT, "_descendientes", lambda pid: {pid})
+    monkeypatch.setattr(EP, "ventanas_visibles", lambda: [])
+    monkeypatch.setattr(EP, "matar_arbol", lambda pid: None)
+
+    with pytest.raises(ValueError):
+        AT.lanzar("msedge.exe https://x.test", espera_ms=300)
+
+    assert len(llamadas) == 2
+    primer_args, primer_shell = llamadas[0]
+    segundo_args, segundo_shell = llamadas[1]
+    assert primer_shell is False and isinstance(primer_args, list)
+    assert segundo_shell is True
+    assert isinstance(segundo_args, str), "debe ser UNA linea (list2cmdline), no la lista suelta"
+    assert "--disable-features=CalculateNativeWinOcclusion" in segundo_args
+    assert "--no-first-run" in segundo_args and "https://x.test" in segundo_args
+
+
 # ── politica de foco y config ────────────────────────────────────────────────
 
 def test_config_por_defecto_y_env(monkeypatch):
