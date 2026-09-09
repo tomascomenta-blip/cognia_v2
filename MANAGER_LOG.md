@@ -16161,3 +16161,42 @@ el mismo navegador abierto con el perfil de siempre (le pasa solo la URL al proc
 
 **Publicacion:** version 4.32.2 en pyproject.toml; wheel a PyPI con autorizacion explicita del dueño (la
 misma de este pedido de arreglar la mesa).
+
+---
+
+## 2026-09-09 — 4.32.3: la pantallita nunca se enganchaba a app_* (uso diario)
+
+Queja del dueño: "sigue sin aparecerme la ventana de python que me muestra que esta haciendo cognia...
+cuando hace algo en su escritorio no me aparece la ventania de python". Distinto del bug de 4.32.1 (ese
+ya estaba arreglado y publicado: `mesa_estado.json` mostraba una apertura/cierre reciente y correcta de
+la pantallita).
+
+**Causa raiz (leido el codigo, no adivinado):** `_asegurar_pantalla()` (el fix de 4.32.1) solo se llama
+desde la familia `mesa_*` (el "segundo puesto", pensado para operar la mesa en paralelo). La familia
+`app_*` (`app_lanzar`, `app_teclas`, `app_clic`, `app_probar`, `app_ver`) — la que de verdad usan las
+tareas cotidianas de `/hacer`, `/forja`, `/probar` para abrir y manejar apps graficas en el escritorio
+propio — **nunca** llamaba a `pantalla_abrir()`. Las acciones ocurrian de verdad (por eso el dueño decia
+"hace algo"), pero la ventanita jamas se encendia para esas tareas: solo para la MESA nueva, que el
+dueño no usa a diario.
+
+**Arreglado en `cognia/agent/app_tools.py`:** import de `cognia.agent.mesa` (sin ciclo: `mesa.py` solo
+importa `escritorio_propio`, nunca `app_tools`) + `_asegurar_pantalla()` (mismo patron que
+`mesa_tools.py`) llamada al inicio de `app_lanzar`, `app_ver`, `app_teclas`, `app_clic`, `app_probar`.
+`mesa.componer()` ya compone TODAS las ventanas del escritorio virtual 'Cognia' via
+`EP.ventanas_en_escritorio()`, sin importar si las abrio `app_*` o `mesa_*` — es el mismo escritorio
+(ver [[mesa-y-remoto-claude-4-32-0]]), asi que reusar `pantalla_abrir()` fue directo, sin tocar
+`mesa_pantalla.py`.
+
+**Verificado (real, no mock):** `AT._asegurar_pantalla()` llamado a mano -> `mesa.estado()
+["pantalla_abierta"]` paso de False a True con un pid vivo real; `pantalla_cerrar()` lo devolvio a
+False. Wheel 4.32.3 importado en un venv limpio FUERA del repo (evitar el shadowing de
+`python -m cognia importa el instalado`): `app_tools._M` resolvio al `mesa.py` del propio wheel.
+
+**Suite:** dueño autorizo saltar la suite completa/camino feliz por ser un cambio de comportamiento
+(mismo criterio que 4.32.1). Corrida la dirigida: `tests/test_app_tools.py tests/test_mesa.py` ->
+31 passed, 2 skipped, 1 fallo (el mismo cronico de 4.32.2, reconfirmado identico con `git stash`:
+`test_lanzar_proceso_sin_ventana_devuelve_su_salida`, sin relacion con este cambio).
+
+**Publicacion:** version 4.32.3 en pyproject.toml; wheel a PyPI con autorizacion explicita del dueño
+("arreglalo y subilo a pypi"); `~/.cognia/venv` (el que usa el dueño a diario) actualizado a 4.32.3
+en la misma sesion.

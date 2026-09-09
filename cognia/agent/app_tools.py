@@ -32,6 +32,11 @@ from pathlib import Path
 from cognia.agent import escritorio_propio as EP
 from cognia.agent import pruebas_comun as PC
 
+try:
+    from cognia.agent import mesa as _M
+except Exception:
+    _M = None
+
 ESPERA_VENTANA_DEF_MS = 4000
 ESPERA_VENTANA_MAX_MS = 60000
 MAX_PASOS = 60
@@ -568,6 +573,23 @@ def _cabecera_escritorio(a: dict) -> str:
     return ("en el escritorio '%s'" % a["escritorio"]) if a.get("mudada") else ("en el escritorio %s" % a.get("escritorio", "actual"))
 
 
+def _asegurar_pantalla() -> None:
+    """La pantallita en vivo (`mesa_pantalla.py`) compone TODAS las ventanas
+    del escritorio propio, sin importar si las abrio app_* o mesa_* (mismo
+    escritorio virtual 'Cognia', ver EP.ventanas_en_escritorio() en mesa.componer).
+    Antes solo mesa_* la encendia: 'haz esto en tu escritorio' via app_lanzar/
+    app_teclas/app_clic/app_probar (el camino de siempre para tareas del dia a
+    dia) nunca abria la ventanita, aunque las acciones sí ocurrian (queja del
+    dueno 2026-09-09). pantalla_abrir() ya es barata si esta viva (un chequeo
+    de pid); nunca debe tumbar la accion real."""
+    if _M is None:
+        return
+    try:
+        _M.pantalla_abrir()
+    except Exception:
+        pass
+
+
 def register(tool) -> None:
     @tool("app_lanzar",
           "app_lanzar <comando> [| cwd=RUTA] [| espera=MS] [| titulo=texto]"
@@ -585,6 +607,7 @@ def register(tool) -> None:
                   {"nombre": "titulo", "tipo": "string", "requerido": False, "clave": True, "descripcion": "parte del titulo de la ventana esperada"}],
           danger=True, timeout_s=120)
     def _app_lanzar(args, ctx):
+        _asegurar_pantalla()
         comando, o = PC.partir_args(args, _CLAVES)
         try:
             cwd = o.get("cwd") or (ctx or {}).get("workspace") if isinstance(ctx, dict) else o.get("cwd")
@@ -612,6 +635,7 @@ def register(tool) -> None:
                   {"nombre": "salida", "tipo": "string", "requerido": False, "clave": True, "descripcion": "ruta del PNG"}],
           timeout_s=60)
     def _app_ver(args, ctx):
+        _asegurar_pantalla()
         app_id, o = PC.partir_args(args, _CLAVES)
         try:
             r = capturar(app_id, ctx, "app_%s" % app_id, o.get("salida", ""))
@@ -633,6 +657,7 @@ def register(tool) -> None:
                   {"nombre": "foco", "tipo": "integer", "requerido": False, "clave": True, "descripcion": "1 = entrada real con foco"}],
           danger=True, timeout_s=180)
     def _app_teclas(args, ctx):
+        _asegurar_pantalla()
         s, o = PC.partir_args(args, ("foco",))
         partes = re.split(r"\s*\|\s*", s, maxsplit=1)
         if len(partes) < 2 and "pasos" not in o:
@@ -663,6 +688,7 @@ def register(tool) -> None:
                   {"nombre": "foco", "tipo": "integer", "requerido": False, "clave": True, "descripcion": "1 = clic real con foco"}],
           danger=True, timeout_s=60)
     def _app_clic(args, ctx):
+        _asegurar_pantalla()
         s, o = PC.partir_args(args, _CLAVES)
         partes = re.split(r"\s*\|\s*", s, maxsplit=1)
         if len(partes) < 2:
@@ -773,6 +799,7 @@ def register(tool) -> None:
                   {"nombre": "foco", "tipo": "integer", "requerido": False, "clave": True, "descripcion": "1 = entrada real con foco"}],
           danger=True, timeout_s=300)
     def _app_probar(args, ctx):
+        _asegurar_pantalla()
         comando, o = PC.partir_args(args, _CLAVES)
         try:
             pasos = parsear_pasos(o.get("pasos", ""))
