@@ -142,6 +142,9 @@ AVANZADO: frozenset = frozenset({
     # 2026-09-08: la forja (herramientas propias) y las tareas cotidianas del
     # escritorio propio, por el mismo criterio que /pruebas y /escritorio.
     "/forja", "/cotidiano",
+    # 2026-09-10: el taller (Blender/Godot en la mesa) y el cierre de
+    # programas al acabar la tarea, por el mismo criterio.
+    "/taller", "/cierre",
     "/compilar",
     "/activar", "/agente estado", "/analiticas", "/aprende-repo", "/aprender", "/aprendiendo",
     "/aprendiendo-buscar", "/autoprueba", "/backup", "/bloquear", "/buscar-memoria",

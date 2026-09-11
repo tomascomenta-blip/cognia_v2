@@ -4298,6 +4298,11 @@ try:
     from cognia.agent import taller_tools as _taller_tools
     if _taller_tools.encendido():
         os.environ["COGNIA_TALLER"] = "1"
+        try:
+            from cognia.harness.config_resuelta import marcar_sembrada as _ms_taller
+            _ms_taller("COGNIA_TALLER")     # la env la puso ESTE modulo, no el usuario
+        except Exception:
+            pass
         _taller_tools.register(tool)
         for _t in list(TOOLS):
             if flag_de_optin(_t) == "COGNIA_TALLER":

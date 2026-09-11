@@ -217,6 +217,14 @@ CATEGORIAS: tuple = (
      "tools": ("abrir_en_escritorio", "recordatorio", "cotidiano_estado"),
      "prefijos": ("correo_", "documento_", "calendario_")},
 
+    {"id": "taller", "nombre": "Taller: Blender y Godot",
+     "color": "#e87d0d", "color_osc": "#ffa64d", "icono": "monitor",
+     # El taller (2026-09-10, agent/taller_tools.py): Blender con referencias
+     # de internet y Godot, en la mesa; y programa_mantener (cierre_programas),
+     # que decide que queda abierto al acabar la tarea.
+     "tools": ("taller_estado", "programa_mantener"),
+     "prefijos": ("blender_", "godot_")},
+
     {"id": "ejecucion", "nombre": "Ejecutar y procesos",
      "color": "#e44d26", "color_osc": "#ff7755", "icono": "terminal",
      "tools": ("ejecutar", "ejecutar_fondo", "ejecutar_guion", "ver_salida", "matar_proceso",

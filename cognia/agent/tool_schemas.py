@@ -253,7 +253,9 @@ _SIN_ARGS = ("fecha", "notas", "git_estado", "git_log", "tarea_estado",
              # Tareas cotidianas (2026-09-08): el diagnostico no lleva args.
              "cotidiano_estado",
              # Mesa / segundo puesto (2026-09-08): el estado no lleva args.
-             "mesa_estado")
+             "mesa_estado",
+             # Taller (2026-09-10): escena, cierre de Godot y estado sin args.
+             "blender_escena", "godot_cerrar", "taller_estado")
 
 
 def _descripcion_de(doc: str) -> str:

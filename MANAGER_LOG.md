@@ -16370,3 +16370,14 @@ ayuda/mesa: 129 passed (los 2 de ayuda que fallaban por la categoría desbordada
 
 **Programado:** tarea de Windows `CogniaApagado0630` (ONCE 11/09/2026 06:30 → `shutdown /s /t 120`),
 despertador de sesión a las 04:00 por si algo se quedaba a medias.
+**Suite completa (2026-09-11 00:05, 36 min):** 61 failed / 15235 passed / 12 skipped. De los 61, NUEVE
+eran de este cambio y quedan arreglados en el commit siguiente: 4 de `test_catalogo_nodos` (las 15 tools
+nuevas caían en "Otros" → cajón "Taller: Blender y Godot"), `test_cli_visibilidad` (/taller y /cierre sin
+cubo → AVANZADO), `test_firmas_tipadas` (blender_escena/godot_cerrar/taller_estado sin args → `_SIN_ARGS`),
+2 de `test_harness_ayuda` (categoría 26 > 25) y `test_harness_config_resuelta` (COGNIA_TALLER sin
+`marcar_sembrada`). Los otros 52 fallan igual en HEAD~1 (comprobado en worktree para los tres dudosos:
+`system_agente_nativo_no_engorda` 2962 < 2600, `core_tools_solo_crece` 18 == 14, `adaptive_prompt`):
+crónicos preexistentes, sin relación. Dirigidos tras el arreglo: 229 passed, 3 skipped.
+**Instalado en `~/.cognia/venv`:** wheel `cognia_ai-4.33.0` (`pip install --no-deps --force-reinstall`);
+tecleado en el REPL instalado desde fuera del repo: `/taller estado` (Blender 5.2.1 LTS, Godot 4.7.2, MCP
+en ~/.cognia/mcp.json), `/cierre estado` (auto), `/ayuda taller`: los tres responden.
