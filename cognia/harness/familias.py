@@ -86,7 +86,7 @@ FAMILIAS = {
         "nombres": ("probar", "pruebas_estado", "diff_texto", "sql_probar", "py_lint",
                     "py_importar", "py_perfilar", "py_cobertura", "http_solicitud",
                     "puerto_esperar", "esperar_fichero", "consola_sesion", "tui_probar",
-                    "medios_estado"),
+                    "medios_estado", "programa_mantener"),
         "cargar": _carga_modulo("cognia.agent.pruebas_tools"), "peligrosa": True,
         # Viene ENCENDIDA por defecto (2026-09-07): probar lo que uno hizo es
         # parte de hacerlo. Se apaga con /pruebas off o COGNIA_PRUEBAS=0.
@@ -104,6 +104,14 @@ FAMILIAS = {
         "nombres": ("abrir_en_escritorio", "recordatorio", "cotidiano_estado"),
         "cargar": _carga_modulo("cognia.agent.cotidiano_tools"), "peligrosa": True,
         # Encendida por defecto (config `cotidiano_tools`, 2026-09-08).
+    },
+    "taller": {
+        "que": "Blender con referencias de internet (varios ángulos) y Godot, en la mesa",
+        "flag": "COGNIA_TALLER",
+        "prefijos": ("blender_", "godot_"),
+        "nombres": ("taller_estado",),
+        "cargar": _carga_modulo("cognia.agent.taller_tools"), "peligrosa": True,
+        # Encendida por defecto (config `taller_tools`, 2026-09-10).
     },
     "pantalla": {
         "que": "ver la pantalla, mover el ratón, teclear y pulsar teclas",

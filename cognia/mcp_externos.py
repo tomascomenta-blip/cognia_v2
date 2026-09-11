@@ -306,14 +306,38 @@ class ClienteStdio:
             if bloque.get("type") == "text":
                 partes.append(bloque.get("text", ""))
             elif bloque.get("type") == "image":
-                partes.append(f"[imagen {bloque.get('mimeType', '?')}, "
-                              f"{len(bloque.get('data', ''))} bytes en base64]")
+                # Una imagen en base64 no le sirve de nada al modelo como
+                # texto: se guarda en disco y se devuelve la RUTA, que es lo
+                # que captura_describir / vlm_mirar / el movil pueden abrir
+                # (blender.get_viewport_screenshot, playwright screenshots).
+                partes.append(_guardar_imagen(bloque, herramienta))
         texto = "\n".join(partes) if partes else json.dumps(resultado)[:2000]
         # isError es del protocolo: un fallo de la tool NO es un fallo del
         # transporte, pero el llamador tiene que poder distinguirlo.
         if resultado.get("isError"):
             return f"ERROR de la herramienta '{herramienta}': {texto}"
         return texto
+
+
+def _guardar_imagen(bloque: dict, herramienta: str) -> str:
+    """Bloque MCP {type: image, data: b64, mimeType} -> fichero en
+    ~/.cognia/mcp_imagenes/. Devuelve la linea que ve el modelo."""
+    import base64
+    import time as _t
+    mime = bloque.get("mimeType", "image/png")
+    ext = {"image/jpeg": ".jpg", "image/jpg": ".jpg", "image/webp": ".webp"}.get(mime, ".png")
+    datos = bloque.get("data", "")
+    try:
+        carpeta = os.path.join(os.path.expanduser("~"), ".cognia", "mcp_imagenes")
+        os.makedirs(carpeta, exist_ok=True)
+        nombre = "%s_%s%s" % (herramienta[:24], _t.strftime("%Y%m%d_%H%M%S"), ext)
+        ruta = os.path.join(carpeta, nombre)
+        with open(ruta, "wb") as fh:
+            fh.write(base64.b64decode(datos))
+        return f"[imagen {mime} guardada en {ruta}]"
+    except Exception as exc:
+        return (f"[imagen {mime}, {len(datos)} bytes en base64; no se pudo "
+                f"guardar: {type(exc).__name__}: {exc}]")
 
 
 # ── Descubrimiento: de donde salen los servidores ───────────────────────
@@ -328,6 +352,12 @@ def _appdata(*partes: str) -> str:
 
 
 ORIGENES = [
+    # Los servidores PROPIOS de Cognia van primero: si el mismo nombre esta
+    # tambien en otro cliente, gana la config que el dueno escribio para
+    # Cognia. Aqui viven blender y godot (el taller, 2026-09-10).
+    {"cliente": "Cognia",
+     "ruta": os.path.expanduser("~/.cognia/mcp.json"),
+     "forma": "plano"},
     {"cliente": "Claude Code",
      "ruta": os.path.expanduser("~/.claude.json"),
      "forma": "claude_code"},

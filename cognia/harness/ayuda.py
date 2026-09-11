@@ -362,6 +362,10 @@ CATEGORIAS: dict[str, tuple[str, ...]] = {
         # 2026-09-08: /forja (herramientas propias verificadas) y /cotidiano
         # (tareas del dia a dia en el escritorio propio): mandos del arnes.
         "/forja", "/cotidiano",
+        # 2026-09-10: /taller (Blender/Godot en la mesa) y /cierre (que
+        # programas se cierran al acabar): mandos del arnes por el mismo
+        # criterio. Sin esta linea "Agente y tareas" quedaba en 26 > 25.
+        "/taller", "/cierre",
         # /deshacer-borrado (papelera del agente, 2026-08-25) va JUNTO a
         # /deshacer, que es su hermano: uno revierte lo que el agente
         # ESCRIBIO y el otro saca de la papelera lo que BORRO. Sin esta

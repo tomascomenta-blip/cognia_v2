@@ -16304,3 +16304,69 @@ preexistente sin relacion (mismo de siempre, reconfirmado con `git stash`).
 
 **Publicacion:** version 4.32.5 en pyproject.toml; wheel a PyPI con autorizacion explicita del dueño
 ("publicalo a pypi"); `~/.cognia/venv` actualizado a 4.32.5 en la misma sesion.
+
+## 2026-09-10/11 — 4.33.0: el TALLER (Blender con referencias de internet + Godot) y el CIERRE de programas
+
+Pedido del dueño (se fue a dormir; sesión 100% autónoma): "que Cognia en su monitor pueda construir
+cosas en Blender mediante imágenes de referencia que sacaría de internet, con diferentes ángulos del
+personaje; instala Blender y el MCP; que pueda programar en Godot; y que siempre que acabe una tarea
+cierre los programas si ELLA ya no los necesita pero los mantenga si el usuario sí".
+
+**Instalado en la máquina (todo sin admin):** Blender 5.2.1 LTS portable en
+`%LOCALAPPDATA%\Programs\Blender\` (el MSI de winget se quedó colgado en un UAC `consent.exe` que nadie
+iba a aceptar: matado por PID y sustituido por el zip oficial); blender-mcp 1.9.1 (`uv tool install`,
+addon en `~/.cognia/mcp/blender_addon.py`, `DISABLE_TELEMETRY=1` porque el servidor sube capturas si
+el usuario "consiente"); Godot 4.7.2 (winget, portable); godot-mcp (Coding-Solo) clonado y compilado en
+`~/.cognia/mcp/godot-mcp`; `ddgs` en venv312 y en `~/.cognia/venv`. Config MCP en `~/.cognia/mcp.json`
+(origen "Cognia", PRIMERO en `ORIGENES` de `mcp_externos.py`) y también en `~/.claude.json`.
+Los dos MCP conectan por stdio (godot 14 tools en 0,2 s; blender 28 tools en 4 s).
+
+**Entregado en el repo:**
+- `cognia/agent/taller_tools.py` — familia `blender_*` (abrir en la mesa con el addon registrado vía
+  `--python`, referencias por ángulo frente/lado/atrás/hoja con ddgs → planos en la colección
+  'Referencias', código bpy, escena, ver viewport/render workbench con cámara automática, guardar,
+  exportar glb/fbx/obj/stl, cerrar guardando) y `godot_*` (proyecto mínimo 2d/3d, verificar con
+  `--check-only` por script + carga headless de la escena, correr headless o en la mesa, abrir editor,
+  cerrar) + `taller_estado` con la GUIA del flujo. Flag COGNIA_TALLER, config `taller_tools`, puerta
+  `/taller` (estado|on|off|blender|referencias|ver|godot|verificar|correr|editor|cerrar).
+- `cognia/agent/cierre_programas.py` — al terminar cada tarea (hook en `_run_agent_task_cuerpo`, solo
+  nivel superior) cierra lo que Cognia lanzó EN ESA tarea y ya no necesita; mantiene lo marcado con la
+  tool `programa_mantener`, lo que la petición pedía abrir/ver/dejar abierto, y lo que el usuario se
+  llevó a su escritorio. Hooks `HOOKS_ANTES[exe]` (Blender guarda antes). Políticas auto|siempre|nunca,
+  config `cierre_programas`, puerta `/cierre`.
+- `mcp_externos.llamar`: las imágenes que devuelve un MCP se guardan en `~/.cognia/mcp_imagenes/` y el
+  modelo recibe la RUTA (antes: "[imagen ..., N bytes en base64]", inútil).
+- `/taller` y `/cierre` en `_CMD_DESCRIPTIONS`, ayuda larga, y como mandos del arnés en
+  `harness/ayuda.py` (sin eso "Agente y tareas" quedaba en 26 > 25).
+
+**Sondas reales sin modelo (salida real):** `blender_abrir` 5,3 s → "MCP conectado en el puerto 9876";
+`blender_referencias Pikachu | n=1` 7,0 s → 4 imágenes (frente/lado/atras/hoja) "colocadas en Blender
+como planos: Ref_frente_1, Ref_lado_1, Ref_atras_1, Ref_hoja_1" (visto en la captura del viewport);
+`blender_ver frente` 2,2 s → render workbench 800x600; `blender_exportar ...glb` → 83.812 bytes;
+`blender_cerrar` → "guardado en ...pikachu_bloque.blend; a1 cerrada (WM_CLOSE)". Godot:
+`godot_verificar` con un `roto.gd` inyectado → "SCRIPT ERROR: Parse Error: Identifier "sin_declarar"
+not declared ... at: GDScript::reload (res://roto.gd:3)"; `godot_correr | segundos=3` → exit 0,
+"Main listo: Prueba Cognia".
+
+**Tareas humanas con el modelo REAL (`scripts/e2e_taller.py`, Qwen3.8-27B, postcondición en disco /
+escritorio):** 5/5 en dos corridas:
+- godot-pong (1363 s): proyecto en el workspace con pelota que rebota, `verificar` 0 errores,
+  "[detail]Programas: cerré ... (a3)" (cerró el juego que había abierto en la mesa).
+- blender-taza (229 s): `taza.blend` 122.086 bytes y `taza.glb` 86.792 bytes en el workspace; y
+  "blender cerrado al acabar (ya no lo necesitaba)" OK.
+- referencias (743 s): 8 imágenes de Mario Bros por ángulo en `~/.cognia/taller/referencias/mario_bros/`
+  (la frontal es el render oficial); cerró el Blender que abrió para colocarlas.
+- calculadora (45 s): "dejé abierto Calculadora: el usuario pidio abrirlo/verlo" — se mantuvo.
+Bug cazado por la primera corrida (godot-pong FAIL): un nombre pelado de proyecto iba a
+`~/.cognia/taller/godot` porque el agente real no pone `ctx["workspace"]`, y el modelo escribía
+`main.gd` en el workspace: dos mitades. Fix: `bases_relativas()`; test de regresión
+`test_nombre_pelado_sin_ctx_workspace_va_al_workspace_del_agente`. Segundo bug: el plano 'hoja' con
+Z=-45° quedaba de canto en la vista por defecto (+45°).
+
+**Tests:** `tests/test_taller.py` (25 + 2 e2e opt-in) y `tests/test_cierre_programas.py` (20 + 1 e2e
+real con el Bloc de notas en la mesa): con COGNIA_E2E_TALLER=1 → 47 passed. Dirigidos de MCP/familias/
+ayuda/mesa: 129 passed (los 2 de ayuda que fallaban por la categoría desbordada, arreglados; el de
+`probar sin ventana` falla también en HEAD limpio). Suite completa: ver línea siguiente.
+
+**Programado:** tarea de Windows `CogniaApagado0630` (ONCE 11/09/2026 06:30 → `shutdown /s /t 120`),
+despertador de sesión a las 04:00 por si algo se quedaba a medias.

@@ -3350,6 +3350,8 @@ _CMD_DESCRIPTIONS = {
     "/escritorio":      "El ESCRITORIO PROPIO de Cognia (escritorio virtual 'Cognia' donde lanza y prueba apps graficas sin molestar al usuario). Uso: /escritorio [estado | on | off | ir | volver | ventanas | limpiar [borrar] | foco nunca|inactivo|siempre | inactividad <seg> | nombre <texto>]",
     "/mesa":            "La MESA (segundo puesto): puntero virtual + teclado que operan el escritorio propio de Cognia EN PARALELO, sin tocar tu raton/teclado, con una pantallita en vivo. Uso: /mesa [estado | ver | pantalla [abrir|cerrar] | ventanas | lanzar <cmd> | clic X Y | invocar <etiqueta> | teclear <texto>]",
     "/forja":           "La FORJA: Cognia se construye herramientas propias (un .py con DOC, PRUEBAS y run), las examina de punta a punta y las registra; con el uso ascienden, se rompen o se retiran. Uso: /forja [estado | lista | plantilla | forjar <ruta.py> | probar <nombre> | retirar <nombre> | candidatas | on | off]",
+    "/taller":          "El TALLER: Blender (con imagenes de referencia de internet desde varios angulos, colocadas como planos) y Godot, en la mesa. Uso: /taller [estado | on | off | blender [fichero] | referencias <personaje> | ver [angulo] | godot <proyecto> | cerrar]",
+    "/cierre":          "Cierre de programas al acabar cada tarea: Cognia cierra lo que abrio y ya no necesita; mantiene lo que el usuario pidio ver o marco el agente (programa_mantener). Uso: /cierre [estado | auto | siempre | nunca]",
     "/cotidiano":       "Tareas COTIDIANAS en el escritorio propio de Cognia: escribir un documento (Word/Bloc de notas), mandar y leer correo (Outlook), citas en el calendario, abrir ficheros/URLs/apps. Uso: /cotidiano [estado | on | off | tools | correo <para> | asunto=... | cuerpo=... | documento <ruta> | texto=... | abrir <ruta|url|app>]",
     "/pegado":          "Pastes largos del prompt colapsados a '[pegado #N: +X lineas]' (se expanden al enviar). Uso: /pegado [lista | N | on | off | umbral <lineas> [<chars>]]",
     "/enlaces":         "Rutas de fichero clicables (hyperlink OSC 8 file://) en el render de tools y /offload. Uso: /enlaces [estado | on | off]",
@@ -3578,6 +3580,30 @@ _CMD_DETAILS = {
         "salen del equipo (correo_enviar) son peligrosas: piden confirmacion salvo en modo bypass. "
         "`/cotidiano correo <para> | asunto=... | cuerpo=...`, `/cotidiano documento <ruta> | "
         "texto=...` y `/cotidiano abrir <x>` tecleadas a mano usan las mismas tools."),
+    "/taller": (
+        "El TALLER (cognia/agent/taller_tools.py, 2026-09-10): Blender y Godot para el agente, en la "
+        "MESA. Blender: blender_abrir (Blender en la mesa con el addon blender-mcp y el MCP conectado), "
+        "blender_referencias <personaje> (busca en internet frente/lado/atras/hoja de modelo, las baja a "
+        "~/.cognia/taller/referencias/ y las coloca como planos de referencia en la escena), "
+        "blender_codigo <bpy> (ejecuta Python dentro de Blender), blender_escena, blender_ver "
+        "[viewport|frente|lado|atras|arriba|perspectiva] (captura del viewport o render workbench limpio "
+        "con camara automatica), blender_guardar, blender_exportar <.glb|.fbx|.obj|.stl>, blender_cerrar. "
+        "Godot 4: godot_proyecto <nombre> [tipo=3d] (proyecto minimo que corre), godot_verificar "
+        "(parsea cada .gd y carga la escena principal sin ventana), godot_correr [segundos=|ventana=1] "
+        "(salida y errores), godot_abrir (editor en la mesa), godot_cerrar. Los MCP oficiales (blender-mcp "
+        "de ahujasid, godot-mcp de Coding-Solo) estan en ~/.cognia/mcp.json y tambien se alcanzan con "
+        "`mcp blender | ...` / `mcp godot | ...`. Config: taller_tools (on/off), taller_blender / "
+        "taller_godot (rutas), env COGNIA_TALLER, COGNIA_BLENDER_EXE, COGNIA_GODOT_EXE. Diagnostico: "
+        "/taller estado (rutas, versiones, socket 9876, ultimo fallo)."),
+    "/cierre": (
+        "CIERRE DE PROGRAMAS al acabar la tarea (cognia/agent/cierre_programas.py, 2026-09-10). Al "
+        "terminar cada tarea del agente, Cognia cierra los programas que ELLA abrio en esa tarea "
+        "(app_lanzar, mesa_lanzar, blender_abrir, godot_abrir, abrir_en_escritorio) si ya no los "
+        "necesita, y MANTIENE los que el usuario si quiere: los que la peticion pedia abrir/mostrar/dejar "
+        "abiertos, los que el agente marco con programa_mantener, y los que el usuario se llevo a su "
+        "escritorio. Nunca toca ventanas que no lanzo Cognia. Antes de cerrar Blender guarda el .blend "
+        "(hook HOOKS_ANTES, punto de extension). Politicas: auto (defecto), siempre, nunca. Config "
+        "cierre_programas, env COGNIA_CIERRE_PROGRAMAS."),
     "/escritorio": (
         "ESCRITORIO PROPIO de Cognia (cognia/agent/escritorio_propio.py, 2026-09-07): un "
         "escritorio virtual de Windows llamado 'Cognia' (los de Win+Ctrl+D). Las apps que el "
@@ -4990,6 +5016,84 @@ def _slash_pruebas(arg: str = "") -> None:
         _print_line(_pt.ayuda(v.split(None, 1)[1] if " " in v else ""))
         return
     _print_line("[warn_cl]Uso: /pruebas [estado | on | off | tools [tema]][/warn_cl]")
+
+
+def _slash_taller(arg: str = "") -> None:
+    """`/taller`: estado, on/off y atajos a las tools de Blender/Godot (config `taller_tools`)."""
+    from cognia.agent.tools import run_tool as _rt
+    v = (arg or "").strip()
+    partes = v.split(None, 1)
+    op = partes[0].lower() if partes else "estado"
+    resto = partes[1] if len(partes) > 1 else ""
+    if op == "estado":
+        cfg = _load_config()
+        _print_line(f"[ok_cl]taller: {'ON' if cfg.get('taller_tools', True) else 'OFF'} en config[/ok_cl] "
+                    f"[info_dim]· env COGNIA_TALLER={os.environ.get('COGNIA_TALLER', '(sin poner)')} · "
+                    f"/taller on|off · blender [fichero] · referencias <personaje> · ver [angulo] · "
+                    f"godot <proyecto> · cerrar[/info_dim]")
+        _print_line(_escape(_rt("taller_estado", "", {})))
+        return
+    if op in ("on", "off"):
+        cfg = _load_config()
+        cfg["taller_tools"] = (op == "on")
+        _save_config(cfg)
+        os.environ["COGNIA_TALLER"] = "1" if op == "on" else "0"
+        if op == "on":
+            from cognia.harness import familias as _fam
+            r = _fam.activar("taller")
+            if not r.get("ok"):
+                _aviso_degradado("taller", r.get("detalle", "no cargo"))
+            _print_line(f"[ok_cl]taller ON[/ok_cl] [info_dim]· {_escape(r.get('detalle', ''))}[/info_dim]")
+        else:
+            _print_line("[ok_cl]taller OFF[/ok_cl] [info_dim]· las tools ya cargadas se van al reiniciar; "
+                        "blender_*/godot_* responden DESHABILITADA[/info_dim]")
+        return
+    atajos = {"blender": ("blender_abrir", resto), "referencias": ("blender_referencias", resto),
+              "ver": ("blender_ver", resto), "codigo": ("blender_codigo", resto),
+              "escena": ("blender_escena", ""), "guardar": ("blender_guardar", resto),
+              "exportar": ("blender_exportar", resto), "godot": ("godot_proyecto", resto),
+              "verificar": ("godot_verificar", resto), "correr": ("godot_correr", resto),
+              "editor": ("godot_abrir", resto)}
+    if op == "cerrar":
+        _print_line(_escape(_rt("blender_cerrar", resto, {})))
+        _print_line(_escape(_rt("godot_cerrar", "", {})))
+        return
+    if op in atajos:
+        nombre, a = atajos[op]
+        if nombre in ("blender_referencias", "godot_proyecto", "godot_verificar", "godot_correr",
+                      "godot_abrir", "blender_exportar", "blender_codigo") and not a:
+            _print_line(f"[warn_cl]/taller {op} necesita un argumento[/warn_cl]")
+            return
+        _print_line(_escape(_rt(nombre, a, {"workspace": os.getcwd()})))
+        return
+    _print_line("[warn_cl]Uso: /taller [estado | on | off | blender [fichero] | referencias <personaje> | "
+                "ver [angulo] | codigo <bpy> | escena | guardar [ruta] | exportar <ruta> | godot <proyecto> | "
+                "verificar <proyecto> | correr <proyecto> | editor <proyecto> | cerrar][/warn_cl]")
+
+
+def _slash_cierre(arg: str = "") -> None:
+    """`/cierre`: politica de cierre de programas al acabar la tarea (config `cierre_programas`)."""
+    from cognia.agent import cierre_programas as _cp
+    v = (arg or "").strip().lower()
+    if v in ("", "estado"):
+        cfg = _load_config()
+        u = _cp.ultimo()
+        _print_line(f"[ok_cl]cierre de programas: {_cp.politica()}[/ok_cl] [info_dim]· config "
+                    f"cierre_programas={cfg.get('cierre_programas', '(auto)')} · env COGNIA_CIERRE_PROGRAMAS="
+                    f"{os.environ.get('COGNIA_CIERRE_PROGRAMAS', '(sin poner)')} · /cierre auto|siempre|nunca[/info_dim]")
+        if u.get("ts"):
+            _print_line(f"[info_dim]  ultima tarea: {_escape(_cp.texto(u) or 'no habia nada que cerrar')}[/info_dim]")
+        else:
+            _print_line("[info_dim]  aun no cerro nada en esta sesion[/info_dim]")
+        return
+    if v in _cp.POLITICAS:
+        cfg = _load_config()
+        cfg["cierre_programas"] = v
+        _save_config(cfg)
+        os.environ["COGNIA_CIERRE_PROGRAMAS"] = v
+        _print_line(f"[ok_cl]cierre de programas: {v}[/ok_cl]")
+        return
+    _print_line("[warn_cl]Uso: /cierre [estado | auto | siempre | nunca][/warn_cl]")
 
 
 def _slash_forja(arg: str = "") -> None:
@@ -24421,6 +24525,10 @@ def _repl_sesion():
                 _slash_forja(raw[len("/forja "):] if raw.startswith("/forja ") else "")
             elif raw == "/cotidiano" or raw.startswith("/cotidiano "):
                 _slash_cotidiano(raw[len("/cotidiano "):] if raw.startswith("/cotidiano ") else "")
+            elif raw == "/taller" or raw.startswith("/taller "):
+                _slash_taller(raw[len("/taller "):] if raw.startswith("/taller ") else "")
+            elif raw == "/cierre" or raw.startswith("/cierre "):
+                _slash_cierre(raw[len("/cierre "):] if raw.startswith("/cierre ") else "")
             elif raw == "/pegado" or raw.startswith("/pegado "):
                 _slash_pegado(raw[len("/pegado "):] if raw.startswith("/pegado ") else "")
             elif raw == "/enlaces" or raw.startswith("/enlaces "):
@@ -28052,6 +28160,16 @@ def _run_agent_task_cuerpo(ai, task: str, _print_fn, max_steps: int = None,
     # haya bot en contexto (COGNIA_BOT, puesto por registro.contexto). Aca y
     # no al importar tools.py: en el REPL el bot cambia dentro del proceso.
     _bot_ctx = _sincronizar_tools_de_bot()
+    # Cierre de programas (2026-09-10): solo lo lanzado A PARTIR de aqui entra
+    # en el cierre del final de la tarea (nunca lo del usuario ni lo de otra
+    # tarea). Solo en la tarea de nivel superior: un sub-agente no cierra lo
+    # que su padre sigue usando.
+    if delegation_depth == 0:
+        try:
+            from cognia.agent import cierre_programas as _cierre
+            _cierre.empezar_tarea(task)
+        except Exception as _exc:
+            _aviso_degradado("cierre_programas.empezar", f"{type(_exc).__name__}: {_exc}")
     # El tope de acciones de pantalla (screen_tools) es un contador de PROCESO
     # que se acumulaba entre tareas: una corrida gastaba el presupuesto de la
     # siguiente. Se resetea al arrancar cada tarea de nivel superior (no en los
@@ -29423,6 +29541,19 @@ def _run_agent_task_cuerpo(ai, task: str, _print_fn, max_steps: int = None,
                     _print_fn(f"[detail]  + {_e}[/detail]")
         except Exception:
             pass    # la proactividad nunca puede romper la respuesta real
+
+    # Cierre de programas (2026-09-10): al acabar, se cierran los que Cognia
+    # abrio y ya no necesita; se mantienen los que el usuario pidio ver o el
+    # agente marco. Nunca rompe la respuesta; lo que hizo se dice.
+    if delegation_depth == 0:
+        try:
+            from cognia.agent import cierre_programas as _cierre
+            _cerrado = _cierre.al_terminar(task, result_text or "")
+            _linea = _cierre.texto(_cerrado)
+            if _linea:
+                _print_fn(f"[detail]Programas: {_escape(_linea)}[/detail]")
+        except Exception as _exc:
+            _aviso_degradado("cierre_programas.al_terminar", f"{type(_exc).__name__}: {_exc}")
 
     return result_text or "(el agente no produjo una respuesta final)"
 

@@ -393,7 +393,11 @@ def test_los_mandos_del_arnes_tienen_categoria_propia(catalogo):
                  # 2026-09-08: la mesa (segundo puesto con puntero virtual y
                  # pantallita), mando del arnes por el mismo criterio que
                  # /escritorio: sin ponerlo aqui caia en "Otros".
-                 "/mesa")
+                 "/mesa",
+                 # 2026-09-10: el taller (Blender/Godot en la mesa) y el
+                 # cierre de programas al acabar: mandos del arnes; sin esta
+                 # linea "Agente y tareas" quedaba en 26 > 25.
+                 "/taller", "/cierre")
     for cmd in esperados:
         assert cmd in catalogo, cmd
         assert ayuda.clasificar(cmd, catalogo[cmd]) == "Consola y arnes", cmd

@@ -403,6 +403,11 @@ _OPTIN_PREFIJOS = (
     ("docx_", "COGNIA_PRUEBAS"),
     ("xlsx_", "COGNIA_PRUEBAS"),
     ("modelo3d_", "COGNIA_PRUEBAS"),
+    # El TALLER (2026-09-10, cognia/agent/taller_tools.py): Blender con
+    # referencias de internet y Godot, en la mesa. Default ENCENDIDA (config
+    # `taller_tools`), se apaga con COGNIA_TALLER=0 o /taller off.
+    ("blender_", "COGNIA_TALLER"),
+    ("godot_", "COGNIA_TALLER"),
     # Obra por fases (2026-09-07): las tools fases_* se anuncian SOLO mientras
     # corre una obra (el pipeline pone COGNIA_FASES=1); sin el flag el filtro de
     # visibilidad las recortaba aunque el pipeline las pasara en allowed_tools
@@ -421,7 +426,7 @@ _OPTIN_PREFIJOS = (
 PRUEBAS_NOMBRES = ("probar", "pruebas_estado", "diff_texto", "sql_probar", "py_lint",
                    "py_importar", "py_perfilar", "py_cobertura", "http_solicitud",
                    "puerto_esperar", "esperar_fichero", "consola_sesion", "tui_probar",
-                   "medios_estado")
+                   "medios_estado", "programa_mantener")
 _OPTIN_NOMBRES = {
     "repo_a_prompt": "COGNIA_REPO_REVERSE",
     # MCP externos (2026-08-26): la puerta a los servidores MCP que el
@@ -464,6 +469,7 @@ _OPTIN_NOMBRES.update({n: "COGNIA_PRUEBAS" for n in PRUEBAS_NOMBRES})
 # La forja (2026-09-08): `forjar` viene encendida por config `forja` (el env se
 # siembra al importar, abajo); COGNIA_FORJA=0 la apaga y responde DESHABILITADA.
 _OPTIN_NOMBRES["forjar"] = "COGNIA_FORJA"
+_OPTIN_NOMBRES["taller_estado"] = "COGNIA_TALLER"
 _OPTIN_NOMBRES.update({n: "COGNIA_COTIDIANO" for n in ("abrir_en_escritorio", "recordatorio", "cotidiano_estado")})
 
 
@@ -4264,6 +4270,11 @@ if _pruebas_encendido():
     try:
         from cognia.agent import pruebas_tools as _pruebas_tools
         _pruebas_tools.register(tool)
+        # Cierre de programas al acabar la tarea (2026-09-10): la tool
+        # `programa_mantener` viaja con las app_*/mesa_* porque es a lo que
+        # lanzan a lo que se aplica; el cierre en si lo dispara cli.py.
+        from cognia.agent import cierre_programas as _cierre_programas
+        _cierre_programas.register(tool)
         _solo_lectura = ("captura_", "audio_", "video_", "formato_", "pdf_", "docx_", "xlsx_",
                          "modelo3d_", "pagina_")
         for _t in list(TOOLS):
@@ -4276,6 +4287,27 @@ if _pruebas_encendido():
         print(f"[cognia] familia de pruebas no cargo: {_exc}", file=sys.stderr)
 else:
     os.environ["COGNIA_PRUEBAS"] = "0"
+
+
+# ── El TALLER (2026-09-10): Blender + Godot, default ENCENDIDO ───────────
+# Pedido del dueno: "que Cognia en su monitor pueda construir cosas en Blender
+# con imagenes de referencia de internet (varios angulos), y programar en
+# Godot". Familia blender_*/godot_* + taller_estado. Mismo contrato de flag
+# que la familia de pruebas (env manda; si no, config `taller_tools`).
+try:
+    from cognia.agent import taller_tools as _taller_tools
+    if _taller_tools.encendido():
+        os.environ["COGNIA_TALLER"] = "1"
+        _taller_tools.register(tool)
+        for _t in list(TOOLS):
+            if flag_de_optin(_t) == "COGNIA_TALLER":
+                ROLE_TOOLS["implementador"].add(_t)
+                if _t in ("blender_escena", "blender_ver", "godot_verificar", "taller_estado"):
+                    ROLE_TOOLS["investigador"].add(_t)
+    else:
+        os.environ["COGNIA_TALLER"] = "0"
+except Exception as _exc:
+    print(f"[cognia] el taller (blender/godot) no cargo: {_exc}", file=sys.stderr)
 
 
 # ── La FORJA (2026-09-08): default ENCENDIDA ─────────────────────────────
